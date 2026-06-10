@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Offline Field Geology App</title>
+<style>
+  :root{font-family:Arial, sans-serif;color:#17202a;background:#f4f6f7}body{margin:0}header{background:#1f3a5f;color:white;padding:14px 16px}h1{font-size:20px;margin:0}.wrap{max-width:980px;margin:auto;padding:12px}.card{background:white;border-radius:12px;padding:14px;margin:12px 0;box-shadow:0 2px 10px #0001}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}label{font-size:12px;font-weight:700;color:#34495e}input,select,textarea,button{width:100%;box-sizing:border-box;padding:11px;border:1px solid #cfd8dc;border-radius:9px;font-size:15px}textarea{min-height:70px}button{border:0;background:#1f6feb;color:white;font-weight:700;margin-top:8px}.secondary{background:#566573}.danger{background:#c0392b}.ok{background:#1e8449}.warn{background:#fff3cd;border:1px solid #ffeeba;color:#7d6608;padding:9px;border-radius:8px;margin-top:8px}.entry{border-left:5px solid #1f6feb;padding:10px;margin:10px 0;background:#fbfcfc;border-radius:8px}.small{font-size:12px;color:#566573}.fmt{font-weight:700;color:#154360}.rowbtn{display:flex;gap:8px}.rowbtn button{width:auto;flex:1}.pill{display:inline-block;background:#eaf2f8;border-radius:999px;padding:4px 8px;margin:3px;font-size:12px}
+</style>
+</head>
+<body>
+<header><h1>Offline Field Geology – Structural Data Logger</h1><div class="small" style="color:#d6eaf8">Bedding • Foliation • Joints • Faults • Lineation • Fold Axis • Veins</div></header>
+<div class="wrap">
+  <div class="card">
+    <div class="grid">
+      <div><label>Date</label><input id="date" type="date"></div>
+      <div><label>Location</label><input id="loc" placeholder="Village/section/outcrop"></div>
+      <div><label>Latitude</label><input id="lat" placeholder="30.123456"></div>
+      <div><label>Longitude</label><input id="lon" placeholder="77.123456"></div>
+      <div><label>Lithology</label><input id="lith" placeholder="Quartzite/phyllite/dolomite"></div>
+      <div><label>Unit / Formation</label><input id="unit" placeholder="Deoban/Jaunsar/Dharagad/Jutogh"></div>
+      <div><label>Structure Type</label><select id="type"><option>Bedding</option><option>Foliation</option><option>Joint</option><option>Fault</option><option>Shear zone</option><option>Lineation</option><option>Fold axis</option><option>Vein</option></select></div>
+      <div><label>Strike / Trend (°)</label><input id="strike" type="number" min="0" max="360" placeholder="045"></div>
+      <div><label>Dip / Plunge (°)</label><input id="dip" type="number" min="0" max="90" placeholder="35"></div>
+      <div><label>Dip Direction</label><select id="dipdir"><option></option><option>N</option><option>NE</option><option>E</option><option>SE</option><option>S</option><option>SW</option><option>W</option><option>NW</option></select></div>
+      <div><label>Rake / Pitch (°)</label><input id="rake" type="number" min="0" max="90" placeholder="optional"></div>
+      <div><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
+      <div><label>Photo No.</label><input id="photo" placeholder="P-01"></div>
+      <div><label>Sample No.</label><input id="sample" placeholder="DD-406-A"></div>
+    </div>
+    <label>Remarks</label><textarea id="remarks" placeholder="e.g., crenulated phyllite, quartz vein, malachite staining, slickenside observed"></textarea>
+    <div id="preview" class="warn">Formatted output will appear here.</div>
+    <div class="rowbtn"><button onclick="getGPS()" class="secondary">Get GPS</button><button onclick="saveEntry()" class="ok">Save Entry</button><button onclick="clearForm()" class="secondary">Clear Form</button></div>
+  </div>
+
+  <div class="card">
+    <b>Saved Records</b> <span id="count" class="pill">0</span>
+    <div class="rowbtn"><button onclick="exportCSV()">Export CSV</button><button onclick="exportJSON()" class="secondary">Export JSON</button><button onclick="deleteAll()" class="danger">Delete All</button></div>
+    <div id="list"></div>
+  </div>
+</div>
+<script>
+let records = JSON.parse(localStorage.getItem('field_geo_records')||'[]');
+document.getElementById('date').valueAsDate = new Date();
+const ids=['date','loc','lat','lon','lith','unit','type','strike','dip','dipdir','rake','sense','photo','sample','remarks'];
+ids.forEach(id=>document.getElementById(id).addEventListener('input', updatePreview));
+function pad3(n){ if(n===''||n===null||isNaN(n)) return ''; let x=((Number(n)%360)+360)%360; return String(Math.round(x)).padStart(3,'0')+'°'; }
+function fmt(){
+ const t=val('type'), st=val('strike'), dp=val('dip'), dd=val('dipdir'), rk=val('rake'), se=val('sense');
+ if(['Lineation','Fold axis'].includes(t)) return `${t}: ${pad3(st)} → ${dp?dp+'°':''}${rk?', rake '+rk+'°':''}`;
+ let s=`${t}: ${pad3(st)}/${dp?dp+'°':''}${dd?' '+dd:''}`;
+ if(rk) s+=`, rake ${rk}°`; if(se) s+=`, ${se} movement`; return s;
+}
+function val(id){return document.getElementById(id).value.trim()}
+function validate(){
+ let msg=[]; const st=Number(val('strike')), dp=Number(val('dip')), rk=Number(val('rake'));
+ if(val('strike') && (st<0||st>360)) msg.push('Strike/trend must be 0–360°');
+ if(val('dip') && (dp<0||dp>90)) msg.push('Dip/plunge must be 0–90°');
+ if(val('rake') && (rk<0||rk>90)) msg.push('Rake must be 0–90°');
+ return msg;
+}
+function updatePreview(){ const v=validate(); document.getElementById('preview').innerHTML='<span class="fmt">'+fmt()+'</span>'+ (v.length?'<br>'+v.join('<br>'):''); }
+function saveEntry(){
+ const v=validate(); if(v.length){alert(v.join('\n')); return;}
+ const r={id:Date.now(), formatted:fmt()}; ids.forEach(id=>r[id]=val(id)); records.unshift(r); persist(); clearForm(false); render();
+}
+function clearForm(resetDate=true){ ids.forEach(id=>{ if(id!='date') document.getElementById(id).value=''; }); if(resetDate) document.getElementById('date').valueAsDate=new Date(); updatePreview(); }
+function persist(){localStorage.setItem('field_geo_records',JSON.stringify(records))}
+function render(){
+ document.getElementById('count').textContent=records.length;
+ document.getElementById('list').innerHTML=records.map((r,i)=>`<div class="entry"><div class="fmt">${escapeHTML(r.formatted)}</div><div>${escapeHTML(r.loc)} ${r.unit?' | '+escapeHTML(r.unit):''} ${r.lith?' | '+escapeHTML(r.lith):''}</div><div class="small">${r.date} | Lat ${r.lat||'-'}, Long ${r.lon||'-'} | Photo ${r.photo||'-'} | Sample ${r.sample||'-'}</div><div>${escapeHTML(r.remarks||'')}</div><button class="danger" onclick="del(${r.id})">Delete</button></div>`).join('');
+}
+function del(id){records=records.filter(r=>r.id!==id);persist();render()}
+function deleteAll(){if(confirm('Delete all saved field records?')){records=[];persist();render()}}
+function getGPS(){
+ if(!navigator.geolocation){
+   alert('Geolocation is not supported on this device.');
+   return;
+ }
+
+ const latField=document.getElementById('lat');
+ const lonField=document.getElementById('lon');
+
+ latField.value='Getting GPS...';
+ lonField.value='Getting GPS...';
+
+ navigator.geolocation.getCurrentPosition(
+   function(p){
+     latField.value=p.coords.latitude.toFixed(6);
+     lonField.value=p.coords.longitude.toFixed(6);
+
+     window.lastAccuracy=p.coords.accuracy || '';
+     window.lastAltitude=p.coords.altitude || '';
+
+     updatePreview();
+
+     alert(
+       'GPS captured successfully\\n\\n' +
+       'Latitude: ' + latField.value +
+       '\\nLongitude: ' + lonField.value +
+       '\\nAccuracy: ±' + Math.round(p.coords.accuracy) + ' m'
+     );
+   },
+   function(e){
+     latField.value='';
+     lonField.value='';
+
+     let msg='';
+     switch(e.code){
+       case e.PERMISSION_DENIED:
+         msg='Location permission denied. Allow location access in browser settings.';
+         break;
+       case e.POSITION_UNAVAILABLE:
+         msg='GPS position unavailable.';
+         break;
+       case e.TIMEOUT:
+         msg='GPS request timed out. Move outdoors and try again.';
+         break;
+       default:
+         msg='GPS error: ' + e.message;
+     }
+     alert(msg);
+   },
+   {
+     enableHighAccuracy:true,
+     timeout:30000,
+     maximumAge:0
+   }
+ );
+}
+function exportJSON(){download('field_geology_records.json',JSON.stringify(records,null,2),'application/json')}
+function exportCSV(){
+ const cols=['date','loc','lat','lon','lith','unit','type','strike','dip','dipdir','rake','sense','photo','sample','formatted','remarks'];
+ const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
+ download('field_geology_records.csv',csv,'text/csv');
+}
+function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
+function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
+
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    if(navigator.geolocation){
+      getGPS();
+    }
+  },1000);
+});
+
+updatePreview();render();
+</script>
+</body></html>
