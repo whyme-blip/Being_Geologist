@@ -199,27 +199,7 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.log('Service Worker Error', err));
   });
 }
-    document.getElementById('type').addEventListener('change', function() {
 
-    if (this.value === 'Other') {
-        document.getElementById('customStructureDiv').style.display = 'block';
-    } else {
-        document.getElementById('customStructureDiv').style.display = 'none';
-    }
-
-});document.getElementById('strike').addEventListener('input', function() {
-
-    let strike = parseInt(this.value);
-
-    if (!isNaN(strike)) {
-
-        let dipdir = (strike + 90) % 360;
-
-        document.getElementById('dipdir').value =
-            dipdir.toString().padStart(3, '0');
-    }
-
-});
     // Show custom structure field when "Other" is selected
 document.getElementById('type').addEventListener('change', function() {
 
