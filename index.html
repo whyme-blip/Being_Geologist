@@ -21,7 +21,7 @@
       <div><label>Longitude</label><input id="lon" placeholder="77.123456"></div>
       <div><label>Lithology</label><input id="lith" placeholder="Quartzite/phyllite/dolomite"></div>
       <div><label>Unit / Formation</label><input id="unit" placeholder="Deoban/Jaunsar/Dharagad/Jutogh"></div>
-      <div>
+<div>
 <label>Structure Type</label>
 <select id="type">
 
@@ -55,9 +55,18 @@
 
 </select>
 </div>
+
+<div id="customStructureDiv" style="display:none;">
+<label>Custom Structure</label>
+<input id="customStructure"
+placeholder="Enter Structure Type">
+</div>
       <div><label>Strike / Trend (°)</label><input id="strike" type="number" min="0" max="360" placeholder="045"></div>
       <div><label>Dip / Plunge (°)</label><input id="dip" type="number" min="0" max="90" placeholder="35"></div>
-      <div><label>Dip Direction</label><select id="dipdir"><option></option><option>N</option><option>NE</option><option>E</option><option>SE</option><option>S</option><option>SW</option><option>W</option><option>NW</option></select></div>
+     <div>
+<label>Dip Direction (RHR)</label>
+<input id="dipdir" readonly placeholder="Auto">
+</div>
       <div><label>Rake / Pitch (°)</label><input id="rake" type="number" min="0" max="90" placeholder="optional"></div>
       <div><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
       <div><label>Photo No.</label><input id="photo" placeholder="P-01"></div>
@@ -190,5 +199,52 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.log('Service Worker Error', err));
   });
 }
+    document.getElementById('type').addEventListener('change', function() {
+
+    if (this.value === 'Other') {
+        document.getElementById('customStructureDiv').style.display = 'block';
+    } else {
+        document.getElementById('customStructureDiv').style.display = 'none';
+    }
+
+});document.getElementById('strike').addEventListener('input', function() {
+
+    let strike = parseInt(this.value);
+
+    if (!isNaN(strike)) {
+
+        let dipdir = (strike + 90) % 360;
+
+        document.getElementById('dipdir').value =
+            dipdir.toString().padStart(3, '0');
+    }
+
+});
+    // Show custom structure field when "Other" is selected
+document.getElementById('type').addEventListener('change', function() {
+
+    if (this.value === 'Other') {
+        document.getElementById('customStructureDiv').style.display = 'block';
+    } else {
+        document.getElementById('customStructureDiv').style.display = 'none';
+    }
+
+});
+    // Calculate Dip Direction automatically using Right-Hand Rule
+
+document.getElementById('strike').addEventListener('input', function() {
+
+    let strike = parseInt(this.value);
+
+    if (!isNaN(strike)) {
+
+        let dipdir = (strike + 90) % 360;
+
+        document.getElementById('dipdir').value =
+            dipdir.toString().padStart(3, '0');
+
+    }
+
+});
 </script>
 </body></html>
