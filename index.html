@@ -22,6 +22,16 @@
       <div><label>Altitude (m)</label><input id="alt" readonly></div>
 <div><label>GPS Accuracy (m)</label><input id="accuracy" readonly></div>
       <div><label>Lithology</label><input id="lith" placeholder="Quartzite/phyllite/dolomite"></div>
+      <div>
+<label>Mineralization</label>
+<input id="mineralization"
+placeholder="Pyrite, Chalcopyrite, Malachite">
+</div>
+      <div>
+<label>Alteration</label>
+<input id="alteration"
+placeholder="Silicification, Chloritization">
+</div>
       <div><label>Unit / Formation</label><input id="unit" placeholder="Deoban/Jaunsar/Dharagad/Jutogh"></div>
 <div>
 <label>Structure Type</label>
@@ -88,7 +98,8 @@ placeholder="Enter Structure Type">
 <script>
 let records = JSON.parse(localStorage.getItem('field_geo_records')||'[]');
 document.getElementById('date').valueAsDate = new Date();
-const ids=['date','loc','lat','lon','lith','unit','type','strike','dip','dipdir','rake','sense','photo','sample','remarks'];
+const ids=['date','loc','lat','lon','lith','mineralization',
+'alteration','unit','type','strike','dip','dipdir','rake','sense','photo','sample','remarks'];
 ids.forEach(id=>document.getElementById(id).addEventListener('input', updatePreview));
 function pad3(n){ if(n===''||n===null||isNaN(n)) return ''; let x=((Number(n)%360)+360)%360; return String(Math.round(x)).padStart(3,'0')+'°'; }
 function fmt(){
