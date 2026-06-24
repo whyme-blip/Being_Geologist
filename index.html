@@ -74,7 +74,7 @@ placeholder="Enter Structure Type">
       <div><label>Photo No.</label><input id="photo" placeholder="P-01"></div>
       <div><label>Sample No.</label><input id="sample" placeholder="DD-406-A"></div>
     </div>
-    <label>Remarks</label><textarea id="remarks" placeholder="e.g., crenulated phyllite, quartz vein, malachite staining, slickenside observed"></textarea>
+    <label>Remarks</label>  <button type="button" onclick="startVoiceNote()" class="secondary"> 🎤 Voice Note </button>  <textarea id="remarks" placeholder="e.g., crenulated phyllite, quartz vein, malachite staining, slickenside observed"> </textarea>
     <div id="preview" class="warn">Formatted output will appear here.</div>
     <div class="rowbtn"><button onclick="getGPS()" class="secondary">Get GPS</button><button onclick="saveEntry()" class="ok">Save Entry</button><button onclick="clearForm()" class="secondary">Clear Form</button></div>
   </div>
@@ -227,6 +227,38 @@ document.getElementById('strike').addEventListener('input', function() {
 
     }
 
-});
+}); function startVoiceNote(){
+
+  const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+  if(!SpeechRecognition){
+      alert("Voice recognition not supported.");
+      return;
+  }
+
+  const recognition =
+      new SpeechRecognition();
+
+  recognition.lang = "en-US";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onresult = function(event){
+
+      const text =
+          event.results[0][0].transcript;
+
+      document.getElementById("remarks").value +=
+          " " + text;
+
+      updatePreview();
+
+  };
+
+  recognition.start();
+
+}
 </script>
 </body></html>
