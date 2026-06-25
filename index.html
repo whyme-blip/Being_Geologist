@@ -129,14 +129,7 @@
     background-color: #fff;
     box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.1);
   }
-  
-  input[readonly] {
-    background-color: #eaeded;
-    color: #7f8c8d;
-    cursor: not-allowed;
-  }
 
-  /* Photo Input Action Group Layout */
   .photo-button-group {
     display: flex;
     gap: 6px;
@@ -177,6 +170,7 @@
   .btn-sec { background: var(--secondary); }
   .btn-ok { background: var(--success); }
   .btn-danger { background: var(--danger); }
+  .btn-warn { background: #f39c12; }
   
   .action-row {
     display: grid;
@@ -233,7 +227,67 @@
     font-size: 12px;
     font-weight: 700;
   }
+
+  .confidence-pill {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-block;
+    margin-top: 4px;
+  }
+  .conf-low { background: #fce4d6; color: #c65911; }
+  .conf-mod { background: #fff2cc; color: #7f6000; }
+  .conf-high { background: #e2efda; color: #375623; }
   
+  /* MODAL STYLE SYSTEM */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .modal-overlay.active { opacity: 1; pointer-events: auto; }
+  .modal-window {
+    background: white;
+    width: 95%; max-width: 650px;
+    border-radius: var(--radius);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    overflow: hidden;
+    animation: slideUp 0.3s ease;
+  }
+  .modal-header {
+    background: var(--primary);
+    color: white; padding: 16px;
+    font-weight: 700; font-size: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-close { cursor: pointer; background:none; border:0; color:white; font-size:20px; font-weight:700; width:auto; padding:0; }
+  .modal-body { padding: 20px; max-height: 75vh; overflow-y: auto; }
+  .geo-insight-card {
+    background: #f2f4f4; border-left: 4px solid var(--accent);
+    padding: 14px; margin-bottom: 14px; border-radius: 6px;
+  }
+  .insight-title { font-weight: 700; font-size: 13px; color: var(--primary); margin-bottom: 6px; text-transform: uppercase;}
+  
+  /* NET CONTAINER VISUALS */
+  .net-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #ffffff;
+    padding: 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+
+  @keyframes slideUp { from { transform: translateY(20px); } to { transform: translateY(0); } }
   .hidden { display: none !important; }
 </style>
 </head>
@@ -241,12 +295,11 @@
 
 <header>
   <h1>Offline Structural Data Logger</h1>
-  <div class="header-sub">By Being_Geologist | Bedding • Foliation • Joints • Faults • Lineation • Fold Axis</div>
+  <div class="header-sub">By Being_Geologist | Eigensolver Engine & Schmidt Stereonet Visualizer</div>
 </header>
 
 <div class="wrap">
   <div class="card">
-    
     <!-- SECTION 1: SPATIAL CONTEXT -->
     <div class="section-title">📍 1. Spatial Context & Location</div>
     <div class="grid-layout">
@@ -323,7 +376,6 @@
       
       <div id="customStructureDiv" class="form-group hidden"><label>Custom Structure Name</label><input id="customStructure" placeholder="Enter Type"></div>
 
-      <!-- Planar Row Layout -->
       <div id="planarFields" class="compact-row" style="grid-column: span 2; display: grid;">
         <div class="form-group"><label>Strike (RHR) (°)</label><input id="strike" type="number" min="0" max="360" placeholder="045"></div>
         <div class="form-group">
@@ -335,7 +387,6 @@
         </div>
       </div>
 
-      <!-- Linear Row Layout (Hidden by Default) -->
       <div id="linearFields" class="compact-row hidden" style="grid-column: span 2;">
         <div class="form-group"><label>Trend (°)</label><input id="trend" type="number" min="0" max="360" placeholder="225"></div>
         <div class="form-group"><label>Plunge (°)</label><input id="plunge" type="number" min="0" max="90" placeholder="25"></div>
@@ -377,7 +428,6 @@
       <textarea id="remarks" placeholder="Enter microstructural observations, kinematic markers, or general outcrop annotations..."></textarea>
     </div>
 
-    <!-- LIVE DATA NOTIFIER PANEL -->
     <div id="preview" class="preview-box">
       <span class="fmt-preview">Awaiting input orientation...</span>
     </div>
@@ -389,18 +439,36 @@
     </div>
   </div>
 
-  <!-- SAVED LOG DATA VIEWER BOX -->
+  <!-- SAVED LOG DATA VIEWER BOX WITH SYNTHESIS CONTROLLER -->
   <div class="card">
-    <div class="section-title" style="border-bottom:none; margin-bottom:0; display:flex; justify-content:space-between;">
+    <div class="section-title" style="border-bottom:none; margin-bottom:0; display:flex; justify-content:space-between; align-items:center;">
       <span>📂 Local Repository Logs</span>
       <span id="count" class="pill">0</span>
     </div>
+    
+    <!-- ADVANCED GEOLOGY SYNTHESIS LAUNCH BUTTON -->
+    <button onclick="runStructuralSynthesis()" class="btn-warn" style="margin-bottom: 14px; margin-top:4px;">🔬 Run Stereonet-Based Fold Solver & Plotter</button>
+
     <div class="action-row" style="margin-bottom: 16px;">
-      <button onclick="exportCSV()">📊 Download CSV File</button>
-      <button onclick="exportJSON()" class="btn-sec">🗂️ Download JSON File</button>
-      <button onclick="deleteAll()" class="btn-danger">🗑️ Purge Local Logs</button>
+      <button onclick="exportCSV()">📊 Download CSV</button>
+      <button onclick="exportJSON()" class="btn-sec">🗂️ JSON Export</button>
+      <button onclick="exportGeoJSON()" class="btn-ok">🗺️ GIS GeoJSON Stream</button>
+      <button onclick="deleteAll()" class="btn-danger">🗑️ Purge Logs</button>
     </div>
     <div id="list"></div>
+  </div>
+</div>
+
+<!-- COMPUTE INTERPRETATION MODAL POPUP DISPLAY CONTAINER -->
+<div id="analysisModal" class="modal-overlay">
+  <div class="modal-window">
+    <div class="modal-header">
+      <span>⚙️ Automated Eigensolver & Schmidt Projection Net</span>
+      <button onclick="closeModal()" class="modal-close">&times;</button>
+    </div>
+    <div id="modalBody" class="modal-body">
+       <!-- Content generated dynamically via calculations -->
+    </div>
   </div>
 </div>
 
@@ -500,7 +568,7 @@ function saveEntry(){
   let lCounter = parseInt(localStorage.getItem('locationCounter') || '1');
   localStorage.setItem('locationCounter', lCounter + 1);
 
-  persist();
+  persist(); // Auto-Saves state securely
   clearForm(false);
   updateSampleID();
   updateLocationID();
@@ -561,8 +629,198 @@ function exportCSV(){
   const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
   download('structural_records.csv',csv,'text/csv');
 }
+
+/* INDUSTRY STANDARD STRUCTURAL DATA GEOJSON EXPORTER */
+function exportGeoJSON(){
+  const features = records.filter(r => r.lat && r.lon).map(r => {
+    let latVal = parseFloat(r.lat);
+    let lonVal = parseFloat(r.lon);
+    return {
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [lonVal, latVal] },
+      properties: {
+        location_id: r.locNo,
+        formation: r.unit,
+        structure_type: r.type,
+        strike: r.strike ? parseInt(r.strike) : null,
+        dip: r.dip ? parseInt(r.dip) : null,
+        trend: r.trend ? parseInt(r.trend) : null,
+        plunge: r.plunge ? parseInt(r.plunge) : null,
+        lithology: r.lith,
+        remarks: r.remarks,
+        sample: r.sample,
+        formatted_label: r.formatted
+      }
+    };
+  });
+  const geojson = { type: "FeatureCollection", features: features };
+  download('structural_mapping_layer.geojson', JSON.stringify(geojson,null,2), 'application/geo+json');
+}
+
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
 function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
+
+/* NUMERICAL MATRIX EIGENSOLVER */
+function solveEigenSystem(matrix) {
+  let A = JSON.parse(JSON.stringify(matrix));
+  let V = [[1,0,0],[0,1,0],[0,0,1]];
+  for (let iter = 0; iter < 50; iter++) {
+    let row = 0, col = 1, maxVal = Math.abs(A[0][1]);
+    if (Math.abs(A[0][2]) > maxVal) { maxVal = Math.abs(A[0][2]); row = 0; col = 2; }
+    if (Math.abs(A[1][2]) > maxVal) { maxVal = Math.abs(A[1][2]); row = 1; col = 2; }
+    if (maxVal < 1e-7) break;
+    let p = row, q = col;
+    let phi = 0.5 * Math.atan2(2 * A[p][q], A[q][q] - A[p][p]);
+    let c = Math.cos(phi), s = Math.sin(phi);
+    let Ap = A[p][p], Aq = A[q][q], Apq = A[p][q];
+    A[p][p] = c*c*Ap - 2*s*c*Apq + s*s*Aq;
+    A[q][q] = s*s*Ap + 2*s*c*Apq + c*c*Aq;
+    A[p][q] = A[q][p] = 0;
+    for (let i = 0; i < 3; i++) {
+      if (i !== p && i !== q) {
+        let aip = A[i][p], aiq = A[i][q];
+        A[i][p] = A[p][i] = c * aip - s * aiq;
+        A[i][q] = A[q][i] = s * aip + c * aiq;
+      }
+      let vip = V[i][p], viq = V[i][q];
+      V[i][p] = c * vip - s * viq;
+      V[i][q] = s * vip + c * viq;
+    }
+  }
+  let evals = [A[0][0], A[1][1], A[2][2]];
+  let pairs = evals.map((val, idx) => ({ val, vec: [V[0][idx], V[1][idx], V[2][idx]] }));
+  pairs.sort((a, b) => b.val - a.val);
+  return pairs;
+}
+
+/* NATIVE HTML5 CANVASES SCHMIDT PROJECTION PLOTTER */
+function drawStereonet(poles, beta) {
+  const canvas = document.getElementById('stereonetCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const R = 110; // Primitive net radius boundary 
+  const cx = 125, cy = 125; // Center point layout axis
+
+  ctx.clearRect(0, 0, 250, 250);
+
+  // Draw core circle primitive rim bounds
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 2 * Math.PI);
+  ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 2; ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.stroke();
+
+  // Cardinal labels axis ticks
+  ctx.fillStyle = '#7f8c8d'; ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('N', cx - 4, cy - R - 4); ctx.fillText('S', cx - 4, cy + R + 12);
+  ctx.fillText('W', cx - R - 14, cy + 4); ctx.fillText('E', cx + R + 4, cy + 4);
+
+  // Equal-Area Projection helper converter function
+  function getStereoCoords(x, y, z) {
+    if(z < 0) { x = -x; y = -y; z = -z; } // Lower hemisphere restriction
+    let factor = Math.sqrt(1 / (1 + z));
+    return { px: cx + R * x * factor, py: cy + R * y * factor };
+  }
+
+  // Plot individual data poles (Crimson Markers)
+  poles.forEach(p => {
+    let coords = getStereoCoords(p.x, p.y, p.z);
+    ctx.beginPath(); ctx.arc(coords.px, coords.py, 3, 0, 2 * Math.PI);
+    ctx.fillStyle = '#c0392b'; ctx.fill();
+  });
+
+  // Plot optimized calculated beta fold target (Bright Green Crosshairs)
+  if(beta) {
+    let bCoords = getStereoCoords(beta[0], beta[1], beta[2]);
+    ctx.strokeStyle = '#27ae60'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(bCoords.px - 6, bCoords.py); ctx.lineTo(bCoords.px + 6, bCoords.py); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bCoords.px, bCoords.py - 6); ctx.lineTo(bCoords.px, bCoords.py + 6); ctx.stroke();
+  }
+}
+
+function runStructuralSynthesis() {
+  const s0 = records.filter(r => r.type === 'S0 Bedding' && r.strike && r.dip);
+  const s1 = records.filter(r => r.type === 'S1 Foliation' && r.strike && r.dip);
+  const s2 = records.filter(r => (r.type === 'S2 Foliation' || r.type==='S2 Crenulation Cleavage') && r.strike && r.dip);
+  const fieldAxes = records.filter(r => r.type === 'Fold Axis' && r.trend && r.plunge);
+
+  const activeDataset = s0.length >= 5 ? s0 : (s1.length >= 5 ? s1 : []);
+  const dataLabel = s0.length >= 5 ? 'S0 Bedding' : 'S1 Foliation';
+
+  if (activeDataset.length < 5) {
+     alert(`Insufficient data structure volume (${activeDataset.length}/5 records of S0/S1). Input at least 5 variants to initialize the numerical matrix solver engine.`);
+     return;
+  }
+
+  let M = [[0,0,0],[0,0,0],[0,0,0]];
+  let poleVectors = [];
+
+  activeDataset.forEach(r => {
+     let strikeRad = (parseFloat(r.strike) * Math.PI) / 180;
+     let dipRad = (parseFloat(r.dip) * Math.PI) / 180;
+     let dipDirRad = strikeRad + Math.PI / 2;
+
+     let poleX = Math.sin(dipRad) * Math.cos(dipDirRad + Math.PI);
+     let poleY = Math.sin(dipRad) * Math.sin(dipDirRad + Math.PI);
+     let poleZ = Math.cos(dipRad);
+
+     poleVectors.push({ x: poleX, y: poleY, z: poleZ });
+
+     M[0][0] += poleX * poleX; M[0][1] += poleX * poleY; M[0][2] += poleX * poleZ;
+     M[1][0] += poleX * poleY; M[1][1] += poleY * poleY; M[1][2] += poleY * poleZ;
+     M[2][0] += poleX * poleZ; M[2][1] += poleY * poleZ; M[2][2] += poleZ * poleZ;
+  });
+
+  for(let r=0; r<3; r++) { for(let c=0; c<3; c++) { M[r][c] /= activeDataset.length; } }
+
+  const eigenResults = solveEigenSystem(M);
+  const E1 = eigenResults[0].val, E2 = eigenResults[1].val, E3 = eigenResults[2].val;
+  
+  let betaVec = eigenResults[2].vec;
+  if (betaVec[2] < 0) betaVec = betaVec.map(v => -v);
+
+  let plunge = Math.round((Math.asin(betaVec[2]) * 180) / Math.PI);
+  let trend = Math.round((Math.atan2(betaVec[1], betaVec[0]) * 180) / Math.PI);
+  trend = (trend + 360) % 360;
+
+  let confidence = "Low", confClass = "conf-low";
+  if (activeDataset.length >= 8 && (E2 / E3) >= 3.5) { confidence = "High"; confClass = "conf-high"; }
+  else if (activeDataset.length >= 5 && (E2 / E3) >= 1.8) { confidence = "Moderate"; confClass = "conf-mod"; }
+
+  const dips = activeDataset.map(r => parseInt(r.dip));
+  const dipSpread = Math.max(...dips) - Math.min(...dips);
+
+  let htmlResult = `
+    <div class="net-wrapper">
+       <canvas id="stereonetCanvas" width="250" height="250"></canvas>
+    </div>
+    <div style="margin-bottom:12px; text-align:center;">
+      <span class="confidence-pill ${confClass}">Engine Confidence: ${confidence}</span>
+    </div>
+    <div class="geo-insight-card" style="border-left-color: var(--accent);">
+      <div class="insight-title">🌐 Girdle Best-Fit Solver (&beta;-Axis)</div>
+      <p>Calculated Fold Axis: <span style="font-weight:700; color:var(--accent); font-size:16px;">${plunge}° &rarr; ${pad3(trend)}°</span></p>
+    </div>
+    <div class="geo-insight-card">
+      <div class="insight-title">📊 Profile Geometry Class (Fleuty)</div>
+      <p>Total data logs analyzed: <b>${activeDataset.length}</b>. Interlimb dip variance window spans <b>${dipSpread}°</b>. Profile matches a <b>${dipSpread > 55 ? 'Tight folding framework' : dipSpread > 30 ? 'Open/Close profile' : 'Gentle or Sub-homoclinal set'}</b> configuration.</p>
+    </div>
+  `;
+
+  if (s2.length > 0) {
+     htmlResult += `
+       <div class="geo-insight-card" style="border-left-color: var(--danger);">
+         <div class="insight-title">🔄 Polyphase Overprinting Diagnostic</div>
+         <p>Active <b>S2 Crenulation fabrics</b> overprinting recorded structures. Validates superposed polyphase deformation history ($F_1$ crossed by $F_2$).</p>
+       </div>
+     `;
+  }
+
+  document.getElementById('modalBody').innerHTML = htmlResult;
+  document.getElementById('analysisModal').classList.add('active');
+
+  // Trigger lower-hemisphere visual mapping render cycle immediately
+  setTimeout(() => drawStereonet(poleVectors, betaVec), 50);
+}
+
+function closeModal() { document.getElementById('analysisModal').classList.remove('active'); }
 
 document.getElementById('type').addEventListener('change', function() {
     document.getElementById('customStructureDiv').classList.toggle('hidden', this.value !== 'Other');
@@ -594,7 +852,7 @@ document.getElementById('photoInput').addEventListener('change', function(e) {
 });
 
 function startVoiceNote(){
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const SpeechRecognition = window.SynthesisSpeechRecognition || window.webkitSpeechRecognition;
   if(!SpeechRecognition){ alert("Voice parsing unsupported."); return; }
   const recognition = new SpeechRecognition();
   recognition.lang = "en-US";
