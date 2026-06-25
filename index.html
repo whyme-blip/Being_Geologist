@@ -7,32 +7,288 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1f3a5f">
 <style>
-  :root{font-family:Arial, sans-serif;color:#17202a;background:#f4f6f7}body{margin:0}header{background:#1f3a5f;color:white;padding:14px 16px}h1{font-size:20px;margin:0}.wrap{max-width:980px;margin:auto;padding:12px}.card{background:white;border-radius:12px;padding:14px;margin:12px 0;box-shadow:0 2px 10px #0001}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}label{font-size:12px;font-weight:700;color:#34495e}input,select,textarea,button{width:100%;box-sizing:border-box;padding:11px;border:1px solid #cfd8dc;border-radius:9px;font-size:15px}textarea{min-height:70px}button{border:0;background:#1f6feb;color:white;font-weight:700;margin-top:8px}.secondary{background:#566573}.danger{background:#c0392b}.ok{background:#1e8449}.warn{background:#fff3cd;border:1px solid #ffeeba;color:#7d6608;padding:9px;border-radius:8px;margin-top:8px}.entry{border-left:5px solid #1f6feb;padding:10px;margin:10px 0;background:#fbfcfc;border-radius:8px}.small{font-size:12px;color:#566573}.fmt{font-weight:700;color:#154360}.rowbtn{display:flex;gap:8px}.rowbtn button{width:auto;flex:1}.pill{display:inline-block;background:#eaf2f8;border-radius:999px;padding:4px 8px;margin:3px;font-size:12px}
+  :root {
+    --primary: #1f3a5f;
+    --primary-light: #2c4d75;
+    --accent: #1f6feb;
+    --bg: #f4f6f8;
+    --card-bg: #ffffff;
+    --text: #2c3e50;
+    --text-muted: #7f8c8d;
+    --border: #d5dbdb;
+    --success: #27ae60;
+    --danger: #c0392b;
+    --secondary: #566573;
+    --radius: 10px;
+  }
+  
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.4;
+  }
+  
+  header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    padding: 20px 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    text-align: center;
+  }
+  
+  h1 {
+    font-size: 22px;
+    margin: 0 0 6px 0;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  
+  .header-sub {
+    font-size: 13px;
+    color: #d6eaf8;
+    font-weight: 500;
+  }
+  
+  .wrap {
+    max-width: 1040px;
+    margin: auto;
+    padding: 16px;
+  }
+  
+  .card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.02);
+  }
+  
+  .section-title {
+    font-size: 14px;
+    text-transform: uppercase;
+    color: var(--primary);
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: 14px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #eaeded;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .grid-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .compact-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .triple-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  
+  label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+  
+  input, select, textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 14px;
+    background-color: #fbfcfc;
+    color: var(--text);
+    transition: all 0.2s ease;
+  }
+  
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.1);
+  }
+  
+  input[readonly] {
+    background-color: #eaeded;
+    color: #7f8c8d;
+    cursor: not-allowed;
+  }
+
+  /* Photo Input Action Group Layout */
+  .photo-button-group {
+    display: flex;
+    gap: 6px;
+  }
+  .photo-button-group input {
+    flex: 1;
+  }
+  .photo-trigger-btn {
+    width: auto !important;
+    white-space: nowrap;
+    margin: 0 !important;
+    padding: 0 14px !important;
+    background: var(--secondary);
+    font-size: 13px !important;
+  }
+  
+  button {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 18px;
+    border: 0;
+    background: var(--accent);
+    color: white;
+    font-weight: 700;
+    font-size: 15px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  button:hover { filter: brightness(1.05); }
+  button:active { transform: scale(0.98); }
+  
+  .btn-sec { background: var(--secondary); }
+  .btn-ok { background: var(--success); }
+  .btn-danger { background: var(--danger); }
+  
+  .action-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+  
+  .preview-box {
+    background: #fff9e6;
+    border-left: 4px solid #f39c12;
+    color: #b7950b;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  
+  .fmt-preview {
+    font-weight: 700;
+    font-size: 16px;
+    color: #7d6608;
+    display: block;
+  }
+  
+  .entry {
+    border-left: 4px solid var(--accent);
+    padding: 14px;
+    margin: 12px 0;
+    background: #fbfcfc;
+    border-radius: var(--radius);
+    border: 1px solid #eaeded;
+    border-left-width: 5px;
+  }
+  
+  .fmt-output {
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+  
+  .meta-text {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  
+  .pill {
+    background: #eaf2f8;
+    color: var(--accent);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  
   .hidden { display: none !important; }
 </style>
 </head>
 <body>
+
 <header>
   <h1>Offline Structural Data Logger</h1>
-  <div class="small" style="color:#d6eaf8">By Being_Geologist | Bedding • Foliation • Joints • Faults • Lineation • Fold Axis</div>
+  <div class="header-sub">By Being_Geologist | Bedding • Foliation • Joints • Faults • Lineation • Fold Axis</div>
 </header>
+
 <div class="wrap">
   <div class="card">
-    <div class="grid">
-      <div><label>Date</label><input id="date" type="date"></div>
-      <div><label>Location Prefix</label><input id="locPrefix" value="JU"></div>
-      <div><label>Location No.</label><input id="locNo" readonly></div>
-      <div><label>Location</label><input id="loc" placeholder="Village/section/outcrop"></div>
-      <div><label>Latitude</label><input id="lat" placeholder="30.123456"></div>
-      <div><label>Longitude</label><input id="lon" placeholder="77.123456"></div>
-      <div><label>Altitude (m)</label><input id="alt" readonly></div>
-      <div><label>GPS Accuracy (m)</label><input id="accuracy" readonly></div>
-      <div><label>Lithology</label><input id="lith" placeholder="Quartzite/phyllite/dolomite"></div>
-      <div><label>Mineralization</label><input id="mineralization" placeholder="Pyrite, Chalcopyrite"></div>
-      <div><label>Alteration</label><input id="alteration" placeholder="Silicification, Chloritization"></div>
-      <div><label>Unit / Formation</label><input id="unit" placeholder="Deoban/Jaunsar/Jutogh"></div>
-      
-      <div>
+    
+    <!-- SECTION 1: SPATIAL CONTEXT -->
+    <div class="section-title">📍 1. Spatial Context & Location</div>
+    <div class="grid-layout">
+      <div class="form-group"><label>Date</label><input id="date" type="date"></div>
+      <div class="form-group">
+        <label>Location ID Tracker</label>
+        <div class="compact-row">
+          <input id="locPrefix" value="JU" placeholder="Prefix">
+          <input id="locNo" readonly placeholder="No.">
+        </div>
+      </div>
+      <div class="form-group"><label>Location / Outcrop Desc</label><input id="loc" placeholder="Village / section details"></div>
+    </div>
+    
+    <div class="grid-layout">
+      <div class="form-group">
+        <label>Coordinates Lat / Long</label>
+        <div class="compact-row">
+          <input id="lat" placeholder="Latitude">
+          <input id="lon" placeholder="Longitude">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Elevation & GPS Error</label>
+        <div class="triple-row">
+          <input id="alt" readonly placeholder="Alt (m)" style="grid-column: span 2;">
+          <input id="accuracy" readonly placeholder="± Acc">
+        </div>
+      </div>
+      <div class="form-group"><label>Unit / Formation</label><input id="unit" placeholder="Deoban/Jaunsar/Jutogh"></div>
+    </div>
+
+    <!-- SECTION 2: GEOLOGICAL DATA -->
+    <div class="section-title">⚒️ 2. Lithology & Structural Measurements</div>
+    <div class="grid-layout">
+      <div class="form-group"><label>Lithology</label><input id="lith" placeholder="Quartzite / phyllite / dolomite"></div>
+      <div class="form-group"><label>Mineralization</label><input id="mineralization" placeholder="Pyrite, Chalcopyrite"></div>
+      <div class="form-group"><label>Alteration</label><input id="alteration" placeholder="Silicification, Chloritization"></div>
+    </div>
+
+    <div class="grid-layout" style="background: #f8f9f9; padding: 12px; border-radius: var(--radius); border: 1px dashed var(--border);">
+      <div class="form-group">
         <label>Structure Type</label>
         <select id="type">
           <optgroup label="Planar Structures">
@@ -64,52 +320,86 @@
           <option>Other</option>
         </select>
       </div>
-
-      <div id="customStructureDiv" class="hidden"><label>Custom Structure</label><input id="customStructure" placeholder="Enter Structure Type"></div>
       
-      <!-- Planar Measurements Inputs -->
-      <div id="planarFields" class="grid" style="grid-column: 1 / -1; padding:0; gap:10px;">
-        <div><label>Strike (RHR) (°)</label><input id="strike" type="number" min="0" max="360" placeholder="045"></div>
-        <div><label>Dip (°)</label><input id="dip" type="number" min="0" max="90" placeholder="35"></div>
-        <div><label>Dip Direction</label><input id="dipdir" readonly placeholder="Auto"></div>
+      <div id="customStructureDiv" class="form-group hidden"><label>Custom Structure Name</label><input id="customStructure" placeholder="Enter Type"></div>
+
+      <!-- Planar Row Layout -->
+      <div id="planarFields" class="compact-row" style="grid-column: span 2; display: grid;">
+        <div class="form-group"><label>Strike (RHR) (°)</label><input id="strike" type="number" min="0" max="360" placeholder="045"></div>
+        <div class="form-group">
+          <label>Dip & Dip Direction</label>
+          <div class="compact-row">
+            <input id="dip" type="number" min="0" max="90" placeholder="35">
+            <input id="dipdir" readonly placeholder="Auto">
+          </div>
+        </div>
       </div>
 
-      <!-- Linear Measurements Inputs -->
-      <div id="linearFields" class="grid hidden" style="grid-column: 1 / -1; padding:0; gap:10px;">
-        <div><label>Trend (°)</label><input id="trend" type="number" min="0" max="360" placeholder="225"></div>
-        <div><label>Plunge (°)</label><input id="plunge" type="number" min="0" max="90" placeholder="25"></div>
+      <!-- Linear Row Layout (Hidden by Default) -->
+      <div id="linearFields" class="compact-row hidden" style="grid-column: span 2;">
+        <div class="form-group"><label>Trend (°)</label><input id="trend" type="number" min="0" max="360" placeholder="225"></div>
+        <div class="form-group"><label>Plunge (°)</label><input id="plunge" type="number" min="0" max="90" placeholder="25"></div>
       </div>
+    </div>
 
-      <div><label>Rake / Pitch (°)</label><input id="rake" type="number" min="0" max="90" placeholder="optional"></div>
-      <div><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
-      <div><label>Movement Direction</label><input id="movementDir" placeholder="Top-to-NE, SW-side-down"></div>
-      
-      <!-- Photo Field with Native Camera/Gallery Input Selector -->
-      <div>
-        <label>Photo No. / Image</label>
-        <input id="photo" placeholder="P-01" style="margin-bottom: 4px;">
-        <button type="button" onclick="document.getElementById('photoInput').click()" class="secondary" style="margin-top:0; padding: 6px; font-size: 13px;">
-          📷 Capture / Attach Photo
-        </button>
+    <div class="grid-layout">
+      <div class="form-group"><label>Rake / Pitch (°)</label><input id="rake" type="number" min="0" max="90" placeholder="optional"></div>
+      <div class="form-group"><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
+      <div class="form-group"><label>Kinematic Direction</label><input id="movementDir" placeholder="e.g., Top-to-NE"></div>
+    </div>
+
+    <!-- SECTION 3: MEDIA AND SAMPLES -->
+    <div class="section-title">📦 3. Media & Sample Management</div>
+    <div class="grid-layout">
+      <div class="form-group">
+        <label>Photo Attachment Reference</label>
+        <div class="photo-button-group">
+          <input id="photo" placeholder="Photo Reference Tag">
+          <button type="button" onclick="document.getElementById('photoInput').click()" class="btn-sec photo-trigger-btn">📷 Capture/Attach</button>
+        </div>
         <input type="file" id="photoInput" accept="image/*" style="display:none;">
       </div>
-
-      <div><label>Sample Type</label><select id="sampleType"><option>Rock Sample</option><option>Channel Sample</option><option>Grab Sample</option><option>Chip Sample</option><option>Soil Sample</option><option>Other</option></select></div>
-      <div><label>Sample ID Prefix</label><input id="samplePrefix" value="DD"></div>
-      <div><label>Sample No.</label><input id="sample" readonly></div>
+      <div class="form-group"><label>Sample Type Selection</label><select id="sampleType"><option>Rock Sample</option><option>Channel Sample</option><option>Grab Sample</option><option>Chip Sample</option><option>Soil Sample</option><option>Other</option></select></div>
+      <div class="form-group">
+        <label>Sample ID Auto Tracker</label>
+        <div class="compact-row">
+          <input id="samplePrefix" value="DD">
+          <input id="sample" readonly>
+        </div>
+      </div>
     </div>
-    
-    <label style="margin-top:10px; display:block;">Remarks</label>
-    <button type="button" onclick="startVoiceNote()" class="secondary"> 🎤 Voice Note </button>
-    <textarea id="remarks" placeholder="e.g., microfolds, kinematics, slickenside steps observed"></textarea>
-    
-    <div id="preview" class="warn">Formatted output will appear here.</div>
-    <div class="rowbtn"><button onclick="getGPS()" class="secondary">Get GPS</button><button onclick="saveEntry()" class="ok">Save Entry</button><button onclick="clearForm()" class="secondary">Clear Form</button></div>
+
+    <div class="form-group" style="margin-top: 10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+        <label>Field Remarks & Synthesis</label>
+        <button type="button" onclick="startVoiceNote()" class="btn-sec" style="width:auto; padding:4px 10px; font-size:11px; margin:0;">🎤 Stream Voice Dictation</button>
+      </div>
+      <textarea id="remarks" placeholder="Enter microstructural observations, kinematic markers, or general outcrop annotations..."></textarea>
+    </div>
+
+    <!-- LIVE DATA NOTIFIER PANEL -->
+    <div id="preview" class="preview-box">
+      <span class="fmt-preview">Awaiting input orientation...</span>
+    </div>
+
+    <div class="action-row">
+      <button onclick="getGPS()" class="btn-sec">📡 Sync GPS</button>
+      <button onclick="saveEntry()" class="btn-ok">💾 Save Record</button>
+      <button onclick="clearForm()" class="btn-sec">🔄 Reset Fields</button>
+    </div>
   </div>
 
+  <!-- SAVED LOG DATA VIEWER BOX -->
   <div class="card">
-    <b>Saved Records</b> <span id="count" class="pill">0</span>
-    <div class="rowbtn"><button onclick="exportCSV()">Export CSV</button><button onclick="exportJSON()" class="secondary">Export JSON</button><button onclick="deleteAll()" class="danger">Delete All</button></div>
+    <div class="section-title" style="border-bottom:none; margin-bottom:0; display:flex; justify-content:space-between;">
+      <span>📂 Local Repository Logs</span>
+      <span id="count" class="pill">0</span>
+    </div>
+    <div class="action-row" style="margin-bottom: 16px;">
+      <button onclick="exportCSV()">📊 Download CSV File</button>
+      <button onclick="exportJSON()" class="btn-sec">🗂️ Download JSON File</button>
+      <button onclick="deleteAll()" class="btn-danger">🗑️ Purge Local Logs</button>
+    </div>
     <div id="list"></div>
   </div>
 </div>
@@ -193,7 +483,7 @@ function validate(){
 
 function updatePreview(){ 
   const v=validate(); 
-  document.getElementById('preview').innerHTML='<span class="fmt">'+fmt()+'</span>'+ (v.length?'<br><span style="color:#c0392b">'+v.join('<br>')+'</span>':''); 
+  document.getElementById('preview').innerHTML='<span class="fmt-preview">'+fmt()+'</span>'+ (v.length?'<br><span style="color:#c0392b">'+v.join('<br>')+'</span>':''); 
 }
 
 function saveEntry(){
@@ -236,11 +526,11 @@ function render(){
   document.getElementById('count').textContent=records.length;
   document.getElementById('list').innerHTML=records.map((r,i)=>`
     <div class="entry">
-      <div class="fmt">${escapeHTML(r.formatted)}</div>
-      <div>Loc: <b>${escapeHTML(r.locNo)}</b> (${escapeHTML(r.loc || 'No Desc')}) ${r.unit?' | '+escapeHTML(r.unit):''} ${r.lith?' | '+escapeHTML(r.lith):''}</div>
-      <div class="small">${r.date} | Lat ${r.lat||'-'}, Long ${r.lon||'-'} | Photo ${r.photo||'-'} | Sample ${r.sample||'-'}</div>
-      <div style="font-style:italic; color:#333;">${escapeHTML(r.remarks||'')}</div>
-      <button class="danger" onclick="del(${r.id})" style="width:auto; padding:4px 10px; font-size:12px; margin-top:4px;">Delete</button>
+      <div class="fmt-output">${escapeHTML(r.formatted)}</div>
+      <div style="font-size: 13px;">Loc: <b>${escapeHTML(r.locNo)}</b> (${escapeHTML(r.loc || 'No Desc')}) ${r.unit?' | '+escapeHTML(r.unit):''} ${r.lith?' | '+escapeHTML(r.lith):''}</div>
+      <div class="meta-text">${r.date} | Lat ${r.lat||'-'}, Long ${r.lon||'-'} | Photo ${r.photo||'-'} | Sample ${r.sample||'-'}</div>
+      ${r.remarks ? `<div style="font-style:italic; color:#566573; margin-top:6px; font-size:13px; background:#f2f4f4; padding:6px; border-radius:6px;">${escapeHTML(r.remarks)}</div>` : ''}
+      <button class="btn-danger" onclick="del(${r.id})" style="width:auto; padding:4px 10px; font-size:11px; margin-top:8px; border-radius:6px;">Delete Record</button>
     </div>
   `).join('');
 }
@@ -341,7 +631,6 @@ updatePreview();
 updateSampleID();
 updateLocationID();
 
-// Service Worker Handling Engine
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
