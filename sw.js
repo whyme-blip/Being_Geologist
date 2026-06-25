@@ -1,48 +1,41 @@
-const CACHE_NAME = 'geologger-v3'; // Incremented version to force updates
-
-const urlsToCache = [
+const CACHE_NAME = 'field-geo-logger-v2';
+const ASSETS = [
   './',
   './index.html',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+  './manifest.json'
 ];
 
-// Install stage - caching everything needed for offline use
-self.addEventListener('install', event => {
+// Install Service Worker and cache essential UI components
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS);
+    })
   );
+  self.skipWaiting();
 });
 
-// Activate stage - deletes old caches (e.g., geologger-v2) so your new code shows up instantly
-self.addEventListener('activate', event => {
+// Activate worker and clean up legacy cache builds
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
+    caches.keys().then((keys) => {
       return Promise.all(
-        cacheNames.map(cache => {
-          if (cache !== CACHE_NAME) {
-            console.log('Clearing old cache:', cache);
-            return caches.delete(cache);
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
           }
         })
       );
     })
   );
+  self.clients.claim();
 });
 
-// Fetch stage - serving cached assets offline
-self.addEventListener('fetch', event => {
-  // Guard clause to skip non-http(s) requests (like browser extension tracks)
-  if (!event.request.url.startsWith('http')) {
-    return;
-  }
-
+// Network-first falling back to cache offline pipeline
+self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request);
-      })
+    fetch(event.request).catch(() => {
+      return caches.match(event.request);
+    })
   );
 });
