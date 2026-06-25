@@ -187,7 +187,7 @@ persist();
 clearForm(false);
 
 updateSampleID();
-updateLocationID(); //  
+updateLocationID();  
 
 render();
 
@@ -196,15 +196,15 @@ function clearForm(resetDate=true){
 
  ids.forEach(id => {
 
-   if(
-      id!='date' &&
-      id!='sample' &&
-      id!='samplePrefix'
-      id!='locNo' &&
-      id!='locPrefix'
-   ){
-      document.getElementById(id).value = '';
-   }
+    if(
+       id!='date' &&
+       id!='sample' &&
+       id!='samplePrefix' &&
+       id!='locNo' &&
+       id!='locPrefix'
+    ){
+       document.getElementById(id).value = '';
+    }
 
  });
 
@@ -249,10 +249,10 @@ function getGPS(){
      updatePreview();
 
      alert(
-       'GPS captured successfully\\n\\n' +
+       'GPS captured successfully\n\n' +
        'Latitude: ' + latField.value +
-       '\\nLongitude: ' + lonField.value +
-       '\\nAccuracy: ±' + Math.round(p.coords.accuracy) + ' m'
+       '\nLongitude: ' + lonField.value +
+       '\nAccuracy: ±' + Math.round(p.coords.accuracy) + ' m'
      );
    },
    function(e){
@@ -365,38 +365,42 @@ document.getElementById('strike').addEventListener('input', function() {
 }
   
 function updateSampleID(){
-
-    const prefix =
-        document.getElementById('samplePrefix').value || 'DD';
-
-    const num =
-        parseInt(
-            localStorage.getItem('sampleCounter') || '1'
-        );
-
-    document.getElementById('sample').value =
-        prefix + '-' +
-        String(num).padStart(3,'0');
-
+    const prefix = document.getElementById('samplePrefix').value || 'DD';
+    const num = parseInt(localStorage.getItem('sampleCounter') || '1');
+    document.getElementById('sample').value = prefix + '-' + String(num).padStart(3,'0');
 }
 
-document.getElementById('samplePrefix')
-.addEventListener('input', function(){
-
+document.getElementById('samplePrefix').addEventListener('input', function(){
    this.value = this.value.toUpperCase();
-
    updateSampleID();
-
 });
+
+// ADDED: Missing updateLocationID function
+function updateLocationID(){
+    const prefix = document.getElementById('locPrefix').value || 'JU';
+    const num = parseInt(localStorage.getItem('locationCounter') || '1');
+    document.getElementById('locNo').value = prefix + '-' + String(num).padStart(3,'0');
+}
+
+// ADDED: Missing listener for Location Prefix
+document.getElementById('locPrefix').addEventListener('input', function(){
+   this.value = this.value.toUpperCase();
+   updateLocationID();
+});
+
 if(!localStorage.getItem('sampleCounter')){
    localStorage.setItem('sampleCounter','1');
 }
+if(!localStorage.getItem('locationCounter')){
+   localStorage.setItem('locationCounter','1');
+}
 
-console.log("Sample ID script loaded");
+console.log("Scripts loaded successfully");
   
 render();
 updatePreview();
 updateSampleID();
+updateLocationID(); // Initial load run
 
 </script>
 </body>
