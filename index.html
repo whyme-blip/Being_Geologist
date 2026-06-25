@@ -165,21 +165,20 @@ function saveEntry(){
 }
 function clearForm(resetDate=true){
 
- ids.forEach(id=>{
+ ids.forEach(id => {
 
-if(
-   id!='date' &&
-   id!='sample' &&
-   id!='samplePrefix'
-)
-      document.getElementById(id).value='';
+   if(
+      id!='date' &&
+      id!='sample' &&
+      id!='samplePrefix'
+   ){
+      document.getElementById(id).value = '';
    }
 
  });
 
  if(resetDate){
-   document.getElementById('date').valueAsDate =
-   new Date();
+   document.getElementById('date').valueAsDate = new Date();
  }
 
  updatePreview();
@@ -336,7 +335,7 @@ function updateSampleID(){
         document.getElementById('samplePrefix').value || 'DD';
 
     const num =
-        localStorage.getItem('sampleCounter') || '1';
+        parseInt(localStorage.getItem('sampleCounter') || '1';
 
     document.getElementById('sample').value =
         prefix + '-' +
@@ -352,6 +351,9 @@ document.getElementById('samplePrefix')
    updateSampleID();
 
 });
+if(!localStorage.getItem('sampleCounter')){
+   localStorage.setItem('sampleCounter','1');
+}
 
 console.log("Sample ID script loaded");
   
