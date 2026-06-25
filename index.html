@@ -769,22 +769,36 @@ function runStructuralSynthesis() {
 
   for(let r=0; r<3; r++) { for(let c=0; c<3; c++) { M[r][c] /= activeDataset.length; } }
 
-  // Step 2 & 3: Run Eigensolver & Determine Fabric Type
+  // Step 2: Run Eigensolver
   const eigenResults = solveEigenSystem(M);
   const E1 = eigenResults[0].val;
   const E2 = eigenResults[1].val;
   const E3 = eigenResults[2].val;
 
+  // Protect against log(0) for flat orientations
+  const safeE1 = E1 < 1e-5 ? 1e-5 : E1;
+  const safeE2 = E2 < 1e-5 ? 1e-5 : E2;
+  const safeE3 = E3 < 1e-5 ? 1e-5 : E3;
+
+  // Step 3: Woodcock (1977) Fabric Classification Framework
+  const lnE1E2 = Math.log(safeE1 / safeE2);
+  const lnE2E3 = Math.log(safeE2 / safeE3);
+  
   let fabricType = "Random";
-  if (E1 / E2 > 3.0 && E2 / E3 < 2.0) {
-    fabricType = "Point Cluster";
-  } else if (E2 / E3 >= 1.5) {
-    fabricType = "Girdle";
-  } else if (E1 / E2 < 1.5 && E2 / E3 < 1.5) {
+  const strengthC = Math.log(safeE1 / safeE3);
+
+  if (strengthC < 1.0) {
     fabricType = "Random / Isotropic";
+  } else {
+    const K = lnE1E2 / (lnE2E3 === 0 ? 1e-5 : lnE2E3);
+    if (K > 1.0) {
+      fabricType = "Point Cluster";
+    } else {
+      fabricType = "Girdle";
+    }
   }
 
-  // Step 4: Extract Fold Beta-Axis
+  // Extract β-Axis (Eigenvector 3)
   let betaVec = eigenResults[2].vec;
   if (betaVec[2] < 0) betaVec = betaVec.map(v => -v); 
 
@@ -792,6 +806,7 @@ function runStructuralSynthesis() {
   let trend = Math.round((Math.atan2(betaVec[1], betaVec[0]) * 180) / Math.PI);
   trend = (trend + 360) % 360;
 
+  // Setup DOM base layout
   let htmlResult = `
     <div class="net-wrapper">
        <canvas id="stereonetCanvas" width="250" height="250"></canvas>
@@ -799,26 +814,38 @@ function runStructuralSynthesis() {
     <div class="geo-insight-card" style="border-left-color: var(--secondary);">
       <div class="insight-title">📊 Fabric Distribution Analysis</div>
       <p>Data Type: <b>${dataTypeLabel}</b> | Fabric Profile: <span style="font-weight:700; color:var(--primary);">${fabricType}</span></p>
-      <p style="font-size:11px; color:var(--text-muted);">Eigenvalues: E1=${E1.toFixed(3)}, E2=${E2.toFixed(3)}, E3=${E3.toFixed(3)}</p>
+      <p style="font-size:11px; color:var(--text-muted);">Normalized Eigenvalues: E1=${E1.toFixed(3)}, E2=${E2.toFixed(3)}, E3=${E3.toFixed(3)}</p>
     </div>
   `;
 
+  // --- THE FOLD ELIGIBILITY GATE ---
   if (fabricType === "Point Cluster") {
     htmlResult += `
       <div class="geo-insight-card" style="border-left-color: #f39c12;">
-        <div class="insight-title">⚠️ Structural Warning</div>
-        <p>The dataset forms a uniform <b>Point Cluster</b>. This indicates single-limb measurements or homoclinal stratigraphy. A unique fold axis projection requires diverse readings across both limbs.</p>
+        <div class="insight-title">🔍 Interpretation</div>
+        <p><b>Single bedding population / Planar Domain</b></p>
+        <hr style="border:0; border-top:1px solid #e5e7eb; margin:10px 0;">
+        <p>Fold Detection: <b style="color:var(--danger);">Not Detected</b></p>
+        <p>β-axis: <b>N/A</b></p>
+        <p>Interlimb Angle: <b>N/A</b></p>
+        <p>Fleuty Class: <b>N/A</b></p>
       </div>
     `;
+    // Set beta to null so the stereonet doesn't draw a false axis crosshair
+    betaVec = null;
+
   } else if (fabricType === "Random / Isotropic") {
     htmlResult += `
       <div class="geo-insight-card" style="border-left-color: #c0392b;">
         <div class="insight-title">❌ Solver Aborted</div>
-        <p>Data distribution lacks linear order. Track spatial orientations systematically across axial planes to trace a coherent profile girdle.</p>
+        <p><b>Insufficient Structural Organization</b></p>
+        <p style="font-size:13px; color:var(--text-muted);">The orientation tensor exhibits high dispersion. Take more systematically distributed measurements across suspected domains to trace a valid girdle.</p>
       </div>
     `;
+    betaVec = null;
+
   } else {
-    // Step 5: Project poles onto profile plane perpendicular to beta-axis
+    // RUN HIGH-CONFIDENCE STRUCTURAL SOLVER (Girdle Mode Only)
     let u = [-betaVec[1], betaVec[0], 0]; 
     let uLen = Math.sqrt(u[0]*u[0] + u[1]*u[1]);
     if(uLen < 1e-4) { u = [1, 0, 0]; } else { u = u.map(v => v/uLen); }
@@ -836,7 +863,6 @@ function runStructuralSynthesis() {
 
     angularPositions.sort((a, b) => a - b);
 
-    // Sort and isolate background gap limits
     let maxGap = 0;
     let gapStartIndex = 0;
     let N = angularPositions.length;
@@ -859,19 +885,16 @@ function runStructuralSynthesis() {
     }
     shiftedAngles.sort((a, b) => a - b);
 
-    // Step 6: Trim outliers via robust 90% envelope limits
     let p5Index = Math.max(0, Math.floor(N * 0.05));
     let p95Index = Math.min(N - 1, Math.ceil(N * 0.95) - 1);
     
     let robustGirdleSpanRad = shiftedAngles[p95Index] - shiftedAngles[p5Index];
     let robustGirdleSpanDeg = (robustGirdleSpanRad * 180) / Math.PI;
 
-    // Step 7: True interlimb angle extraction
     let trueInterlimb = 180 - robustGirdleSpanDeg;
     if (trueInterlimb < 0) trueInterlimb = 0;
     if (trueInterlimb > 180) trueInterlimb = 180;
 
-    // Step 8: Apply Fleuty Profile Categorization
     let fleutyClass = "Unknown";
     if (trueInterlimb >= 170) fleutyClass = "Gentle (Sub-homoclinal)";
     else if (trueInterlimb >= 120) fleutyClass = "Open";
