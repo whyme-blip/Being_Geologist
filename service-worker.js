@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geologger-v3'; // Incremented version to force an update
+const CACHE_NAME = 'geologger-v3'; // Incremented version to force updates
 
 const urlsToCache = [
   './',
@@ -16,7 +16,7 @@ self.addEventListener('install', event => {
   );
 });
 
-// NEW: Activate stage - deletes old caches (e.g., geologger-v2) so your new code shows up instantly
+// Activate stage - deletes old caches (e.g., geologger-v2) so your new code shows up instantly
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -34,10 +34,10 @@ self.addEventListener('activate', event => {
 
 // Fetch stage - serving cached assets offline
 self.addEventListener('fetch', event => {
-  event.waitUntil(
-    // Workaround to prevent chrome extension fetch errors crashing the worker
-    if (event.request.url.startsWith('chrome-extension://') || event.request.url.includes('extension')) return;
-  );
+  // Guard clause to skip non-http(s) requests (like browser extension tracks)
+  if (!event.request.url.startsWith('http')) {
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request)
