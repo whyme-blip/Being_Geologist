@@ -98,8 +98,18 @@ placeholder="Enter Structure Type">
 <script>
 let records = JSON.parse(localStorage.getItem('field_geo_records')||'[]');
 document.getElementById('date').valueAsDate = new Date();
-const ids=['date','loc','lat','lon','lith','mineralization',
-'alteration','unit','type','strike','dip','dipdir','rake','sense','photo','sample','remarks'];
+const ids=[
+'date','loc','lat','lon',
+'lith','mineralization',
+'alteration','unit',
+'type','strike','dip',
+'dipdir','rake','sense',
+'photo',
+'sampleType',
+'samplePrefix',
+'sample',
+'remarks'
+];
 ids.forEach(id=>document.getElementById(id).addEventListener('input', updatePreview));
 function pad3(n){ if(n===''||n===null||isNaN(n)) return ''; let x=((Number(n)%360)+360)%360; return String(Math.round(x)).padStart(3,'0')+'°'; }
 function fmt(){
@@ -118,10 +128,63 @@ function validate(){
 }
 function updatePreview(){ const v=validate(); document.getElementById('preview').innerHTML='<span class="fmt">'+fmt()+'</span>'+ (v.length?'<br>'+v.join('<br>'):''); }
 function saveEntry(){
- const v=validate(); if(v.length){alert(v.join('\n')); return;}
- const r={id:Date.now(), formatted:fmt()}; ids.forEach(id=>r[id]=val(id)); records.unshift(r);  // Increase sample number let counter = parseInt(localStorage.getItem('sampleCounter') || '1');  localStorage.setItem(   'sampleCounter',   counter + 1 );  persist();  updateSampleID();  clearForm(false);  render();
+
+ const v = validate();
+
+ if(v.length){
+   alert(v.join('\n'));
+   return;
+ }
+
+ const r = {
+   id: Date.now(),
+   formatted: fmt()
+ };
+
+ ids.forEach(id => r[id] = val(id));
+
+ records.unshift(r);
+
+ // Increase sample number
+ let counter =
+ parseInt(localStorage.getItem('sampleCounter') || '1');
+
+ localStorage.setItem(
+   'sampleCounter',
+   counter + 1
+ );
+
+ persist();
+
+ updateSampleID();
+
+ clearForm(false);
+
+ render();
+
 }
-function clearForm(resetDate=true){ ids.forEach(id=>{ if(id!='date') document.getElementById(id).value=''; }); if(resetDate) document.getElementById('date').valueAsDate=new Date(); updatePreview(); }
+function clearForm(resetDate=true){
+
+ ids.forEach(id=>{
+
+if(
+   id!='date' &&
+   id!='sample' &&
+   id!='samplePrefix'
+)
+      document.getElementById(id).value='';
+   }
+
+ });
+
+ if(resetDate){
+   document.getElementById('date').valueAsDate =
+   new Date();
+ }
+
+ updatePreview();
+
+}
 function persist(){localStorage.setItem('field_geo_records',JSON.stringify(records))}
 function render(){
  document.getElementById('count').textContent=records.length;
@@ -187,15 +250,25 @@ function getGPS(){
 }
 function exportJSON(){download('field_geology_records.json',JSON.stringify(records,null,2),'application/json')}
 function exportCSV(){
- const cols=['date','loc','lat','lon','lith','unit','type','strike','dip','dipdir','rake','sense','photo','sample','formatted','remarks'];
+ const cols=[
+'date','loc','lat','lon',
+'lith','mineralization',
+'alteration','unit',
+'type','strike','dip',
+'dipdir','rake','sense',
+'photo',
+'sampleType',
+'samplePrefix',
+'sample',
+'formatted',
+'remarks'
+];
  const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
  download('field_geology_records.csv',csv,'text/csv');
 }
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
-function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
-
-c
-  });
+function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]
+))
 }
 
     // Show custom structure field when "Other" is selected
@@ -254,20 +327,10 @@ document.getElementById('strike').addEventListener('input', function() {
   };
 
   recognition.start();
-
-}function updateSampleID(){
-
-    const prefix =
-        document.getElementById('samplePrefix').value || 'DD';
-
-    const num =
-        localStorage.getItem('sampleCounter') || '1';
-
-    document.getElementById('sample').value =
-        prefix + '-' +
-        String(num).padStart(3,'0');
-
-}function updateSampleID(){
+  
+}
+  
+function updateSampleID(){
 
     const prefix =
         document.getElementById('samplePrefix').value || 'DD';
@@ -281,14 +344,19 @@ document.getElementById('strike').addEventListener('input', function() {
 
 }
 
-// Update sample number when prefix changes
 document.getElementById('samplePrefix')
-.addEventListener('input', updateSampleID);
-  document.getElementById('samplePrefix')
 .addEventListener('input', function(){
 
    this.value = this.value.toUpperCase();
 
+   updateSampleID();
+
 });
+
+console.log("Sample ID script loaded");
+  
+  updateSampleID();
+
 </script>
-</body></html>
+</body>
+</html>
