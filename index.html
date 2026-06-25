@@ -333,6 +333,30 @@ render();
 updatePreview();
 updateSampleID();
 updateLocationID();
+  
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => {
+        console.log('Service Worker registered successfully!', reg);
+        
+        // Check if there's an updated service worker waiting to take over
+        reg.onupdatefound = () => {
+          const installingWorker = reg.installing;
+          installingWorker.onstatechange = () => {
+            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // This notifies the user that a new version (v3) is available
+              if (confirm('New structural updates available! Reload app to apply?')) {
+                window.location.reload();
+              }
+            }
+          };
+        };
+      })
+      .catch(err => console.error('Service Worker registration failed:', err));
+  });
+}
+  
 </script>
 </body>
 </html>
