@@ -83,7 +83,17 @@
       <div><label>Rake / Pitch (°)</label><input id="rake" type="number" min="0" max="90" placeholder="optional"></div>
       <div><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
       <div><label>Movement Direction</label><input id="movementDir" placeholder="Top-to-NE, SW-side-down"></div>
-      <div><label>Photo No.</label><input id="photo" placeholder="P-01"></div>
+      
+      <!-- Photo Field with Native Camera/Gallery Input Selector -->
+      <div>
+        <label>Photo No. / Image</label>
+        <input id="photo" placeholder="P-01" style="margin-bottom: 4px;">
+        <button type="button" onclick="document.getElementById('photoInput').click()" class="secondary" style="margin-top:0; padding: 6px; font-size: 13px;">
+          📷 Capture / Attach Photo
+        </button>
+        <input type="file" id="photoInput" accept="image/*" style="display:none;">
+      </div>
+
       <div><label>Sample Type</label><select id="sampleType"><option>Rock Sample</option><option>Channel Sample</option><option>Grab Sample</option><option>Chip Sample</option><option>Soil Sample</option><option>Other</option></select></div>
       <div><label>Sample ID Prefix</label><input id="samplePrefix" value="DD"></div>
       <div><label>Sample No.</label><input id="sample" readonly></div>
@@ -120,7 +130,6 @@ ids.forEach(id => {
   if(el) el.addEventListener('input', updatePreview);
 });
 
-// Helper function to turn degrees into crisp compass sectors
 function getQuadrant(deg) {
   const sectors = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   return sectors[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
@@ -144,12 +153,10 @@ function fmt(){
   let dataStr = '';
 
   if(isLinear(val('type'))) {
-    // Linear Feature Formatting: Plunge -> Trend
     const tr = val('trend') ? pad3(val('trend')) + '°' : '---°';
     const pl = val('plunge') ? val('plunge') + '°' : '--°';
     dataStr = `${pl} → ${tr}`;
   } else {
-    // Planar Feature Formatting: Strike/Dip Quadrant
     const st = val('strike') ? pad3(val('strike')) : '000';
     const dp = val('dip') ? val('dip') + '°' : '--°';
     const dd = val('strike') ? getQuadrant((parseInt(val('strike')) + 90) % 360) : '';
@@ -197,11 +204,9 @@ function saveEntry(){
   ids.forEach(id => r[id] = val(id));
   records.unshift(r);
 
-  // Auto-increment Sample Counter if sample structure was checked
   let sCounter = parseInt(localStorage.getItem('sampleCounter') || '1');
   localStorage.setItem('sampleCounter', sCounter + 1);
 
-  // Auto-increment Location Counter 
   let lCounter = parseInt(localStorage.getItem('locationCounter') || '1');
   localStorage.setItem('locationCounter', lCounter + 1);
 
@@ -269,12 +274,8 @@ function exportCSV(){
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
 function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
 
-// Handle Form switches when switching structure type
 document.getElementById('type').addEventListener('change', function() {
-    // 1. Custom structure reveal
     document.getElementById('customStructureDiv').classList.toggle('hidden', this.value !== 'Other');
-    
-    // 2. Toggle Planar vs Linear view fields
     if(isLinear(this.value)) {
         document.getElementById('planarFields').classList.add('hidden');
         document.getElementById('linearFields').classList.remove('hidden');
@@ -285,7 +286,6 @@ document.getElementById('type').addEventListener('change', function() {
     updatePreview();
 });
 
-// Strike updates Right-Hand Rule automatically
 document.getElementById('strike').addEventListener('input', function() {
     let strike = parseInt(this.value);
     if (!isNaN(strike)) {
@@ -293,6 +293,13 @@ document.getElementById('strike').addEventListener('input', function() {
         document.getElementById('dipdir').value = dipdir.toString().padStart(3, '0') + '° (' + getQuadrant(dipdir) + ')';
     } else {
         document.getElementById('dipdir').value = '';
+    }
+});
+
+document.getElementById('photoInput').addEventListener('change', function(e) {
+    if (e.target.files && e.target.files[0]) {
+        document.getElementById('photo').value = "IMG-" + Date.now().toString().slice(-4);
+        updatePreview();
     }
 });
 
@@ -333,19 +340,17 @@ render();
 updatePreview();
 updateSampleID();
 updateLocationID();
-  
+
+// Service Worker Handling Engine
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
       .then(reg => {
         console.log('Service Worker registered successfully!', reg);
-        
-        // Check if there's an updated service worker waiting to take over
         reg.onupdatefound = () => {
           const installingWorker = reg.installing;
           installingWorker.onstatechange = () => {
             if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // This notifies the user that a new version (v3) is available
               if (confirm('New structural updates available! Reload app to apply?')) {
                 window.location.reload();
               }
@@ -356,7 +361,6 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.error('Service Worker registration failed:', err));
   });
 }
-  
 </script>
 </body>
 </html>
