@@ -899,13 +899,19 @@ function runStructuralSynthesis() {
     if (trueInterlimb < 0) trueInterlimb = 0;
     if (trueInterlimb > 180) trueInterlimb = 180;
 
-    let fleutyClass = "Unknown";
-    if (trueInterlimb >= 170) fleutyClass = "Gentle (Sub-homoclinal)";
-    else if (trueInterlimb >= 120) fleutyClass = "Open";
-    else if (trueInterlimb >= 70)  fleutyClass = "Close";
-    else if (trueInterlimb >= 30)  fleutyClass = "Tight";
-    else if (trueInterlimb >= 0)   
-      fleutyClass = trueInterlimb <= 5 ? "Isoclinal (Transposed Fabric)" : "Isoclinal";
+    // --- UPDATED FLEUTY (1964) CLASSIFICATION LOGIC ---
+    let fleutyClass = "Isoclinal";
+    if (trueInterlimb >= 120) {
+       fleutyClass = "Gentle";
+    } else if (trueInterlimb >= 70) {
+       fleutyClass = "Open";
+    } else if (trueInterlimb >= 30) {
+       fleutyClass = "Close";
+    } else if (trueInterlimb >= 10) {
+       fleutyClass = "Tight";
+    } else {
+       fleutyClass = "Isoclinal";
+    }
 
     let confidence = "Moderate", confClass = "conf-mod";
     if (N >= 8 && (E2 / E3) >= 3.5) { confidence = "High"; confClass = "conf-high"; }
