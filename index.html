@@ -780,16 +780,20 @@ function runStructuralSynthesis() {
   const safeE2 = E2 < 1e-5 ? 1e-5 : E2;
   const safeE3 = E3 < 1e-5 ? 1e-5 : E3;
 
-  // Step 3: Woodcock (1977) Fabric Classification Framework
+ // Step 3: Upgraded Woodcock (1977) Fabric Classification Framework
   const lnE1E2 = Math.log(safeE1 / safeE2);
   const lnE2E3 = Math.log(safeE2 / safeE3);
   
   let fabricType = "Random";
   const strengthC = Math.log(safeE1 / safeE3);
 
-  if (strengthC < 1.0) {
+  // CRITICAL FIX: Direct dominant eigenvalue check to handle extreme clusters
+  if (E1 >= 0.85 || (E1 / safeE2) >= 6.0) {
+    fabricType = "Point Cluster";
+  } else if (strengthC < 1.0 || E1 < 0.4) {
     fabricType = "Random / Isotropic";
   } else {
+    // Standard Woodcock shape parameter for distributed data
     const K = lnE1E2 / (lnE2E3 === 0 ? 1e-5 : lnE2E3);
     if (K > 1.0) {
       fabricType = "Point Cluster";
