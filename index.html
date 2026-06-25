@@ -16,6 +16,15 @@
   <div class="card">
     <div class="grid">
       <div><label>Date</label><input id="date" type="date"></div>
+      <div>
+<label>Location Prefix</label>
+<input id="locPrefix" value="JU">
+</div>
+
+<div>
+<label>Location No.</label>
+<input id="locNo" readonly>
+</div>
       <div><label>Location</label><input id="loc" placeholder="Village/section/outcrop"></div>
       <div><label>Latitude</label><input id="lat" placeholder="30.123456"></div>
       <div><label>Longitude</label><input id="lon" placeholder="77.123456"></div>
@@ -81,6 +90,11 @@ placeholder="Enter Structure Type">
 </div>
       <div><label>Rake / Pitch (°)</label><input id="rake" type="number" min="0" max="90" placeholder="optional"></div>
       <div><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
+     <div>
+<label>Movement Direction</label>
+<input id="movementDir"
+placeholder="Top-to-NE, SW-side-down">
+</div>
       <div><label>Photo No.</label><input id="photo" placeholder="P-01"></div>
       <div> <label>Sample Type</label> <select id="sampleType"> <option>Rock Sample</option> <option>Channel Sample</option> <option>Grab Sample</option> <option>Chip Sample</option> <option>Soil Sample</option> <option>Stream Sediment</option> <option>Trench Sample</option> <option>Other</option> </select> </div>  <div> <label>Sample ID Prefix</label> <input id="samplePrefix" value="DD"> </div>  <div> <label>Sample No.</label> <input id="sample" readonly> </div>
     </div>
@@ -99,11 +113,25 @@ placeholder="Enter Structure Type">
 let records = JSON.parse(localStorage.getItem('field_geo_records')||'[]');
 document.getElementById('date').valueAsDate = new Date();
 const ids=[
-'date','loc','lat','lon',
-'lith','mineralization',
-'alteration','unit',
-'type','strike','dip',
-'dipdir','rake','sense',
+'date',
+'locPrefix',
+'locNo',
+'loc',
+'lat',
+'lon',
+'alt',
+'accuracy',
+'lith',
+'mineralization',
+'alteration',
+'unit',
+'type',
+'strike',
+'dip',
+'dipdir',
+'rake',
+'sense',
+'movementDir',
 'photo',
 'sampleType',
 'samplePrefix',
@@ -159,6 +187,7 @@ persist();
 clearForm(false);
 
 updateSampleID();
+updateLocationID(); //  
 
 render();
 
@@ -171,6 +200,8 @@ function clearForm(resetDate=true){
       id!='date' &&
       id!='sample' &&
       id!='samplePrefix'
+      id!='locNo' &&
+      id!='locPrefix'
    ){
       document.getElementById(id).value = '';
    }
@@ -208,8 +239,12 @@ function getGPS(){
      latField.value=p.coords.latitude.toFixed(6);
      lonField.value=p.coords.longitude.toFixed(6);
 
-     window.lastAccuracy=p.coords.accuracy || '';
-     window.lastAltitude=p.coords.altitude || '';
+     document.getElementById('accuracy').value =
+     Math.round(p.coords.accuracy);
+
+     document.getElementById('alt').value =
+     p.coords.altitude ?
+     p.coords.altitude.toFixed(1) : '';
 
      updatePreview();
 
@@ -359,7 +394,9 @@ if(!localStorage.getItem('sampleCounter')){
 
 console.log("Sample ID script loaded");
   
-  updateSampleID();
+render();
+updatePreview();
+updateSampleID();
 
 </script>
 </body>
