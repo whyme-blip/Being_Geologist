@@ -3,102 +3,96 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Offline Field Geology App</title>
-  <link rel="manifest" href="manifest.json">
+<title>Offline Structural Data Logger by Being_Geologist</title>
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1f3a5f">
 <style>
   :root{font-family:Arial, sans-serif;color:#17202a;background:#f4f6f7}body{margin:0}header{background:#1f3a5f;color:white;padding:14px 16px}h1{font-size:20px;margin:0}.wrap{max-width:980px;margin:auto;padding:12px}.card{background:white;border-radius:12px;padding:14px;margin:12px 0;box-shadow:0 2px 10px #0001}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}label{font-size:12px;font-weight:700;color:#34495e}input,select,textarea,button{width:100%;box-sizing:border-box;padding:11px;border:1px solid #cfd8dc;border-radius:9px;font-size:15px}textarea{min-height:70px}button{border:0;background:#1f6feb;color:white;font-weight:700;margin-top:8px}.secondary{background:#566573}.danger{background:#c0392b}.ok{background:#1e8449}.warn{background:#fff3cd;border:1px solid #ffeeba;color:#7d6608;padding:9px;border-radius:8px;margin-top:8px}.entry{border-left:5px solid #1f6feb;padding:10px;margin:10px 0;background:#fbfcfc;border-radius:8px}.small{font-size:12px;color:#566573}.fmt{font-weight:700;color:#154360}.rowbtn{display:flex;gap:8px}.rowbtn button{width:auto;flex:1}.pill{display:inline-block;background:#eaf2f8;border-radius:999px;padding:4px 8px;margin:3px;font-size:12px}
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
-<header><h1>Offline Field Geology – Being Geologist Logger</h1><div class="small" style="color:#d6eaf8">Bedding • Foliation • Joints • Faults • Lineation • Fold Axis • Veins</div></header>
+<header>
+  <h1>Offline Structural Data Logger</h1>
+  <div class="small" style="color:#d6eaf8">By Being_Geologist | Bedding • Foliation • Joints • Faults • Lineation • Fold Axis</div>
+</header>
 <div class="wrap">
   <div class="card">
     <div class="grid">
       <div><label>Date</label><input id="date" type="date"></div>
-      <div>
-<label>Location Prefix</label>
-<input id="locPrefix" value="JU">
-</div>
-
-<div>
-<label>Location No.</label>
-<input id="locNo" readonly>
-</div>
+      <div><label>Location Prefix</label><input id="locPrefix" value="JU"></div>
+      <div><label>Location No.</label><input id="locNo" readonly></div>
       <div><label>Location</label><input id="loc" placeholder="Village/section/outcrop"></div>
       <div><label>Latitude</label><input id="lat" placeholder="30.123456"></div>
       <div><label>Longitude</label><input id="lon" placeholder="77.123456"></div>
       <div><label>Altitude (m)</label><input id="alt" readonly></div>
-<div><label>GPS Accuracy (m)</label><input id="accuracy" readonly></div>
+      <div><label>GPS Accuracy (m)</label><input id="accuracy" readonly></div>
       <div><label>Lithology</label><input id="lith" placeholder="Quartzite/phyllite/dolomite"></div>
+      <div><label>Mineralization</label><input id="mineralization" placeholder="Pyrite, Chalcopyrite"></div>
+      <div><label>Alteration</label><input id="alteration" placeholder="Silicification, Chloritization"></div>
+      <div><label>Unit / Formation</label><input id="unit" placeholder="Deoban/Jaunsar/Jutogh"></div>
+      
       <div>
-<label>Mineralization</label>
-<input id="mineralization"
-placeholder="Pyrite, Chalcopyrite, Malachite">
-</div>
-      <div>
-<label>Alteration</label>
-<input id="alteration"
-placeholder="Silicification, Chloritization">
-</div>
-      <div><label>Unit / Formation</label><input id="unit" placeholder="Deoban/Jaunsar/Dharagad/Jutogh"></div>
-<div>
-<label>Structure Type</label>
-<select id="type">
+        <label>Structure Type</label>
+        <select id="type">
+          <optgroup label="Planar Structures">
+            <option>S0 Bedding</option>
+            <option>S1 Foliation</option>
+            <option>S2 Foliation</option>
+            <option>S3 Foliation</option>
+            <option>S2 Crenulation Cleavage</option>
+            <option>S3 Crenulation Cleavage</option>
+            <option>J1 Joint</option>
+            <option>J2 Joint</option>
+            <option>J3 Joint</option>
+            <option>Fault Plane</option>
+            <option>Shear Zone Boundary</option>
+          </optgroup>
+          <optgroup label="Linear Structures">
+            <option>L1 Mineral Lineation</option>
+            <option>L2 Mineral Lineation</option>
+            <option>L3 Mineral Lineation</option>
+            <option>L1 Slickenline</option>
+            <option>Fold Axis</option>
+            <option>Intersection Lineation</option>
+          </optgroup>
+          <optgroup label="Veins (Planar)">
+            <option>Quartz Vein</option>
+            <option>Pegmatite Vein</option>
+            <option>Calcite Vein</option>
+          </optgroup>
+          <option>Other</option>
+        </select>
+      </div>
 
-<option>S0 Bedding</option>
+      <div id="customStructureDiv" class="hidden"><label>Custom Structure</label><input id="customStructure" placeholder="Enter Structure Type"></div>
+      
+      <!-- Planar Measurements Inputs -->
+      <div id="planarFields" class="grid" style="grid-column: 1 / -1; padding:0; gap:10px;">
+        <div><label>Strike (RHR) (°)</label><input id="strike" type="number" min="0" max="360" placeholder="045"></div>
+        <div><label>Dip (°)</label><input id="dip" type="number" min="0" max="90" placeholder="35"></div>
+        <div><label>Dip Direction</label><input id="dipdir" readonly placeholder="Auto"></div>
+      </div>
 
-<option>S1 Foliation</option>
-<option>S2 Foliation</option>
-<option>S3 Foliation</option>
+      <!-- Linear Measurements Inputs -->
+      <div id="linearFields" class="grid hidden" style="grid-column: 1 / -1; padding:0; gap:10px;">
+        <div><label>Trend (°)</label><input id="trend" type="number" min="0" max="360" placeholder="225"></div>
+        <div><label>Plunge (°)</label><input id="plunge" type="number" min="0" max="90" placeholder="25"></div>
+      </div>
 
-<option>S2 Crenulation Cleavage</option>
-<option>S3 Crenulation Cleavage</option>
-
-<option>J1 Joint</option>
-<option>J2 Joint</option>
-<option>J3 Joint</option>
-
-<option>Fault</option>
-<option>Shear Zone</option>
-
-<option>L1 Mineral Lineation</option>
-<option>L2 Mineral Lineation</option>
-<option>L3 Mineral Lineation</option>
-
-<option>Fold Axis</option>
-
-<option>Quartz Vein</option>
-<option>Pegmatite Vein</option>
-<option>Calcite Vein</option>
-
-<option>Other</option>
-
-</select>
-</div>
-
-<div id="customStructureDiv" style="display:none;">
-<label>Custom Structure</label>
-<input id="customStructure"
-placeholder="Enter Structure Type">
-</div>
-      <div><label>Strike / Trend (°)</label><input id="strike" type="number" min="0" max="360" placeholder="045"></div>
-      <div><label>Dip / Plunge (°)</label><input id="dip" type="number" min="0" max="90" placeholder="35"></div>
-     <div>
-<label>Dip Direction (RHR)</label>
-<input id="dipdir" readonly placeholder="Auto">
-</div>
       <div><label>Rake / Pitch (°)</label><input id="rake" type="number" min="0" max="90" placeholder="optional"></div>
       <div><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
-     <div>
-<label>Movement Direction</label>
-<input id="movementDir"
-placeholder="Top-to-NE, SW-side-down">
-</div>
+      <div><label>Movement Direction</label><input id="movementDir" placeholder="Top-to-NE, SW-side-down"></div>
       <div><label>Photo No.</label><input id="photo" placeholder="P-01"></div>
-      <div> <label>Sample Type</label> <select id="sampleType"> <option>Rock Sample</option> <option>Channel Sample</option> <option>Grab Sample</option> <option>Chip Sample</option> <option>Soil Sample</option> <option>Stream Sediment</option> <option>Trench Sample</option> <option>Other</option> </select> </div>  <div> <label>Sample ID Prefix</label> <input id="samplePrefix" value="DD"> </div>  <div> <label>Sample No.</label> <input id="sample" readonly> </div>
+      <div><label>Sample Type</label><select id="sampleType"><option>Rock Sample</option><option>Channel Sample</option><option>Grab Sample</option><option>Chip Sample</option><option>Soil Sample</option><option>Other</option></select></div>
+      <div><label>Sample ID Prefix</label><input id="samplePrefix" value="DD"></div>
+      <div><label>Sample No.</label><input id="sample" readonly></div>
     </div>
-    <label>Remarks</label>  <button type="button" onclick="startVoiceNote()" class="secondary"> 🎤 Voice Note </button>  <textarea id="remarks" placeholder="e.g., crenulated phyllite, quartz vein, malachite staining, slickenside observed"> </textarea>
+    
+    <label style="margin-top:10px; display:block;">Remarks</label>
+    <button type="button" onclick="startVoiceNote()" class="secondary"> 🎤 Voice Note </button>
+    <textarea id="remarks" placeholder="e.g., microfolds, kinematics, slickenside steps observed"></textarea>
+    
     <div id="preview" class="warn">Formatted output will appear here.</div>
     <div class="rowbtn"><button onclick="getGPS()" class="secondary">Get GPS</button><button onclick="saveEntry()" class="ok">Save Entry</button><button onclick="clearForm()" class="secondary">Clear Form</button></div>
   </div>
@@ -109,259 +103,209 @@ placeholder="Top-to-NE, SW-side-down">
     <div id="list"></div>
   </div>
 </div>
+
 <script>
 let records = JSON.parse(localStorage.getItem('field_geo_records')||'[]');
 document.getElementById('date').valueAsDate = new Date();
+
 const ids=[
-'date',
-'locPrefix',
-'locNo',
-'loc',
-'lat',
-'lon',
-'alt',
-'accuracy',
-'lith',
-'mineralization',
-'alteration',
-'unit',
-'type',
-'strike',
-'dip',
-'dipdir',
-'rake',
-'sense',
-'movementDir',
-'photo',
-'sampleType',
-'samplePrefix',
-'sample',
-'remarks'
+'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
+'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
+'dipdir', 'trend', 'plunge', 'rake', 'sense', 'movementDir', 'photo', 'sampleType', 
+'samplePrefix', 'sample', 'remarks'
 ];
-ids.forEach(id=>document.getElementById(id).addEventListener('input', updatePreview));
-function pad3(n){ if(n===''||n===null||isNaN(n)) return ''; let x=((Number(n)%360)+360)%360; return String(Math.round(x)).padStart(3,'0')+'°'; }
-function fmt(){
- const t=val('type'), st=val('strike'), dp=val('dip'), dd=val('dipdir'), rk=val('rake'), se=val('sense');
- if(['Lineation','Fold axis'].includes(t)) return `${t}: ${pad3(st)} → ${dp?dp+'°':''}${rk?', rake '+rk+'°':''}`;
- let s=`${t}: ${pad3(st)}/${dp?dp+'°':''}${dd?' '+dd:''}`;
- if(rk) s+=`, rake ${rk}°`; if(se) s+=`, ${se} movement`; return s;
-}
-function val(id){return document.getElementById(id).value.trim()}
-function validate(){
- let msg=[]; const st=Number(val('strike')), dp=Number(val('dip')), rk=Number(val('rake'));
- if(val('strike') && (st<0||st>360)) msg.push('Strike/trend must be 0–360°');
- if(val('dip') && (dp<0||dp>90)) msg.push('Dip/plunge must be 0–90°');
- if(val('rake') && (rk<0||rk>90)) msg.push('Rake must be 0–90°');
- return msg;
-}
-function updatePreview(){ const v=validate(); document.getElementById('preview').innerHTML='<span class="fmt">'+fmt()+'</span>'+ (v.length?'<br>'+v.join('<br>'):''); }
-function saveEntry(){
 
- const v = validate();
-
- if(v.length){
-   alert(v.join('\n'));
-   return;
- }
-
- const r = {
-   id: Date.now(),
-   formatted: fmt()
- };
-
- ids.forEach(id => r[id] = val(id));
-
- records.unshift(r);
-
- // Increase sample number
- let counter =
- parseInt(localStorage.getItem('sampleCounter') || '1');
-
- localStorage.setItem(
-   'sampleCounter',
-   counter + 1
- );
-
-persist();
-
-clearForm(false);
-
-updateSampleID();
-updateLocationID();  
-
-render();
-
-}
-function clearForm(resetDate=true){
-
- ids.forEach(id => {
-
-    if(
-       id!='date' &&
-       id!='sample' &&
-       id!='samplePrefix' &&
-       id!='locNo' &&
-       id!='locPrefix'
-    ){
-       document.getElementById(id).value = '';
-    }
-
- });
-
- if(resetDate){
-   document.getElementById('date').valueAsDate = new Date();
- }
-
- updatePreview();
-
-}
-function persist(){localStorage.setItem('field_geo_records',JSON.stringify(records))}
-function render(){
- document.getElementById('count').textContent=records.length;
- document.getElementById('list').innerHTML=records.map((r,i)=>`<div class="entry"><div class="fmt">${escapeHTML(r.formatted)}</div><div>${escapeHTML(r.loc)} ${r.unit?' | '+escapeHTML(r.unit):''} ${r.lith?' | '+escapeHTML(r.lith):''}</div><div class="small">${r.date} | Lat ${r.lat||'-'}, Long ${r.lon||'-'} | Photo ${r.photo||'-'} | Sample ${r.sample||'-'}</div><div>${escapeHTML(r.remarks||'')}</div><button class="danger" onclick="del(${r.id})">Delete</button></div>`).join('');
-}
-function del(id){records=records.filter(r=>r.id!==id);persist();render()}
-function deleteAll(){if(confirm('Delete all saved field records?')){records=[];persist();render()}}
-function getGPS(){
- if(!navigator.geolocation){
-   alert('Geolocation is not supported on this device.');
-   return;
- }
-
- const latField=document.getElementById('lat');
- const lonField=document.getElementById('lon');
-
- latField.value='Getting GPS...';
- lonField.value='Getting GPS...';
-
- navigator.geolocation.getCurrentPosition(
-   function(p){
-     latField.value=p.coords.latitude.toFixed(6);
-     lonField.value=p.coords.longitude.toFixed(6);
-
-     document.getElementById('accuracy').value =
-     Math.round(p.coords.accuracy);
-
-     document.getElementById('alt').value =
-     p.coords.altitude ?
-     p.coords.altitude.toFixed(1) : '';
-
-     updatePreview();
-
-     alert(
-       'GPS captured successfully\n\n' +
-       'Latitude: ' + latField.value +
-       '\nLongitude: ' + lonField.value +
-       '\nAccuracy: ±' + Math.round(p.coords.accuracy) + ' m'
-     );
-   },
-   function(e){
-     latField.value='';
-     lonField.value='';
-
-     let msg='';
-     switch(e.code){
-       case e.PERMISSION_DENIED:
-         msg='Location permission denied. Allow location access in browser settings.';
-         break;
-       case e.POSITION_UNAVAILABLE:
-         msg='GPS position unavailable.';
-         break;
-       case e.TIMEOUT:
-         msg='GPS request timed out. Move outdoors and try again.';
-         break;
-       default:
-         msg='GPS error: ' + e.message;
-     }
-     alert(msg);
-   },
-   {
-     enableHighAccuracy:true,
-     timeout:30000,
-     maximumAge:0
-   }
- );
-}
-function exportJSON(){download('field_geology_records.json',JSON.stringify(records,null,2),'application/json')}
-function exportCSV(){
- const cols=[
-'date','loc','lat','lon',
-'lith','mineralization',
-'alteration','unit',
-'type','strike','dip',
-'dipdir','rake','sense',
-'photo',
-'sampleType',
-'samplePrefix',
-'sample',
-'formatted',
-'remarks'
-];
- const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
- download('field_geology_records.csv',csv,'text/csv');
-}
-function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
-function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]
-))
-}
-
-    // Show custom structure field when "Other" is selected
-document.getElementById('type').addEventListener('change', function() {
-
-    if (this.value === 'Other') {
-        document.getElementById('customStructureDiv').style.display = 'block';
-    } else {
-        document.getElementById('customStructureDiv').style.display = 'none';
-    }
-
+ids.forEach(id => {
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('input', updatePreview);
 });
-    // Calculate Dip Direction automatically using Right-Hand Rule
 
-document.getElementById('strike').addEventListener('input', function() {
+// Helper function to turn degrees into crisp compass sectors
+function getQuadrant(deg) {
+  const sectors = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return sectors[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+}
 
-    let strike = parseInt(this.value);
+function isLinear(type) {
+  return ['L1 Mineral Lineation', 'L2 Mineral Lineation', 'L3 Mineral Lineation', 'L1 Slickenline', 'Fold Axis', 'Intersection Lineation'].includes(type);
+}
 
-    if (!isNaN(strike)) {
+function pad3(n){ 
+  if(n===''||n===null||isNaN(n)) return '000'; 
+  let x=((Number(n)%360)+360)%360; 
+  return String(Math.round(x)).padStart(3,'0'); 
+}
 
-        let dipdir = (strike + 90) % 360;
+function fmt(){
+  let t = val('type');
+  if (t === 'Other' && val('customStructure')) t = val('customStructure');
+  
+  const se = val('sense'), rk = val('rake'), md = val('movementDir');
+  let dataStr = '';
 
-        document.getElementById('dipdir').value =
-            dipdir.toString().padStart(3, '0');
-
-    }
-
-}); function startVoiceNote(){
-
-  const SpeechRecognition =
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
-
-  if(!SpeechRecognition){
-      alert("Voice recognition not supported.");
-      return;
+  if(isLinear(val('type'))) {
+    // Linear Feature Formatting: Plunge -> Trend
+    const tr = val('trend') ? pad3(val('trend')) + '°' : '---°';
+    const pl = val('plunge') ? val('plunge') + '°' : '--°';
+    dataStr = `${pl} → ${tr}`;
+  } else {
+    // Planar Feature Formatting: Strike/Dip Quadrant
+    const st = val('strike') ? pad3(val('strike')) : '000';
+    const dp = val('dip') ? val('dip') + '°' : '--°';
+    const dd = val('strike') ? getQuadrant((parseInt(val('strike')) + 90) % 360) : '';
+    dataStr = `${st}/${dp} ${dd}`.trim();
   }
 
-  const recognition =
-      new SpeechRecognition();
+  let s = `${t}: ${dataStr}`;
+  if(rk) s += `, rake ${rk}°`; 
+  if(se) s += `, ${se} sense`;
+  if(md) s += ` (${md})`;
+  return s;
+}
 
-  recognition.lang = "en-US";
-  recognition.continuous = false;
-  recognition.interimResults = false;
+function val(id){
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
 
-  recognition.onresult = function(event){
+function validate(){
+  let msg=[]; 
+  if(!isLinear(val('type'))) {
+    const st=Number(val('strike')), dp=Number(val('dip'));
+    if(val('strike') && (st<0||st>360)) msg.push('Strike must be 0–360°');
+    if(val('dip') && (dp<0||dp>90)) msg.push('Dip must be 0–90°');
+  } else {
+    const tr=Number(val('trend')), pl=Number(val('plunge'));
+    if(val('trend') && (tr<0||tr>360)) msg.push('Trend must be 0–360°');
+    if(val('plunge') && (pl<0||pl>90)) msg.push('Plunge must be 0–90°');
+  }
+  const rk=Number(val('rake'));
+  if(val('rake') && (rk<0||rk>90)) msg.push('Rake must be 0–90°');
+  return msg;
+}
 
-      const text =
-          event.results[0][0].transcript;
+function updatePreview(){ 
+  const v=validate(); 
+  document.getElementById('preview').innerHTML='<span class="fmt">'+fmt()+'</span>'+ (v.length?'<br><span style="color:#c0392b">'+v.join('<br>')+'</span>':''); 
+}
 
-      document.getElementById("remarks").value +=
-          " " + text;
+function saveEntry(){
+  const v = validate();
+  if(v.length){ alert(v.join('\n')); return; }
 
-      updatePreview();
+  const r = { id: Date.now(), formatted: fmt() };
+  ids.forEach(id => r[id] = val(id));
+  records.unshift(r);
 
-  };
+  // Auto-increment Sample Counter if sample structure was checked
+  let sCounter = parseInt(localStorage.getItem('sampleCounter') || '1');
+  localStorage.setItem('sampleCounter', sCounter + 1);
 
-  recognition.start();
+  // Auto-increment Location Counter 
+  let lCounter = parseInt(localStorage.getItem('locationCounter') || '1');
+  localStorage.setItem('locationCounter', lCounter + 1);
+
+  persist();
+  clearForm(false);
+  updateSampleID();
+  updateLocationID();
+  render();
+}
+
+function clearForm(resetDate=true){
+  ids.forEach(id => {
+    if(id!='date' && id!='sample' && id!='samplePrefix' && id!='locNo' && id!='locPrefix' && id!='type'){
+       const el = document.getElementById(id);
+       if(el) el.value = '';
+    }
+  });
+  if(resetDate && document.getElementById('date')){
+    document.getElementById('date').valueAsDate = new Date();
+  }
+  updatePreview();
+}
+
+function persist(){localStorage.setItem('field_geo_records',JSON.stringify(records))}
+
+function render(){
+  document.getElementById('count').textContent=records.length;
+  document.getElementById('list').innerHTML=records.map((r,i)=>`
+    <div class="entry">
+      <div class="fmt">${escapeHTML(r.formatted)}</div>
+      <div>Loc: <b>${escapeHTML(r.locNo)}</b> (${escapeHTML(r.loc || 'No Desc')}) ${r.unit?' | '+escapeHTML(r.unit):''} ${r.lith?' | '+escapeHTML(r.lith):''}</div>
+      <div class="small">${r.date} | Lat ${r.lat||'-'}, Long ${r.lon||'-'} | Photo ${r.photo||'-'} | Sample ${r.sample||'-'}</div>
+      <div style="font-style:italic; color:#333;">${escapeHTML(r.remarks||'')}</div>
+      <button class="danger" onclick="del(${r.id})" style="width:auto; padding:4px 10px; font-size:12px; margin-top:4px;">Delete</button>
+    </div>
+  `).join('');
+}
+
+function del(id){records=records.filter(r=>r.id!==id);persist();render()}
+function deleteAll(){if(confirm('Delete all saved field records?')){records=[];persist();render()}}
+
+function getGPS(){
+  if(!navigator.geolocation){ alert('Geolocation unsupported.'); return; }
+  const latField=document.getElementById('lat'), lonField=document.getElementById('lon');
+  latField.value='...'; lonField.value='...';
   
+  navigator.geolocation.getCurrentPosition(function(p){
+     latField.value=p.coords.latitude.toFixed(6);
+     lonField.value=p.coords.longitude.toFixed(6);
+     document.getElementById('accuracy').value = Math.round(p.coords.accuracy);
+     document.getElementById('alt').value = p.coords.altitude ? p.coords.altitude.toFixed(1) : '';
+     updatePreview();
+  }, function(e){
+     latField.value=''; lonField.value='';
+     alert('GPS Error: ' + e.message);
+  },{enableHighAccuracy:true,timeout:20000});
+}
+
+function exportJSON(){download('structural_records.json',JSON.stringify(records,null,2),'application/json')}
+function exportCSV(){
+  const cols=['date','locNo','loc','lat','lon','unit','type','strike','dip','dipdir','trend','plunge','lith','remarks','photo','sample'];
+  const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
+  download('structural_records.csv',csv,'text/csv');
+}
+function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
+function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
+
+// Handle Form switches when switching structure type
+document.getElementById('type').addEventListener('change', function() {
+    // 1. Custom structure reveal
+    document.getElementById('customStructureDiv').classList.toggle('hidden', this.value !== 'Other');
+    
+    // 2. Toggle Planar vs Linear view fields
+    if(isLinear(this.value)) {
+        document.getElementById('planarFields').classList.add('hidden');
+        document.getElementById('linearFields').classList.remove('hidden');
+    } else {
+        document.getElementById('planarFields').classList.remove('hidden');
+        document.getElementById('linearFields').classList.add('hidden');
+    }
+    updatePreview();
+});
+
+// Strike updates Right-Hand Rule automatically
+document.getElementById('strike').addEventListener('input', function() {
+    let strike = parseInt(this.value);
+    if (!isNaN(strike)) {
+        let dipdir = (strike + 90) % 360;
+        document.getElementById('dipdir').value = dipdir.toString().padStart(3, '0') + '° (' + getQuadrant(dipdir) + ')';
+    } else {
+        document.getElementById('dipdir').value = '';
+    }
+});
+
+function startVoiceNote(){
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition){ alert("Voice parsing unsupported."); return; }
+  const recognition = new SpeechRecognition();
+  recognition.lang = "en-US";
+  recognition.onresult = function(event){
+      document.getElementById("remarks").value += " " + event.results[0][0].transcript;
+      updatePreview();
+  };
+  recognition.start();
 }
   
 function updateSampleID(){
@@ -369,39 +313,26 @@ function updateSampleID(){
     const num = parseInt(localStorage.getItem('sampleCounter') || '1');
     document.getElementById('sample').value = prefix + '-' + String(num).padStart(3,'0');
 }
-
-document.getElementById('samplePrefix').addEventListener('input', function(){
-   this.value = this.value.toUpperCase();
-   updateSampleID();
-});
-
-// ADDED: Missing updateLocationID function
 function updateLocationID(){
     const prefix = document.getElementById('locPrefix').value || 'JU';
     const num = parseInt(localStorage.getItem('locationCounter') || '1');
     document.getElementById('locNo').value = prefix + '-' + String(num).padStart(3,'0');
 }
 
-// ADDED: Missing listener for Location Prefix
+document.getElementById('samplePrefix').addEventListener('input', function(){
+   this.value = this.value.toUpperCase(); updateSampleID();
+});
 document.getElementById('locPrefix').addEventListener('input', function(){
-   this.value = this.value.toUpperCase();
-   updateLocationID();
+   this.value = this.value.toUpperCase(); updateLocationID();
 });
 
-if(!localStorage.getItem('sampleCounter')){
-   localStorage.setItem('sampleCounter','1');
-}
-if(!localStorage.getItem('locationCounter')){
-   localStorage.setItem('locationCounter','1');
-}
-
-console.log("Scripts loaded successfully");
+if(!localStorage.getItem('sampleCounter')) localStorage.setItem('sampleCounter','1');
+if(!localStorage.getItem('locationCounter')) localStorage.setItem('locationCounter','1');
   
 render();
 updatePreview();
 updateSampleID();
-updateLocationID(); // Initial load run
-
+updateLocationID();
 </script>
 </body>
 </html>
