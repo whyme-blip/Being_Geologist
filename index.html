@@ -439,7 +439,7 @@
     </div>
   </div>
 
-  <!-- SAVED LOG DATA VIEWER BOX WITH SYNTHESIS CONTROLLER -->
+  <!-- SAVED LOG DATA VIEWER BOX -->
   <div class="card">
     <div class="section-title" style="border-bottom:none; margin-bottom:0; display:flex; justify-content:space-between; align-items:center;">
       <span>📂 Local Repository Logs</span>
@@ -568,7 +568,7 @@ function saveEntry(){
   let lCounter = parseInt(localStorage.getItem('locationCounter') || '1');
   localStorage.setItem('locationCounter', lCounter + 1);
 
-  persist(); // Auto-Saves state securely
+  persist();
   clearForm(false);
   updateSampleID();
   updateLocationID();
@@ -630,7 +630,6 @@ function exportCSV(){
   download('structural_records.csv',csv,'text/csv');
 }
 
-/* INDUSTRY STANDARD STRUCTURAL DATA GEOJSON EXPORTER */
 function exportGeoJSON(){
   const features = records.filter(r => r.lat && r.lon).map(r => {
     let latVal = parseFloat(r.lat);
@@ -698,35 +697,34 @@ function drawStereonet(poles, beta) {
   const canvas = document.getElementById('stereonetCanvas');
   if(!canvas) return;
   const ctx = canvas.getContext('2d');
-  const R = 110; // Primitive net radius boundary 
-  const cx = 125, cy = 125; // Center point layout axis
+  const R = 110; 
+  const cx = 125, cy = 125; 
 
   ctx.clearRect(0, 0, 250, 250);
 
-  // Draw core circle primitive rim bounds
+  // Draw primitive ring
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, 2 * Math.PI);
   ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 2; ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.stroke();
 
-  // Cardinal labels axis ticks
+  // Cardinal labels
   ctx.fillStyle = '#7f8c8d'; ctx.font = 'bold 10px sans-serif';
   ctx.fillText('N', cx - 4, cy - R - 4); ctx.fillText('S', cx - 4, cy + R + 12);
   ctx.fillText('W', cx - R - 14, cy + 4); ctx.fillText('E', cx + R + 4, cy + 4);
 
-  // Equal-Area Projection helper converter function
   function getStereoCoords(x, y, z) {
-    if(z < 0) { x = -x; y = -y; z = -z; } // Lower hemisphere restriction
+    if(z < 0) { x = -x; y = -y; z = -z; } 
     let factor = Math.sqrt(1 / (1 + z));
     return { px: cx + R * x * factor, py: cy + R * y * factor };
   }
 
-  // Plot individual data poles (Crimson Markers)
+  // Plot poles
   poles.forEach(p => {
     let coords = getStereoCoords(p.x, p.y, p.z);
     ctx.beginPath(); ctx.arc(coords.px, coords.py, 3, 0, 2 * Math.PI);
     ctx.fillStyle = '#c0392b'; ctx.fill();
   });
 
-  // Plot optimized calculated beta fold target (Bright Green Crosshairs)
+  // Plot beta axis
   if(beta) {
     let bCoords = getStereoCoords(beta[0], beta[1], beta[2]);
     ctx.strokeStyle = '#27ae60'; ctx.lineWidth = 3;
@@ -735,23 +733,24 @@ function drawStereonet(poles, beta) {
   }
 }
 
+/* HIGH-CONFIDENCE STRUCTURAL LOGIC PROCESSING ENGINE */
 function runStructuralSynthesis() {
   const s0 = records.filter(r => r.type === 'S0 Bedding' && r.strike && r.dip);
   const s1 = records.filter(r => r.type === 'S1 Foliation' && r.strike && r.dip);
   const s2 = records.filter(r => (r.type === 'S2 Foliation' || r.type==='S2 Crenulation Cleavage') && r.strike && r.dip);
-  const fieldAxes = records.filter(r => r.type === 'Fold Axis' && r.trend && r.plunge);
 
   const activeDataset = s0.length >= 5 ? s0 : (s1.length >= 5 ? s1 : []);
-  const dataLabel = s0.length >= 5 ? 'S0 Bedding' : 'S1 Foliation';
+  const dataTypeLabel = s0.length >= 5 ? 'S0 Bedding' : 'S1 Foliation';
 
   if (activeDataset.length < 5) {
-     alert(`Insufficient data structure volume (${activeDataset.length}/5 records of S0/S1). Input at least 5 variants to initialize the numerical matrix solver engine.`);
+     alert(`Insufficient data structure volume (${activeDataset.length}/5 records of S0/S1). Input at least 5 measurements to initialize the Advanced Structural Solver.`);
      return;
   }
 
   let M = [[0,0,0],[0,0,0],[0,0,0]];
   let poleVectors = [];
 
+  // Step 1: Convert every plane to a 3D unit pole vector
   activeDataset.forEach(r => {
      let strikeRad = (parseFloat(r.strike) * Math.PI) / 180;
      let dipRad = (parseFloat(r.dip) * Math.PI) / 180;
@@ -770,45 +769,139 @@ function runStructuralSynthesis() {
 
   for(let r=0; r<3; r++) { for(let c=0; c<3; c++) { M[r][c] /= activeDataset.length; } }
 
+  // Step 2 & 3: Run Eigensolver & Determine Fabric Type
   const eigenResults = solveEigenSystem(M);
-  const E1 = eigenResults[0].val, E2 = eigenResults[1].val, E3 = eigenResults[2].val;
-  
+  const E1 = eigenResults[0].val;
+  const E2 = eigenResults[1].val;
+  const E3 = eigenResults[2].val;
+
+  let fabricType = "Random";
+  if (E1 / E2 > 3.0 && E2 / E3 < 2.0) {
+    fabricType = "Point Cluster";
+  } else if (E2 / E3 >= 1.5) {
+    fabricType = "Girdle";
+  } else if (E1 / E2 < 1.5 && E2 / E3 < 1.5) {
+    fabricType = "Random / Isotropic";
+  }
+
+  // Step 4: Extract Fold Beta-Axis
   let betaVec = eigenResults[2].vec;
-  if (betaVec[2] < 0) betaVec = betaVec.map(v => -v);
+  if (betaVec[2] < 0) betaVec = betaVec.map(v => -v); 
 
   let plunge = Math.round((Math.asin(betaVec[2]) * 180) / Math.PI);
   let trend = Math.round((Math.atan2(betaVec[1], betaVec[0]) * 180) / Math.PI);
   trend = (trend + 360) % 360;
 
-  let confidence = "Low", confClass = "conf-low";
-  if (activeDataset.length >= 8 && (E2 / E3) >= 3.5) { confidence = "High"; confClass = "conf-high"; }
-  else if (activeDataset.length >= 5 && (E2 / E3) >= 1.8) { confidence = "Moderate"; confClass = "conf-mod"; }
-
-  const dips = activeDataset.map(r => parseInt(r.dip));
-  const dipSpread = Math.max(...dips) - Math.min(...dips);
-
   let htmlResult = `
     <div class="net-wrapper">
        <canvas id="stereonetCanvas" width="250" height="250"></canvas>
     </div>
-    <div style="margin-bottom:12px; text-align:center;">
-      <span class="confidence-pill ${confClass}">Engine Confidence: ${confidence}</span>
-    </div>
-    <div class="geo-insight-card" style="border-left-color: var(--accent);">
-      <div class="insight-title">🌐 Girdle Best-Fit Solver (&beta;-Axis)</div>
-      <p>Calculated Fold Axis: <span style="font-weight:700; color:var(--accent); font-size:16px;">${plunge}° &rarr; ${pad3(trend)}°</span></p>
-    </div>
-    <div class="geo-insight-card">
-      <div class="insight-title">📊 Profile Geometry Class (Fleuty)</div>
-      <p>Total data logs analyzed: <b>${activeDataset.length}</b>. Interlimb dip variance window spans <b>${dipSpread}°</b>. Profile matches a <b>${dipSpread > 55 ? 'Tight folding framework' : dipSpread > 30 ? 'Open/Close profile' : 'Gentle or Sub-homoclinal set'}</b> configuration.</p>
+    <div class="geo-insight-card" style="border-left-color: var(--secondary);">
+      <div class="insight-title">📊 Fabric Distribution Analysis</div>
+      <p>Data Type: <b>${dataTypeLabel}</b> | Fabric Profile: <span style="font-weight:700; color:var(--primary);">${fabricType}</span></p>
+      <p style="font-size:11px; color:var(--text-muted);">Eigenvalues: E1=${E1.toFixed(3)}, E2=${E2.toFixed(3)}, E3=${E3.toFixed(3)}</p>
     </div>
   `;
+
+  if (fabricType === "Point Cluster") {
+    htmlResult += `
+      <div class="geo-insight-card" style="border-left-color: #f39c12;">
+        <div class="insight-title">⚠️ Structural Warning</div>
+        <p>The dataset forms a uniform <b>Point Cluster</b>. This indicates single-limb measurements or homoclinal stratigraphy. A unique fold axis projection requires diverse readings across both limbs.</p>
+      </div>
+    `;
+  } else if (fabricType === "Random / Isotropic") {
+    htmlResult += `
+      <div class="geo-insight-card" style="border-left-color: #c0392b;">
+        <div class="insight-title">❌ Solver Aborted</div>
+        <p>Data distribution lacks linear order. Track spatial orientations systematically across axial planes to trace a coherent profile girdle.</p>
+      </div>
+    `;
+  } else {
+    // Step 5: Project poles onto profile plane perpendicular to beta-axis
+    let u = [-betaVec[1], betaVec[0], 0]; 
+    let uLen = Math.sqrt(u[0]*u[0] + u[1]*u[1]);
+    if(uLen < 1e-4) { u = [1, 0, 0]; } else { u = u.map(v => v/uLen); }
+    let v = [
+      betaVec[1]*u[2] - betaVec[2]*u[1],
+      betaVec[2]*u[0] - betaVec[0]*u[2],
+      betaVec[0]*u[1] - betaVec[1]*u[0]
+    ];
+
+    let angularPositions = poleVectors.map(p => {
+       let xComp = p.x * u[0] + p.y * u[1] + p.z * u[2];
+       let yComp = p.x * v[0] + p.y * v[1] + p.z * v[2];
+       return (Math.atan2(yComp, xComp) + 2 * Math.PI) % (2 * Math.PI);
+    });
+
+    angularPositions.sort((a, b) => a - b);
+
+    // Sort and isolate background gap limits
+    let maxGap = 0;
+    let gapStartIndex = 0;
+    let N = angularPositions.length;
+
+    for (let i = 0; i < N; i++) {
+       let nextAngle = (i === N - 1) ? angularPositions[0] + 2 * Math.PI : angularPositions[i + 1];
+       let currentGap = nextAngle - angularPositions[i];
+       if (currentGap > maxGap) {
+          maxGap = currentGap;
+          gapStartIndex = i;
+       }
+    }
+
+    let shiftedAngles = [];
+    let baseAngle = angularPositions[gapStartIndex];
+    for(let i = 0; i < N; i++) {
+       let target = angularPositions[i];
+       if (target <= baseAngle) target += 2 * Math.PI;
+       shiftedAngles.push(target - baseAngle);
+    }
+    shiftedAngles.sort((a, b) => a - b);
+
+    // Step 6: Trim outliers via robust 90% envelope limits
+    let p5Index = Math.max(0, Math.floor(N * 0.05));
+    let p95Index = Math.min(N - 1, Math.ceil(N * 0.95) - 1);
+    
+    let robustGirdleSpanRad = shiftedAngles[p95Index] - shiftedAngles[p5Index];
+    let robustGirdleSpanDeg = (robustGirdleSpanRad * 180) / Math.PI;
+
+    // Step 7: True interlimb angle extraction
+    let trueInterlimb = 180 - robustGirdleSpanDeg;
+    if (trueInterlimb < 0) trueInterlimb = 0;
+    if (trueInterlimb > 180) trueInterlimb = 180;
+
+    // Step 8: Apply Fleuty Profile Categorization
+    let fleutyClass = "Unknown";
+    if (trueInterlimb >= 170) fleutyClass = "Gentle (Sub-homoclinal)";
+    else if (trueInterlimb >= 120) fleutyClass = "Open";
+    else if (trueInterlimb >= 70)  fleutyClass = "Close";
+    else if (trueInterlimb >= 30)  fleutyClass = "Tight";
+    else if (trueInterlimb >= 0)   
+      fleutyClass = trueInterlimb <= 5 ? "Isoclinal (Transposed Fabric)" : "Isoclinal";
+
+    let confidence = "Moderate", confClass = "conf-mod";
+    if (N >= 8 && (E2 / E3) >= 3.5) { confidence = "High"; confClass = "conf-high"; }
+
+    htmlResult += `
+      <div class="geo-insight-card" style="border-left-color: var(--success);">
+        <div class="insight-title">🌐 Girdle Best-Fit Solver (&beta;-Axis)</div>
+        <p>Calculated Fold Plunge/Trend: <span style="font-weight:700; color:var(--success); font-size:16px;">${plunge}° &rarr; ${pad3(trend)}°</span></p>
+      </div>
+      <div class="geo-insight-card" style="border-left-color: #d35400;">
+        <div class="insight-title">📐 Profile Geometry Class (Fleuty 1964)</div>
+        <p>Measurements Analyzed: <b>${N}</b> (Outliers trimmed via 90% envelope)</p>
+        <p>True Profile Interlimb Angle: <span style="font-weight:700; color:#d35400; font-size:16px;">${Math.round(trueInterlimb)}°</span></p>
+        <p>Geometry Framework: <b>${fleutyClass} Profile</b></p>
+      </div>
+    `;
+  }
 
   if (s2.length > 0) {
      htmlResult += `
        <div class="geo-insight-card" style="border-left-color: var(--danger);">
          <div class="insight-title">🔄 Polyphase Overprinting Diagnostic</div>
-         <p>Active <b>S2 Crenulation fabrics</b> overprinting recorded structures. Validates superposed polyphase deformation history ($F_1$ crossed by $F_2$).</p>
+         <p>Detected active <b>S2 Crenulation fabrics</b> overprinting structural domains. This confirms a superposed polyphase deformation history. Interpret regional fold trends carefully as geometric axes may be structurally rotated.</p>
        </div>
      `;
   }
@@ -816,7 +909,6 @@ function runStructuralSynthesis() {
   document.getElementById('modalBody').innerHTML = htmlResult;
   document.getElementById('analysisModal').classList.add('active');
 
-  // Trigger lower-hemisphere visual mapping render cycle immediately
   setTimeout(() => drawStereonet(poleVectors, betaVec), 50);
 }
 
