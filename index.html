@@ -154,13 +154,13 @@ function saveEntry(){
    counter + 1
  );
 
- persist();
+persist();
 
- updateSampleID();
+clearForm(false);
 
- clearForm(false);
+updateSampleID();
 
- render();
+render();
 
 }
 function clearForm(resetDate=true){
@@ -335,7 +335,9 @@ function updateSampleID(){
         document.getElementById('samplePrefix').value || 'DD';
 
     const num =
-        parseInt(localStorage.getItem('sampleCounter') || '1';
+        parseInt(
+            localStorage.getItem('sampleCounter') || '1'
+        );
 
     document.getElementById('sample').value =
         prefix + '-' +
