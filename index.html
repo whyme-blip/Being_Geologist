@@ -775,30 +775,32 @@ function runStructuralSynthesis() {
   const E2 = eigenResults[1].val;
   const E3 = eigenResults[2].val;
 
-  // Protect against log(0) for flat orientations
   const safeE1 = E1 < 1e-5 ? 1e-5 : E1;
   const safeE2 = E2 < 1e-5 ? 1e-5 : E2;
   const safeE3 = E3 < 1e-5 ? 1e-5 : E3;
 
- // Step 3: Upgraded Woodcock (1977) Fabric Classification Framework
+  // Step 3: Girdle Strength Index (GI) & Fabric Classification
+  const GirdleIndex = (E2 - E3) / safeE1;
   const lnE1E2 = Math.log(safeE1 / safeE2);
   const lnE2E3 = Math.log(safeE2 / safeE3);
   
   let fabricType = "Random";
+  let girdleQual = "Weak";
   const strengthC = Math.log(safeE1 / safeE3);
 
-  // CRITICAL FIX: Direct dominant eigenvalue check to handle extreme clusters
+  if (GirdleIndex >= 0.35) girdleQual = "Strong";
+  else if (GirdleIndex >= 0.15) girdleQual = "Moderate";
+
   if (E1 >= 0.85 || (E1 / safeE2) >= 6.0) {
     fabricType = "Point Cluster";
   } else if (strengthC < 1.0 || E1 < 0.4) {
     fabricType = "Random / Isotropic";
   } else {
-    // Standard Woodcock shape parameter for distributed data
     const K = lnE1E2 / (lnE2E3 === 0 ? 1e-5 : lnE2E3);
     if (K > 1.0) {
       fabricType = "Point Cluster";
     } else {
-      fabricType = "Girdle";
+      fabricType = `${girdleQual} Girdle`;
     }
   }
 
@@ -818,7 +820,7 @@ function runStructuralSynthesis() {
     <div class="geo-insight-card" style="border-left-color: var(--secondary);">
       <div class="insight-title">📊 Fabric Distribution Analysis</div>
       <p>Data Type: <b>${dataTypeLabel}</b> | Fabric Profile: <span style="font-weight:700; color:var(--primary);">${fabricType}</span></p>
-      <p style="font-size:11px; color:var(--text-muted);">Normalized Eigenvalues: E1=${E1.toFixed(3)}, E2=${E2.toFixed(3)}, E3=${E3.toFixed(3)}</p>
+      <p style="font-size:11px; color:var(--text-muted);">Normalized Eigenvalues: E1=${E1.toFixed(3)}, E2=${E2.toFixed(3)}, E3=${E3.toFixed(3)} | Girdle Index: ${GirdleIndex.toFixed(3)}</p>
     </div>
   `;
 
@@ -835,7 +837,6 @@ function runStructuralSynthesis() {
         <p>Fleuty Class: <b>N/A</b></p>
       </div>
     `;
-    // Set beta to null so the stereonet doesn't draw a false axis crosshair
     betaVec = null;
 
   } else if (fabricType === "Random / Isotropic") {
@@ -849,83 +850,126 @@ function runStructuralSynthesis() {
     betaVec = null;
 
   } else {
-    // RUN HIGH-CONFIDENCE STRUCTURAL SOLVER (Girdle Mode Only)
-    let u = [-betaVec[1], betaVec[0], 0]; 
-    let uLen = Math.sqrt(u[0]*u[0] + u[1]*u[1]);
-    if(uLen < 1e-4) { u = [1, 0, 0]; } else { u = u.map(v => v/uLen); }
-    let v = [
-      betaVec[1]*u[2] - betaVec[2]*u[1],
-      betaVec[2]*u[0] - betaVec[0]*u[2],
-      betaVec[0]*u[1] - betaVec[1]*u[0]
-    ];
+    // --- HIGHEST PRIORITY 1: 3D K-MEANS LIMB CLUSTERING ---
+    let c1 = poleVectors[0];
+    let maxDist = -1;
+    let c2 = poleVectors[0];
 
-    let angularPositions = poleVectors.map(p => {
-       let xComp = p.x * u[0] + p.y * u[1] + p.z * u[2];
-       let yComp = p.x * v[0] + p.y * v[1] + p.z * v[2];
-       return (Math.atan2(yComp, xComp) + 2 * Math.PI) % (2 * Math.PI);
+    poleVectors.forEach(p => {
+      let dist = 1 - (p.x * c1.x + p.y * c1.y + p.z * c1.z);
+      if (dist > maxDist) { maxDist = dist; c2 = p; }
     });
 
-    angularPositions.sort((a, b) => a - b);
-
-    let maxGap = 0;
-    let gapStartIndex = 0;
-    let N = angularPositions.length;
-
-    for (let i = 0; i < N; i++) {
-       let nextAngle = (i === N - 1) ? angularPositions[0] + 2 * Math.PI : angularPositions[i + 1];
-       let currentGap = nextAngle - angularPositions[i];
-       if (currentGap > maxGap) {
-          maxGap = currentGap;
-          gapStartIndex = i;
-       }
+    let clusterA = [], clusterB = [];
+    for (let iter = 0; iter < 8; iter++) {
+      clusterA = []; clusterB = [];
+      poleVectors.forEach(p => {
+        let dot1 = p.x * c1.x + p.y * c1.y + p.z * c1.z;
+        let dot2 = p.x * c2.x + p.y * c2.y + p.z * c2.z;
+        if (dot1 >= dot2) clusterA.push(p); else clusterB.push(p);
+      });
+      if (clusterA.length > 0) {
+        let mA = {x:0, y:0, z:0}; clusterA.forEach(p=>{mA.x+=p.x; mA.y+=p.y; mA.z+=p.z;});
+        let lenA = Math.sqrt(mA.x**2 + mA.y**2 + mA.z**2);
+        c1 = {x: mA.x/lenA, y: mA.y/lenA, z: mA.z/lenA};
+      }
+      if (clusterB.length > 0) {
+        let mB = {x:0, y:0, z:0}; clusterB.forEach(p=>{mB.x+=p.x; mB.y+=p.y; mB.z+=p.z;});
+        let lenB = Math.sqrt(mB.x**2 + mB.y**2 + mB.z**2);
+        c2 = {x: mB.x/lenB, y: mB.y/lenB, z: mB.z/lenB};
+      }
     }
 
-    let shiftedAngles = [];
-    let baseAngle = angularPositions[gapStartIndex];
-    for(let i = 0; i < N; i++) {
-       let target = angularPositions[i];
-       if (target <= baseAngle) target += 2 * Math.PI;
-       shiftedAngles.push(target - baseAngle);
+    // Geological Reality Check Layer: Ensure two distinct limbs exist
+    if (clusterA.length < 2 || clusterB.length < 2) {
+      htmlResult += `
+        <div class="geo-insight-card" style="border-left-color: #e67e22;">
+          <div class="insight-title">⚠️ Geological Reality Check Warning</div>
+          <p><b>Insufficient Limb Separation:</b> Data heavily weights a single structural domain. Fold solver suspended to prevent false architectural artifact synthesis.</p>
+        </div>
+      `;
+      betaVec = null;
+      document.getElementById('modalBody').innerHTML = htmlResult;
+      document.getElementById('analysisModal').classList.add('active');
+      setTimeout(() => drawStereonet(poleVectors, betaVec), 50);
+      return;
     }
-    shiftedAngles.sort((a, b) => a - b);
 
-    let p5Index = Math.max(0, Math.floor(N * 0.05));
-    let p95Index = Math.min(N - 1, Math.ceil(N * 0.95) - 1);
+    // Compute interlimb angle between mean limb poles
+    let dotPoles = c1.x*c2.x + c1.y*c2.y + c1.z*c2.z;
+    dotPoles = Math.max(-1, Math.min(1, dotPoles));
+    let poleSeparationDeg = (Math.acos(dotPoles) * 180) / Math.PI;
+    let trueInterlimb = 180 - poleSeparationDeg;
+
+    // --- HIGHEST PRIORITY 3: β-AXIS UNCERTAINTY WINDOW ---
+    let betaUncertainty = Math.round(Math.asin(Math.sqrt(safeE3 / safeE2)) * 180 / Math.PI);
+    if (isNaN(betaUncertainty)) betaUncertainty = 5;
+
+    // --- HIGHEST PRIORITY 4: OVERTURNED FOLD DETECTION ---
+    let dipDirA = (Math.atan2(-c1.y, -c1.x) * 180 / Math.PI + 360) % 360;
+    let dipDirB = (Math.atan2(-c2.y, -c2.x) * 180 / Math.PI + 360) % 360;
+    let diffDipDir = Math.abs(dipDirA - dipDirB);
+    if (diffDipDir > 180) diffDipDir = 360 - diffDipDir;
+    let isOverturned = diffDipDir < 75;
+
+    // --- HIGHEST PRIORITY 2: QUANTITATIVE FOLD CONFIDENCE SCORE ---
+    let nWeight = Math.min(25, activeDataset.length * 1.25);
+    let giWeight = GirdleIndex * 45; 
+    if (giWeight > 35) giWeight = 35;
+    let balanceRatio = Math.min(clusterA.length, clusterB.length) / Math.max(clusterA.length, clusterB.length);
+    let balanceWeight = balanceRatio * 20;
+    let separationWeight = (trueInterlimb > 20 && trueInterlimb < 160) ? 20 : 10;
     
-    let robustGirdleSpanRad = shiftedAngles[p95Index] - shiftedAngles[p5Index];
-    let robustGirdleSpanDeg = (robustGirdleSpanRad * 180) / Math.PI;
+    let confidenceScore = Math.round(nWeight + giWeight + balanceWeight + separationWeight);
+    if (confidenceScore > 100) confidenceScore = 100;
 
-    let trueInterlimb = 180 - robustGirdleSpanDeg;
-    if (trueInterlimb < 0) trueInterlimb = 0;
-    if (trueInterlimb > 180) trueInterlimb = 180;
-
-    // --- UPDATED FLEUTY (1964) CLASSIFICATION LOGIC ---
     let fleutyClass = "Isoclinal";
-    if (trueInterlimb >= 120) {
-       fleutyClass = "Gentle";
-    } else if (trueInterlimb >= 70) {
-       fleutyClass = "Open";
-    } else if (trueInterlimb >= 30) {
-       fleutyClass = "Close";
-    } else if (trueInterlimb >= 10) {
-       fleutyClass = "Tight";
-    } else {
-       fleutyClass = "Isoclinal";
-    }
-
-    let confidence = "Moderate", confClass = "conf-mod";
-    if (N >= 8 && (E2 / E3) >= 3.5) { confidence = "High"; confClass = "conf-high"; }
+    if (trueInterlimb >= 120) fleutyClass = "Gentle";
+    else if (trueInterlimb >= 70)  fleutyClass = "Open";
+    else if (trueInterlimb >= 30)  fleutyClass = "Close";
+    else if (trueInterlimb >= 10)  fleutyClass = "Tight";
 
     htmlResult += `
       <div class="geo-insight-card" style="border-left-color: var(--success);">
         <div class="insight-title">🌐 Girdle Best-Fit Solver (&beta;-Axis)</div>
-        <p>Calculated Fold Plunge/Trend: <span style="font-weight:700; color:var(--success); font-size:16px;">${plunge}° &rarr; ${pad3(trend)}°</span></p>
+        <p>Calculated Axis: <span style="font-weight:700; color:var(--success); font-size:16px;">${plunge}° &rarr; ${pad3(trend)}° &plusmn; ${betaUncertainty}°</span></p>
+        <p style="font-size:12px; margin-top:4px;">Fold Confidence Rating: <b>${confidenceScore}%</b></p>
       </div>
       <div class="geo-insight-card" style="border-left-color: #d35400;">
-        <div class="insight-title">📐 Profile Geometry Class (Fleuty 1964)</div>
-        <p>Measurements Analyzed: <b>${N}</b> (Outliers trimmed via 90% envelope)</p>
-        <p>True Profile Interlimb Angle: <span style="font-weight:700; color:#d35400; font-size:16px;">${Math.round(trueInterlimb)}°</span></p>
+        <div class="insight-title">📐 Profile Geometry Class</div>
+        <p>True Representative Interlimb Angle: <span style="font-weight:700; color:#d35400; font-size:16px;">${Math.round(trueInterlimb)}°</span></p>
         <p>Geometry Framework: <b>${fleutyClass} Profile</b></p>
+        <p>Structural Style: <span style="font-weight:700; color:${isOverturned ? 'var(--danger)' : 'var(--success)'};">${isOverturned ? 'OVERTURNED ASYMMETRICAL' : 'UPRIGHT / NORMAL'}</span></p>
+      </div>
+    `;
+  }
+
+  // --- MEDIUM PRIORITY: S0-S1 STRUCTURAL DOMAIN DIAGNOSTIC ---
+  if (s0.length > 0 && s1.length > 0) {
+    let sumS0 = {x:0,y:0,z:0}, sumS1 = {x:0,y:0,z:0};
+    s0.forEach(r => {
+      let str = (parseFloat(r.strike)*Math.PI)/180, dp = (parseFloat(r.dip)*Math.PI)/180 + Math.PI;
+      sumS0.x += Math.sin(dp)*Math.cos(str); sumS0.y += Math.sin(dp)*Math.sin(str); sumS0.z += Math.cos(dp);
+    });
+    s1.forEach(r => {
+      let str = (parseFloat(r.strike)*Math.PI)/180, dp = (parseFloat(r.dip)*Math.PI)/180 + Math.PI;
+      sumS1.x += Math.sin(dp)*Math.cos(str); sumS1.y += Math.sin(dp)*Math.sin(str); sumS1.z += Math.cos(dp);
+    });
+    let len0 = Math.sqrt(sumS0.x**2 + sumS0.y**2 + sumS0.z**2);
+    let len1 = Math.sqrt(sumS1.x**2 + sumS1.y**2 + sumS1.z**2);
+    let dotS0S1 = Math.abs((sumS0.x*sumS1.x + sumS0.y*sumS1.y + sumS0.z*sumS1.z) / (len0 * len1));
+    let angleS0S1 = (Math.acos(Math.min(1, dotS0S1)) * 180) / Math.PI;
+
+    let domainLabel = "General Mixed Limb Domain";
+    let domainColor = "var(--text-main)";
+    if (angleS0S1 > 45) { domainLabel = "CRITICAL HINGE DOMAIN (High-Angle S0-S1 Intersection)"; domainColor = "var(--danger)"; }
+    else if (angleS0S1 < 20) { domainLabel = "TRANSPOSITION LIMB ZONE (Parallel S0-S1 Cleavage)"; domainColor = "#2980b9"; }
+
+    htmlResult += `
+      <div class="geo-insight-card" style="border-left-color: #8e44ad;">
+        <div class="insight-title">🗺️ S0–S1 Micro-Domain Indicator</div>
+        <p>Mean S0-S1 Cleavage Angle: <b>${Math.round(angleS0S1)}°</b></p>
+        <p>Outcrop Mapping Verdict: <span style="font-weight:700; color:${domainColor};">${domainLabel}</span></p>
       </div>
     `;
   }
@@ -934,7 +978,7 @@ function runStructuralSynthesis() {
      htmlResult += `
        <div class="geo-insight-card" style="border-left-color: var(--danger);">
          <div class="insight-title">🔄 Polyphase Overprinting Diagnostic</div>
-         <p>Detected active <b>S2 Crenulation fabrics</b> overprinting structural domains. This confirms a superposed polyphase deformation history. Interpret regional fold trends carefully as geometric axes may be structurally rotated.</p>
+         <p>Detected active <b>S2 Crenulation fabrics</b> overprinting structural domains. This confirms a superposed polyphase deformation history (F2 refolding of F1). Interpret regional fold trends carefully as geometric axes may be structurally rotated.</p>
        </div>
      `;
   }
