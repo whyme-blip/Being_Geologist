@@ -1,10 +1,10 @@
 {
-  "name": "Geology Field Logger",
-  "short_name": "GeoLogger",
-  "start_url": "/Field-map-app/",
-  "scope": "/Field-map-app/",
+  "name": "Offline Structural Data Logger",
+  "short_name": "StrataLog",
+  "description": "Offline Structural Data Logger by Being_Geologist",
+  "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#1f3a5f",
+  "background_color": "#f4f6f7",
   "theme_color": "#1f3a5f",
   "icons": [
     {
