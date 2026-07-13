@@ -1052,17 +1052,28 @@ function startVoiceNote(){
 function handleLocModeChange() {
   const mode = document.getElementById('locCountMode').value;
   const locNoInput = document.getElementById('locNo');
+  
   if (mode === 'manual') {
-    locNoInput.readOnly = false;
-    locNoInput.focus();
-    locNoInput.select();
+    if (confirm("Do you really want to manually enter the location number?")) {
+      locNoInput.readOnly = false;
+      locNoInput.focus();
+      locNoInput.select();
+    } else {
+      document.getElementById('locCountMode').value = 'continue';
+    }
   } else if (mode === 'reset') {
-    locNoInput.readOnly = true;
-    locNoInput.value = '0';
-    localStorage.setItem('locationCounter', '0');
+    if (confirm("Do you really want to reset the counter to 0?")) {
+      locNoInput.readOnly = true;
+      locNoInput.value = '0';
+      localStorage.setItem('locationCounter', '0');
+    } else {
+      document.getElementById('locCountMode').value = 'continue';
+    }
   } else {
     locNoInput.readOnly = true;
-    locNoInput.value = localStorage.getItem('locationCounter') || '1';
+    if (typeof updateLocationID === 'function') {
+      updateLocationID();
+    }
   }
 }
 
