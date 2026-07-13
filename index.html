@@ -571,13 +571,18 @@ function saveEntry(){
   localStorage.setItem('sampleCounter', sCounter + 1);
 
   const locMode = document.getElementById('locCountMode').value;
-  let lCounter = parseInt(document.getElementById('locNo').value || '0', 10);
+  
+  // FIX: Read the raw numeric counter straight from storage instead of parsing "String-001"
+  let lCounter = parseInt(localStorage.getItem('locationCounter') || '1', 10);
   
   if (locMode === 'reset') {
       lCounter = 0;
       document.getElementById('locCountMode').value = 'continue';
       document.getElementById('locNo').readOnly = true;
   } else if (locMode === 'manual') {
+      // Strip any letters to pull out only numbers if manually written
+      let manualNum = parseInt(document.getElementById('locNo').value.replace(/^\D+/g, ''), 10);
+      lCounter = isNaN(manualNum) ? lCounter : manualNum;
       document.getElementById('locCountMode').value = 'continue';
       document.getElementById('locNo').readOnly = true;
   } else {
@@ -591,7 +596,6 @@ function saveEntry(){
   updateLocationID();
   render();
 }
-
 function clearForm(resetDate=true){
   ids.forEach(id => {
     if(id!='date' && id!='sample' && id!='samplePrefix' && id!='locNo' && id!='locPrefix' && id!='type'){
@@ -636,8 +640,13 @@ function getGPS(){
      updatePreview();
   }, function(e){
      latField.value=''; lonField.value='';
-     alert('GPS Error: ' + e.message);
-  },{enableHighAccuracy:true,timeout:20000});
+     // Alerts the structural geologist if the device security configuration blocks the engine
+     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+       alert('GPS Blocked: Smart-phones require an HTTPS secure connection to share location data. Please host via HTTPS or test on localhost.');
+     } else {
+       alert('GPS Sync Error: ' + e.message + ' (Check if location permissions are allowed for this app)');
+     }
+  },{enableHighAccuracy:true,timeout:30000,maximumAge:0});
 }
 
 function exportJSON(){download('structural_records.json',JSON.stringify(records,null,2),'application/json')}
