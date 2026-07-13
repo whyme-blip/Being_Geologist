@@ -306,6 +306,11 @@
       <div class="form-group"><label>Date</label><input id="date" type="date"></div>
       <div class="form-group">
         <label>Location ID Tracker</label>
+        <select id="locCountMode" onchange="handleLocModeChange()" style="margin-bottom: 4px; padding: 4px 8px; font-size: 12px; height: auto;">
+          <option value="continue">Continue from Last</option>
+          <option value="reset">Reset / Start from 0</option>
+          <option value="manual">Manual Enter</option>
+        </select>
         <div class="compact-row">
           <input id="locPrefix" value="JU" placeholder="Prefix">
           <input id="locNo" readonly placeholder="No.">
@@ -565,8 +570,20 @@ function saveEntry(){
   let sCounter = parseInt(localStorage.getItem('sampleCounter') || '1');
   localStorage.setItem('sampleCounter', sCounter + 1);
 
-  let lCounter = parseInt(localStorage.getItem('locationCounter') || '1');
-  localStorage.setItem('locationCounter', lCounter + 1);
+  const locMode = document.getElementById('locCountMode').value;
+  let lCounter = parseInt(document.getElementById('locNo').value || '0', 10);
+  
+  if (locMode === 'reset') {
+      lCounter = 0;
+      document.getElementById('locCountMode').value = 'continue';
+      document.getElementById('locNo').readOnly = true;
+  } else if (locMode === 'manual') {
+      document.getElementById('locCountMode').value = 'continue';
+      document.getElementById('locNo').readOnly = true;
+  } else {
+      lCounter = lCounter + 1;
+  }
+  localStorage.setItem('locationCounter', lCounter);
 
   persist();
   clearForm(false);
@@ -1032,17 +1049,31 @@ function startVoiceNote(){
   recognition.start();
 }
   
-function updateSampleID(){
-    const prefix = document.getElementById('samplePrefix').value || 'DD';
-    const num = parseInt(localStorage.getItem('sampleCounter') || '1');
-    document.getElementById('sample').value = prefix + '-' + String(num).padStart(3,'0');
-}
-function updateLocationID(){
-    const prefix = document.getElementById('locPrefix').value || 'JU';
-    const num = parseInt(localStorage.getItem('locationCounter') || '1');
-    document.getElementById('locNo').value = prefix + '-' + String(num).padStart(3,'0');
+function handleLocModeChange() {
+  const mode = document.getElementById('locCountMode').value;
+  const locNoInput = document.getElementById('locNo');
+  if (mode === 'manual') {
+    locNoInput.readOnly = false;
+    locNoInput.focus();
+    locNoInput.select();
+  } else if (mode === 'reset') {
+    locNoInput.readOnly = true;
+    locNoInput.value = '0';
+    localStorage.setItem('locationCounter', '0');
+  } else {
+    locNoInput.readOnly = true;
+    locNoInput.value = localStorage.getItem('locationCounter') || '1';
+  }
 }
 
+function updateLocationID(){
+    const mode = document.getElementById('locCountMode').value;
+    if (mode !== 'manual') {
+        const prefix = document.getElementById('locPrefix').value || 'JU';
+        const num = parseInt(localStorage.getItem('locationCounter') || '1');
+        document.getElementById('locNo').value = prefix + '-' + String(num).padStart(3,'0');
+    }
+}
 document.getElementById('samplePrefix').addEventListener('input', function(){
    this.value = this.value.toUpperCase(); updateSampleID();
 });
