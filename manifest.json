@@ -1,17 +1,19 @@
 {
   "short_name": "GeoLogger",
   "name": "Offline Structural Data Logger",
-  "description": "Standalone Eigensolver Engine & Schmidt Stereonet Visualizer for structural geology fieldwork.",
+  "description": "Fieldwork and data entry.",
   "icons": [
     {
       "src": "icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
   "start_url": "./index.html",
