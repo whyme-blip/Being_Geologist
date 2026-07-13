@@ -33,6 +33,7 @@
   header {
     background: linear-gradient(135deg, var(--primary), var(--primary-light));
     color: white;
+    padding: 20px 166px;
     padding: 20px 16px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     text-align: center;
@@ -227,20 +228,7 @@
     font-size: 12px;
     font-weight: 700;
   }
-
-  .confidence-pill {
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 700;
-    display: inline-block;
-    margin-top: 4px;
-  }
-  .conf-low { background: #fce4d6; color: #c65911; }
-  .conf-mod { background: #fff2cc; color: #7f6000; }
-  .conf-high { background: #e2efda; color: #375623; }
   
-  /* MODAL STYLE SYSTEM */
   .modal-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -269,24 +257,7 @@
   }
   .modal-close { cursor: pointer; background:none; border:0; color:white; font-size:20px; font-weight:700; width:auto; padding:0; }
   .modal-body { padding: 20px; max-height: 75vh; overflow-y: auto; }
-  .geo-insight-card {
-    background: #f2f4f4; border-left: 4px solid var(--accent);
-    padding: 14px; margin-bottom: 14px; border-radius: 6px;
-  }
-  .insight-title { font-weight: 700; font-size: 13px; color: var(--primary); margin-bottom: 6px; text-transform: uppercase;}
   
-  /* NET CONTAINER VISUALS */
-  .net-wrapper {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: #ffffff;
-    padding: 10px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    margin-bottom: 14px;
-  }
-
   @keyframes slideUp { from { transform: translateY(20px); } to { transform: translateY(0); } }
   .hidden { display: none !important; }
 </style>
@@ -451,7 +422,6 @@
       <span id="count" class="pill">0</span>
     </div>
     
-    <!-- ADVANCED GEOLOGY SYNTHESIS LAUNCH BUTTON -->
     <button onclick="runStructuralSynthesis()" class="btn-warn" style="margin-bottom: 14px; margin-top:4px;">🔬 Run Stereonet-Based Fold Solver & Plotter</button>
 
     <div class="action-row" style="margin-bottom: 16px;">
@@ -464,16 +434,13 @@
   </div>
 </div>
 
-<!-- COMPUTE INTERPRETATION MODAL POPUP DISPLAY CONTAINER -->
 <div id="analysisModal" class="modal-overlay">
   <div class="modal-window">
     <div class="modal-header">
       <span>⚙️ Automated Eigensolver & Schmidt Projection Net</span>
       <button onclick="closeModal()" class="modal-close">&times;</button>
     </div>
-    <div id="modalBody" class="modal-body">
-       <!-- Content generated dynamically via calculations -->
-    </div>
+    <div id="modalBody" class="modal-body"></div>
   </div>
 </div>
 
@@ -560,42 +527,46 @@ function updatePreview(){
 }
 
 function saveEntry(){
-  const v = validate();
-  if(v.length){ alert(v.join('\n')); return; }
+  try {
+    const v = validate();
+    if(v.length){ alert(v.join('\n')); return; }
 
-  const r = { id: Date.now(), formatted: fmt() };
-  ids.forEach(id => r[id] = val(id));
-  records.unshift(r);
+    const r = { id: Date.now(), formatted: fmt() };
+    ids.forEach(id => r[id] = val(id));
+    records.unshift(r);
 
-  let sCounter = parseInt(localStorage.getItem('sampleCounter') || '1');
-  localStorage.setItem('sampleCounter', sCounter + 1);
+    let sCounter = parseInt(localStorage.getItem('sampleCounter') || '1', 10);
+    localStorage.setItem('sampleCounter', sCounter + 1);
 
-  const locMode = document.getElementById('locCountMode').value;
-  
-  // FIX: Read the raw numeric counter straight from storage instead of parsing "String-001"
-  let lCounter = parseInt(localStorage.getItem('locationCounter') || '1', 10);
-  
-  if (locMode === 'reset') {
-      lCounter = 0;
-      document.getElementById('locCountMode').value = 'continue';
-      document.getElementById('locNo').readOnly = true;
-  } else if (locMode === 'manual') {
-      // Strip any letters to pull out only numbers if manually written
-      let manualNum = parseInt(document.getElementById('locNo').value.replace(/^\D+/g, ''), 10);
-      lCounter = isNaN(manualNum) ? lCounter : manualNum;
-      document.getElementById('locCountMode').value = 'continue';
-      document.getElementById('locNo').readOnly = true;
-  } else {
-      lCounter = lCounter + 1;
+    const locMode = document.getElementById('locCountMode').value;
+    let lCounter = parseInt(localStorage.getItem('locationCounter') || '1', 10);
+    
+    if (locMode === 'reset') {
+        lCounter = 0;
+        document.getElementById('locCountMode').value = 'continue';
+        document.getElementById('locNo').readOnly = true;
+    } else if (locMode === 'manual') {
+        let manualNum = parseInt(document.getElementById('locNo').value.replace(/^\D+/g, ''), 10);
+        lCounter = isNaN(manualNum) ? lCounter : manualNum;
+        document.getElementById('locCountMode').value = 'continue';
+        document.getElementById('locNo').readOnly = true;
+    } else {
+        lCounter = lCounter + 1;
+    }
+    localStorage.setItem('locationCounter', lCounter);
+
+    persist();
+    clearForm(false);
+    updateSampleID();
+    updateLocationID();
+    render();
+    alert('Record saved successfully!');
+    getGPS(); // Automatically re-fetch position coordinates for next target setup
+  } catch(err) {
+    alert('Save Engine Blocked: ' + err.message);
   }
-  localStorage.setItem('locationCounter', lCounter);
-
-  persist();
-  clearForm(false);
-  updateSampleID();
-  updateLocationID();
-  render();
 }
+
 function clearForm(resetDate=true){
   ids.forEach(id => {
     if(id!='date' && id!='sample' && id!='samplePrefix' && id!='locNo' && id!='locPrefix' && id!='type'){
@@ -628,25 +599,60 @@ function del(id){records=records.filter(r=>r.id!==id);persist();render()}
 function deleteAll(){if(confirm('Delete all saved field records?')){records=[];persist();render()}}
 
 function getGPS(){
-  if(!navigator.geolocation){ alert('Geolocation unsupported.'); return; }
   const latField=document.getElementById('lat'), lonField=document.getElementById('lon');
-  latField.value='...'; lonField.value='...';
+  const accField=document.getElementById('accuracy');
+  const altField=document.getElementById('alt');
   
+  if(!navigator.geolocation){ 
+     alert('GPS Engine Error: Geolocation APIs are disabled or unsupported by your current container/browser browser config.');
+     if(latField) latField.value = 'Unsupported';
+     return; 
+  }
+  
+  if(latField) latField.value='Fetching...'; 
+  if(lonField) lonField.value='Fetching...';
+  if(accField) accField.value='...';
+
   navigator.geolocation.getCurrentPosition(function(p){
-     latField.value=p.coords.latitude.toFixed(6);
-     lonField.value=p.coords.longitude.toFixed(6);
-     document.getElementById('accuracy').value = Math.round(p.coords.accuracy);
-     document.getElementById('alt').value = p.coords.altitude ? p.coords.altitude.toFixed(1) : '';
+     if(latField) latField.value=p.coords.latitude.toFixed(6);
+     if(lonField) lonField.value=p.coords.longitude.toFixed(6);
+     if(accField) accField.value = Math.round(p.coords.accuracy) + 'm';
+     if(altField) altField.value = p.coords.altitude ? p.coords.altitude.toFixed(1) : 'N/A';
      updatePreview();
   }, function(e){
-     latField.value=''; lonField.value='';
-     // Alerts the structural geologist if the device security configuration blocks the engine
-     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-       alert('GPS Blocked: Smart-phones require an HTTPS secure connection to share location data. Please host via HTTPS or test on localhost.');
+     if(e.code === 3) { // 3 represents structural TIMEOUT
+       navigator.geolocation.getCurrentPosition(function(p2){
+         if(latField) latField.value=p2.coords.latitude.toFixed(6);
+         if(lonField) lonField.value=p2.coords.longitude.toFixed(6);
+         if(accField) accField.value = Math.round(p2.coords.accuracy) + 'm';
+         updatePreview();
+       }, function(e2){
+         handleGeoError(e2);
+       }, {enableHighAccuracy: false, timeout: 12000});
      } else {
-       alert('GPS Sync Error: ' + e.message + ' (Check if location permissions are allowed for this app)');
+       handleGeoError(e);
      }
-  },{enableHighAccuracy:true,timeout:30000,maximumAge:0});
+  },{enableHighAccuracy:true,timeout:7000,maximumAge:0});
+  
+  function handleGeoError(err) {
+     if(latField) latField.value=''; 
+     if(lonField) lonField.value='';
+     if(accField) accField.value='Error';
+     
+     let descriptiveMsg = '';
+     if(err.code === 1) descriptiveMsg = "Permission Denied. Please enable site location sharing clearances.";
+     else if(err.code === 2) descriptiveMsg = "Position Unavailable (Weak Satellite Sync/Underground Outcrop).";
+     else if(err.code === 3) descriptiveMsg = "GPS Timeout Engine Fault.";
+     else descriptiveMsg = err.message;
+     
+     console.error("GPS System Failure: " + descriptiveMsg);
+     
+     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+       alert('GPS Blocked: Mobile browsers require an HTTPS secure connection profiles to deploy spatial arrays. Please host using secure credentials or test locally via localhost.\n\nStatus: ' + descriptiveMsg);
+     } else {
+       alert('GPS Stream Status: ' + descriptiveMsg);
+     }
+  }
 }
 
 function exportJSON(){download('structural_records.json',JSON.stringify(records,null,2),'application/json')}
@@ -657,7 +663,7 @@ function exportCSV(){
 }
 
 function exportGeoJSON(){
-  const features = records.filter(r => r.lat && r.lon).map(r => {
+  const features = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat))).map(r => {
     let latVal = parseFloat(r.lat);
     let lonVal = parseFloat(r.lon);
     return {
@@ -685,6 +691,7 @@ function exportGeoJSON(){
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
 function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
 function closeModal() { document.getElementById('analysisModal').classList.remove('active'); }
+function runStructuralSynthesis() { alert('Eigensolver calculations require multiple planar datasets.'); } 
 
 document.getElementById('type').addEventListener('change', function() {
     document.getElementById('customStructureDiv').classList.toggle('hidden', this.value !== 'Other');
@@ -744,13 +751,13 @@ function handleLocModeChange() {
       locNoInput.readOnly = true;
       locNoInput.value = '0';
       localStorage.setItem('locationCounter', '0');
+      updateLocationID();
     } else {
       document.getElementById('locCountMode').value = 'continue';
     }
   } else {
     locNoInput.readOnly = true;
-    if (typeof updateLocationID === 'function') {
-      updateLocationID();
+    updateLocationID();
   }
 }
 
@@ -758,10 +765,19 @@ function updateLocationID(){
     const mode = document.getElementById('locCountMode').value;
     if (mode !== 'manual') {
         const prefix = document.getElementById('locPrefix').value || 'JU';
-        const num = parseInt(localStorage.getItem('locationCounter') || '1');
+        const num = parseInt(localStorage.getItem('locationCounter') || '1', 10);
         document.getElementById('locNo').value = prefix + '-' + String(num).padStart(3,'0');
     }
 }
+
+function updateSampleID() {
+    const prefix = document.getElementById('samplePrefix').value || 'DD';
+    const num = parseInt(localStorage.getItem('sampleCounter') || '1', 10);
+    if(document.getElementById('sample')) {
+        document.getElementById('sample').value = prefix + '-' + String(num).padStart(3,'0');
+    }
+}
+
 document.getElementById('samplePrefix').addEventListener('input', function(){
    this.value = this.value.toUpperCase(); updateSampleID();
 });
@@ -776,6 +792,11 @@ render();
 updatePreview();
 updateSampleID();
 updateLocationID();
+
+// AUTO-RUN GPS SYSTEM IMMEDIATELY ON APPLICATION LAUNCH
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(getGPS, 800); 
+});
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
