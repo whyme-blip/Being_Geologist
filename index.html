@@ -33,7 +33,6 @@
   header {
     background: linear-gradient(135deg, var(--primary), var(--primary-light));
     color: white;
-    padding: 20px 166px;
     padding: 20px 16px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     text-align: center;
@@ -129,6 +128,12 @@
     border-color: var(--accent);
     background-color: #fff;
     box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.1);
+  }
+
+  input:disabled, select:disabled {
+    background-color: #eaeded;
+    color: var(--text-muted);
+    cursor: not-allowed;
   }
 
   .photo-button-group {
@@ -386,13 +391,29 @@
         </div>
         <input type="file" id="photoInput" accept="image/*" style="display:none;">
       </div>
-      <div class="form-group"><label>Sample Type Selection</label><select id="sampleType"><option>Rock Sample</option><option>Channel Sample</option><option>Grab Sample</option><option>Chip Sample</option><option>Soil Sample</option><option>Other</option></select></div>
+      
+      <div class="form-group">
+        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="takeSample" onchange="toggleSampleState()" style="width: auto; margin: 0;">
+          <strong>Collect Sample?</strong>
+        </label>
+        <select id="sampleType" disabled>
+          <option>Rock Sample</option>
+          <option>Channel Sample</option>
+          <option>Grab Sample</option>
+          <option>Chip Sample</option>
+          <option>Soil Sample</option>
+          <option>Other</option>
+        </select>
+      </div>
+
       <div class="form-group">
         <label>Sample ID Auto Tracker</label>
         <div class="compact-row">
-          <input id="samplePrefix" value="DD">
+          <input id="samplePrefix" value="DD" disabled>
           <input id="sample" readonly>
         </div>
+        <button type="button" id="sampleCounterBtn" onclick="setSampleCounter()" class="btn-sec" style="margin-top: 5px; padding: 4px 8px; font-size: 12px; height: auto; width: auto; align-self: flex-start;" disabled>⚙️ Set/Reset Sample #</button>
       </div>
     </div>
 
@@ -533,47 +554,68 @@ function saveEntry(){
 
     const r = { id: Date.now(), formatted: fmt() };
     ids.forEach(id => r[id] = val(id));
+
+    const hasSample = document.getElementById('takeSample').checked;
+    if (!hasSample) {
+      r['sample'] = '';
+      r['sampleType'] = '';
+    }
+
     records.unshift(r);
 
-    let sCounter = parseInt(localStorage.getItem('sampleCounter') || '1', 10);
-    localStorage.setItem('sampleCounter', sCounter + 1);
+    if (hasSample) {
+      let sCounter = parseInt(localStorage.getItem('sampleCounter') || '1', 10);
+      localStorage.setItem('sampleCounter', sCounter + 1);
+    }
 
     const locMode = document.getElementById('locCountMode').value;
     let lCounter = parseInt(localStorage.getItem('locationCounter') || '1', 10);
     
     if (locMode === 'reset') {
-        lCounter = 1; // Current record saved as 000. Next location will automatically step forward to 001.
+        lCounter = 1;
         document.getElementById('locCountMode').value = 'continue';
         document.getElementById('locNo').readOnly = true;
     } else if (locMode === 'manual') {
-        let manualNum = parseInt(document.getElementById('locNo').value.replace(/^\D+/g, ''), 10);
-        lCounter = isNaN(manualNum) ? lCounter + 1 : manualNum + 1; // Automatically step forward +1 from whatever you manually typed
+        let manualStr = String(document.getElementById('locNo').value);
+        let matches = manualStr.match(/\d+$/);
+        let manualNum = matches ? parseInt(matches[0], 10) : NaN;
+        
+        lCounter = isNaN(manualNum) ? lCounter + 1 : manualNum + 1; 
         document.getElementById('locCountMode').value = 'continue';
         document.getElementById('locNo').readOnly = true;
     } else {
-        lCounter = lCounter + 1; // Standard auto-increment
+        lCounter = lCounter + 1;
     }
     localStorage.setItem('locationCounter', lCounter);
 
     persist();
     clearForm(false);
-    updateSampleID();
     updateLocationID();
     render();
     alert('Record saved successfully!');
-    getGPS(); // Automatically re-fetch position coordinates for next target setup
+    getGPS(); 
   } catch(err) {
     alert('Save Engine Blocked: ' + err.message);
   }
 }
   
 function clearForm(resetDate=true){
+  const baseProtected = ['date', 'sample', 'samplePrefix', 'locNo', 'locPrefix', 'type'];
+  const saveProtected = [...baseProtected, 'loc', 'lith', 'unit', 'lat', 'lon', 'alt', 'accuracy', 'mineralization', 'alteration'];
+  
   ids.forEach(id => {
-    if(id!='date' && id!='sample' && id!='samplePrefix' && id!='locNo' && id!='locPrefix' && id!='type'){
+    const currentProtected = resetDate ? baseProtected : saveProtected;
+    if(!currentProtected.includes(id)){
        const el = document.getElementById(id);
        if(el) el.value = '';
     }
   });
+
+  if (document.getElementById('takeSample')) {
+    document.getElementById('takeSample').checked = false;
+    toggleSampleState();
+  }
+
   if(resetDate && document.getElementById('date')){
     document.getElementById('date').valueAsDate = new Date();
   }
@@ -588,7 +630,7 @@ function render(){
     <div class="entry">
       <div class="fmt-output">${escapeHTML(r.formatted)}</div>
       <div style="font-size: 13px;">Loc: <b>${escapeHTML(r.locNo)}</b> (${escapeHTML(r.loc || 'No Desc')}) ${r.unit?' | '+escapeHTML(r.unit):''} ${r.lith?' | '+escapeHTML(r.lith):''}</div>
-      <div class="meta-text">${r.date} | Lat ${r.lat||'-'}, Long ${r.lon||'-'} | Photo ${r.photo||'-'} | Sample ${r.sample||'-'}</div>
+      <div class="meta-text">${r.date} | Lat ${r.lat||'-'}, Long ${r.lon||'-'} | Photo ${r.photo||'-'} | Sample ${r.sample||'None'}</div>
       ${r.remarks ? `<div style="font-style:italic; color:#566573; margin-top:6px; font-size:13px; background:#f2f4f4; padding:6px; border-radius:6px;">${escapeHTML(r.remarks)}</div>` : ''}
       <button class="btn-danger" onclick="del(${r.id})" style="width:auto; padding:4px 10px; font-size:11px; margin-top:8px; border-radius:6px;">Delete Record</button>
     </div>
@@ -620,7 +662,7 @@ function getGPS(){
      if(altField) altField.value = p.coords.altitude ? p.coords.altitude.toFixed(1) : 'N/A';
      updatePreview();
   }, function(e){
-     if(e.code === 3) { // 3 represents structural TIMEOUT
+     if(e.code === 3) { 
        navigator.geolocation.getCurrentPosition(function(p2){
          if(latField) latField.value=p2.coords.latitude.toFixed(6);
          if(lonField) lonField.value=p2.coords.longitude.toFixed(6);
@@ -756,11 +798,16 @@ function handleLocModeChange() {
     }
   } else {
     locNoInput.readOnly = true;
-    // REPOSITORY SYNC: Scan the log array to check what was actually last recorded in the field
-    if (records.length > 0) {
-      // records[0] is always the newest saved item because of unshift()
-      let lastLocStr = records[0].locNo;
-      let lastNum = parseInt(lastLocStr.replace(/^\D+/g, ''), 10);
+    
+    if (typeof records !== 'undefined' && records.length > 0) {
+      let latestRecord = records.reduce((latest, current) => {
+        return (current.id > latest.id) ? current : latest;
+      }, records[0]);
+      
+      let lastLocStr = latestRecord.locNo ? String(latestRecord.locNo) : '';
+      let matches = lastLocStr.match(/\d+$/);
+      let lastNum = matches ? parseInt(matches[0], 10) : NaN;
+      
       let nextNum = isNaN(lastNum) ? 1 : lastNum + 1;
       localStorage.setItem('locationCounter', nextNum);
     } else {
@@ -779,12 +826,41 @@ function updateLocationID(){
     }
 }
 
+function toggleSampleState() {
+  const isChecked = document.getElementById('takeSample').checked;
+  document.getElementById('sampleType').disabled = !isChecked;
+  document.getElementById('samplePrefix').disabled = !isChecked;
+  document.getElementById('sampleCounterBtn').disabled = !isChecked;
+  updateSampleID();
+}
+
 function updateSampleID() {
-    const prefix = document.getElementById('samplePrefix').value || 'DD';
-    const num = parseInt(localStorage.getItem('sampleCounter') || '1', 10);
+    const isChecked = document.getElementById('takeSample').checked;
     if(document.getElementById('sample')) {
-        document.getElementById('sample').value = prefix + '-' + String(num).padStart(3,'0');
+        if (isChecked) {
+            const prefix = document.getElementById('samplePrefix').value || 'DD';
+            const num = parseInt(localStorage.getItem('sampleCounter') || '1', 10);
+            document.getElementById('sample').value = prefix + '-' + String(num).padStart(3,'0');
+        } else {
+            document.getElementById('sample').value = 'No Sample Collected';
+        }
     }
+}
+
+function setSampleCounter() {
+  const userInput = prompt("Enter the next starting sample number sequence (e.g., 2 for 002, 5 for 005):");
+  if (userInput === null) return; 
+  
+  const parsedNum = parseInt(userInput.replace(/^\D+/g, ''), 10);
+  if (isNaN(parsedNum) || parsedNum < 0) {
+    alert("Please enter a valid numeric value (0 or higher).");
+    return;
+  }
+  
+  localStorage.setItem('sampleCounter', parsedNum);
+  updateSampleID();
+  updatePreview();
+  alert(`Sample tracking updated! The next saved entry will use sequence number: ${parsedNum}`);
 }
 
 document.getElementById('samplePrefix').addEventListener('input', function(){
@@ -794,22 +870,23 @@ document.getElementById('locPrefix').addEventListener('input', function(){
    this.value = this.value.toUpperCase(); updateLocationID();
 });
 
-if(!localStorage.getItem('sampleCounter')) localStorage.setItem('sampleCounter','1');
-if(!localStorage.getItem('locationCounter')) localStorage.setItem('locationCounter','1');
-
-// AUTO-SYNC ON REBOOT: Ensures the app boots up ready for the next logical sequence item
-if (records.length > 0) {
-  let lastLocStr = records[0].locNo;
-  let lastNum = parseInt(lastLocStr.replace(/^\D+/g, ''), 10);
+if (typeof records !== 'undefined' && records.length > 0) {
+  let latestRecord = records.reduce((latest, current) => {
+    return (current.id > latest.id) ? current : latest;
+  }, records[0]);
+  
+  let lastLocStr = latestRecord.locNo ? String(latestRecord.locNo) : '';
+  let matches = lastLocStr.match(/\d+$/);
+  let lastNum = matches ? parseInt(matches[0], 10) : NaN;
+  
   localStorage.setItem('locationCounter', isNaN(lastNum) ? 1 : lastNum + 1);
 }
 
 render();
 updatePreview();
-updateSampleID();
+toggleSampleState();
 updateLocationID();
 
-// AUTO-RUN GPS SYSTEM IMMEDIATELY ON APPLICATION LAUNCH
 window.addEventListener('DOMContentLoaded', () => {
     setTimeout(getGPS, 800); 
 });
