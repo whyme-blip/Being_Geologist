@@ -542,16 +542,16 @@ function saveEntry(){
     let lCounter = parseInt(localStorage.getItem('locationCounter') || '1', 10);
     
     if (locMode === 'reset') {
-        lCounter = 0;
+        lCounter = 1; // Current record saved as 000. Next location will automatically step forward to 001.
         document.getElementById('locCountMode').value = 'continue';
         document.getElementById('locNo').readOnly = true;
     } else if (locMode === 'manual') {
         let manualNum = parseInt(document.getElementById('locNo').value.replace(/^\D+/g, ''), 10);
-        lCounter = isNaN(manualNum) ? lCounter : manualNum;
+        lCounter = isNaN(manualNum) ? lCounter + 1 : manualNum + 1; // Automatically step forward +1 from whatever you manually typed
         document.getElementById('locCountMode').value = 'continue';
         document.getElementById('locNo').readOnly = true;
     } else {
-        lCounter = lCounter + 1;
+        lCounter = lCounter + 1; // Standard auto-increment
     }
     localStorage.setItem('locationCounter', lCounter);
 
@@ -566,7 +566,7 @@ function saveEntry(){
     alert('Save Engine Blocked: ' + err.message);
   }
 }
-
+  
 function clearForm(resetDate=true){
   ids.forEach(id => {
     if(id!='date' && id!='sample' && id!='samplePrefix' && id!='locNo' && id!='locPrefix' && id!='type'){
@@ -749,7 +749,6 @@ function handleLocModeChange() {
   } else if (mode === 'reset') {
     if (confirm("Do you really want to reset the counter to 0?")) {
       locNoInput.readOnly = true;
-      locNoInput.value = '0';
       localStorage.setItem('locationCounter', '0');
       updateLocationID();
     } else {
@@ -757,10 +756,20 @@ function handleLocModeChange() {
     }
   } else {
     locNoInput.readOnly = true;
+    // REPOSITORY SYNC: Scan the log array to check what was actually last recorded in the field
+    if (records.length > 0) {
+      // records[0] is always the newest saved item because of unshift()
+      let lastLocStr = records[0].locNo;
+      let lastNum = parseInt(lastLocStr.replace(/^\D+/g, ''), 10);
+      let nextNum = isNaN(lastNum) ? 1 : lastNum + 1;
+      localStorage.setItem('locationCounter', nextNum);
+    } else {
+      localStorage.setItem('locationCounter', '1');
+    }
     updateLocationID();
   }
 }
-
+  
 function updateLocationID(){
     const mode = document.getElementById('locCountMode').value;
     if (mode !== 'manual') {
@@ -787,7 +796,14 @@ document.getElementById('locPrefix').addEventListener('input', function(){
 
 if(!localStorage.getItem('sampleCounter')) localStorage.setItem('sampleCounter','1');
 if(!localStorage.getItem('locationCounter')) localStorage.setItem('locationCounter','1');
-  
+
+// AUTO-SYNC ON REBOOT: Ensures the app boots up ready for the next logical sequence item
+if (records.length > 0) {
+  let lastLocStr = records[0].locNo;
+  let lastNum = parseInt(lastLocStr.replace(/^\D+/g, ''), 10);
+  localStorage.setItem('locationCounter', isNaN(lastNum) ? 1 : lastNum + 1);
+}
+
 render();
 updatePreview();
 updateSampleID();
