@@ -327,6 +327,7 @@
         <select id="type">
           <optgroup label="Planar Structures">
             <option>S0 Bedding</option>
+            <option>Flow Banding</option>
             <option>S1 Foliation</option>
             <option>S2 Foliation</option>
             <option>S3 Foliation</option>
@@ -335,21 +336,33 @@
             <option>J1 Joint</option>
             <option>J2 Joint</option>
             <option>J3 Joint</option>
+            <option>Axial Planar Cleavage</option>
             <option>Fault Plane</option>
-            <option>Shear Zone Boundary</option>
+            <option>Thrust Plane</option>
+            <option>Shear Plane</option>
           </optgroup>
           <optgroup label="Linear Structures">
+            <option>L1 Lineation</option>
+            <option>L2 Lineation</option>
+            <option>L3 Lineation</option>
             <option>L1 Mineral Lineation</option>
             <option>L2 Mineral Lineation</option>
             <option>L3 Mineral Lineation</option>
             <option>L1 Slickenline</option>
-            <option>Fold Axis</option>
-            <option>Intersection Lineation</option>
+            <option>L2 Slickenline</option>
+            <option>Fold Axis Lineation</option>
+            <option>Stretching Lineation</option>
+            <option>L1-0 Intersection Lineation</option>
+            <option>L2-1 Intersection Lineation</option>
+            <option>L2 Crenulation Lineation</option>
+            <option>L3 Crenulation Lineation</option>
+            <option>Chatter marks</option>
           </optgroup>
           <optgroup label="Veins (Planar)">
             <option>Quartz Vein</option>
             <option>Pegmatite Vein</option>
             <option>Calcite Vein</option>
+            <option>Rods and Mullions</option>
           </optgroup>
           <option>Other</option>
         </select>
@@ -437,7 +450,7 @@
     <div class="form-group" style="margin-top: 10px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
         <label>Field Remarks & Synthesis</label>
-        <button type="button" onclick="startVoiceNote()" class="btn-sec" style="width:auto; padding:4px 10px; font-size:11px; margin:0;">🎤 Stream Voice Dictation</button>
+        <button type="button" onclick="startVoiceNote()" class="btn-sec" style="width:auto; padding:4px 10px; font-size:11px; margin:0;">🎤 Voice to Text</button>
       </div>
       <textarea id="remarks" placeholder="Enter microstructural observations, kinematic markers, or general outcrop annotations..."></textarea>
     </div>
@@ -464,7 +477,7 @@
       <button onclick="exportCSV()">📊 Download CSV</button>
       <button onclick="exportJSON()" class="btn-sec">🗂️ JSON Export</button>
       <button onclick="exportGeoJSON()" class="btn-ok">🗺️ GIS GeoJSON Stream</button>
-      <button onclick="deleteAll()" class="btn-danger">🗑️ Purge Logs</button>
+      <button onclick="deleteAll()" class="btn-danger">🗑️ Delete All Records</button>
     </div>
     <div id="list"></div>
   </div>
