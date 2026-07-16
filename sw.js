@@ -1,68 +1,63 @@
-const CACHE_NAME = 'aven-geologger-v2';
+const CACHE_NAME = 'geologger-v1';
 
-// 1. Added your manifest icons so PWA installation passes device validation
-const ASSETS = [
+// The essential files to cache immediately upon installation
+const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
-  // Note: Remember to add your local .js or .css files here when you create them!
 ];
 
-// Install Service Worker and cache essential UI components
+// 1. INSTALL EVENT: Cache core assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('Aven GeoLogger: Localizing assets for offline use...');
-      return cache.addAll(ASSETS);
+      console.log('[Service Worker] Caching V1 assets');
+      return cache.addAll(ASSETS_TO_CACHE);
     })
   );
-  self.skipWaiting();
+  // We do NOT use self.skipWaiting() here so that the existing 
+  // confirmation prompt in your index.html functions correctly.
 });
 
-// Activate worker and clean up legacy cache builds
+// 2. ACTIVATE EVENT: Clean up old caches if you ever change CACHE_NAME
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
+    caches.keys().then((cacheNames) => {
       return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            console.log('Aven GeoLogger: Purging old cache system:', key);
-            return caches.delete(key);
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            console.log('[Service Worker] Clearing old cache:', cache);
+            return caches.delete(cache);
           }
         })
       );
     })
   );
-  self.clients.claim();
+  return self.clients.claim(); // Take immediate control of the page
 });
 
-// 2. Cache-First Strategy: Critical for reliable remote fieldwork
+// 3. FETCH EVENT: Network-First Strategy (Cache Fallback)
 self.addEventListener('fetch', (event) => {
-  // Ignore external browser extensions or analytical tracking URLs
-  if (!event.request.url.startsWith(self.location.origin)) return;
+  // Only handle GET requests (ignore POST, PUT, etc.)
+  if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      // If the file is cached, serve it instantly. No network lag.
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-
-      // If it's a new asset, grab it from the network and save a copy for next time
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+    fetch(event.request)
+      .then((networkResponse) => {
+        // We are ONLINE. The fetch succeeded.
+        // Clone the response and update the cache with the freshest version
+        return caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, networkResponse.clone());
           return networkResponse;
-        }
-
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
         });
-
-        return networkResponse;
-      });
-    })
+      })
+      .catch(() => {
+        // We are OFFLINE. The fetch failed.
+        // Fall back to the cached version.
+        console.log('[Service Worker] Offline mode: Serving from cache ->', event.request.url);
+        return caches.match(event.request);
+      })
   );
 });
