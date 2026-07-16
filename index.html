@@ -475,21 +475,11 @@
     
     <div class="action-row" style="margin-bottom: 16px;">
       <button onclick="exportCSV()">📊 Download CSV</button>
-      <button onclick="exportJSON()" class="btn-sec">🗂️ JSON Export</button>
+      <button onclick="exportKML()" style="background: #8e44ad; color: white;">🌍 KML (Google Earth)</button>
       <button onclick="exportGeoJSON()" class="btn-ok">🗺️ GIS GeoJSON Stream</button>
       <button onclick="deleteAll()" class="btn-danger">🗑️ Delete All Records</button>
     </div>
     <div id="list"></div>
-  </div>
-</div>
-
-<div id="analysisModal" class="modal-overlay">
-  <div class="modal-window">
-    <div class="modal-header">
-      <span>⚙️ Automated Eigensolver & Schmidt Projection Net</span>
-      <button onclick="closeModal()" class="modal-close">&times;</button>
-    </div>
-    <div id="modalBody" class="modal-body"></div>
   </div>
 </div>
 
@@ -725,7 +715,51 @@ function getGPS(){
   }
 }
 
-function exportJSON(){download('structural_records.json',JSON.stringify(records,null,2),'application/json')}
+function exportKML(){
+  // Filter out any records that don't have valid GPS coordinates
+  const validRecords = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)));
+  
+  if (validRecords.length === 0) {
+    alert('No records with valid GPS coordinates to export.');
+    return;
+  }
+
+  // Build the KML header
+  let kml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  kml += '<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n';
+  kml += '  <name>GeoLogger Structural Data</name>\n';
+
+  // Loop through records and create KML Placemarks
+  validRecords.forEach(r => {
+    const lat = parseFloat(r.lat);
+    const lon = parseFloat(r.lon);
+    // Use altitude if available, otherwise default to 0
+    const alt = r.alt && !isNaN(parseFloat(r.alt)) ? parseFloat(r.alt) : 0;
+    
+    // Create the pop-up balloon description using CDATA to format it nicely in Google Earth
+    let desc = '<![CDATA[';
+    desc += `<b>Structure:</b> ${escapeHTML(r.formatted)}<br>`;
+    if(r.lith) desc += `<b>Lithology:</b> ${escapeHTML(r.lith)}<br>`;
+    if(r.unit) desc += `<b>Unit:</b> ${escapeHTML(r.unit)}<br>`;
+    if(r.sample) desc += `<b>Sample:</b> ${escapeHTML(r.sample)}<br>`;
+    if(r.remarks) desc += `<br><b>Remarks:</b> ${escapeHTML(r.remarks)}`;
+    desc += ']]>';
+
+    kml += '  <Placemark>\n';
+    kml += `    <name>${escapeHTML(r.locNo)}</name>\n`;
+    kml += `    <description>${desc}</description>\n`;
+    kml += '    <Point>\n';
+    // KML strictly requires Longitude, Latitude, Altitude order
+    kml += `      <coordinates>${lon},${lat},${alt}</coordinates>\n`;
+    kml += '    </Point>\n';
+    kml += '  </Placemark>\n';
+  });
+
+  kml += '</Document>\n</kml>';
+  
+  // Use your existing download helper function
+  download('structural_records.kml', kml, 'application/vnd.google-earth.kml+xml');
+}
 function exportCSV(){
   const cols=['date','locNo','loc','lat','lon','unit','type','strike','dip','dipdir','trend','plunge','lith','remarks','photo','sample'];
   const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
