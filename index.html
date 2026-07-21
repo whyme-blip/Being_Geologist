@@ -867,12 +867,7 @@ function openSpatialMap() {
   setTimeout(() => {
     const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
 
-    if (validPoints.length === 0 && !mapInstance) {
-      alert('No logged records with valid coordinates to map.');
-      modal.style.display = 'none';
-      return;
-    }
-
+    // Don't block map opening if there are no points, just default to a general coordinate
     const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
     const firstLon = validPoints.length > 0 ? parseFloat(validPoints[0].lon) : 78.0;
 
@@ -888,16 +883,54 @@ function openSpatialMap() {
       // Dedicated layer group for survey data (markers, lines, geofence)
       mapDataGroup = L.layerGroup().addTo(mapInstance);
 
-      // Initialize Leaflet Layer Control widget (top-right corner)
+      // Initialize Leaflet Layer Control widget
       layerControl = L.control.layers(
         { "OpenStreetMap (Standard)": osmTileLayer },
         { "Survey Stations & Route": mapDataGroup },
         { position: 'topright' }
       ).addTo(mapInstance);
 
+      // --- LIVE "BLUE DOT" LOCATION LOGIC ---
+      let liveMarker = null;
+      let accuracyCircle = null;
+
+      mapInstance.on('locationfound', function(e) {
+        const radius = e.accuracy / 2;
+        
+        // Remove old markers if updating
+        if (liveMarker) mapInstance.removeLayer(liveMarker);
+        if (accuracyCircle) mapInstance.removeLayer(accuracyCircle);
+
+        // Add accuracy radius circle
+        accuracyCircle = L.circle(e.latlng, {
+          radius: radius,
+          color: "#136AEC",
+          fillColor: "#136AEC",
+          fillOpacity: 0.15,
+          weight: 1
+        }).addTo(mapInstance);
+
+        // Add the blue dot
+        liveMarker = L.circleMarker(e.latlng, {
+          radius: 7,
+          fillColor: "#2A93EE",
+          color: "#ffffff",
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 1
+        }).addTo(mapInstance).bindPopup("<b>You are here</b>");
+      });
+
+      mapInstance.on('locationerror', function(e) {
+        console.warn("Live location not available for blue dot: " + e.message);
+      });
+
     } else {
       mapInstance.invalidateSize();
     }
+
+    // Trigger the location request every time the map is opened
+    mapInstance.locate({setView: false, enableHighAccuracy: true});
 
     renderSpatialMapWithGeofence();
   }, 100);
