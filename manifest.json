@@ -1,12 +1,12 @@
 {
   "name": "Offline Structural Data Logger",
-  "short_name": "GeoLogger v1",
-  "description": "Field-ready geological structural data and spatial logger by Being_Geologist, for data entry in field.",
+  "short_name": "GeoLogger",
+  "description": "Offline geological structural data and spatial sample tracker",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f4f6f8",
   "theme_color": "#1f3a5f",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "icons": [
     {
       "src": "icon-192.png",
