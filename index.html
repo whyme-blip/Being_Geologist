@@ -6,6 +6,11 @@
 <title>Offline Structural Data Logger by Being_Geologist</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1f3a5f">
+  <!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <style>
   :root {
     --primary: #1f3a5f;
@@ -21,6 +26,11 @@
     --secondary: #566573;
     --radius: 10px;
   }
+
+  /* Modal styling for the popup map view */
+  #mapModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
+  #mapContainer { width: 95%; max-width: 900px; height: 85vh; margin: 4vh auto; background: #fff; border-radius: var(--radius); position: relative; padding: 16px; display: flex; flex-direction: column; box-sizing: border-box; }
+  #map { width: 100%; flex-grow: 1; border-radius: 6px; margin-top: 8px; }
   
   body {
     margin: 0;
@@ -37,6 +47,11 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     text-align: center;
   }
+/* Fix Leaflet DivIcon default square artifact */
+.custom-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
   
   h1 {
     font-size: 22px;
@@ -474,11 +489,12 @@
     </div>
     
     <div class="action-row" style="margin-bottom: 16px;">
-      <button onclick="exportCSV()">📊 Download CSV</button>
-      <button onclick="exportKML()" style="background: #8e44ad; color: white;">🌍 KML (Google Earth)</button>
-      <button onclick="exportGeoJSON()" class="btn-ok">🗺️ GIS GeoJSON Stream</button>
-      <button onclick="deleteAll()" class="btn-danger">🗑️ Delete All Records</button>
-    </div>
+  <button onclick="exportCSV()">📊 Download CSV</button>
+  <button onclick="exportKML()" style="background: #8e44ad; color: white;">🌍 KML (Google Earth)</button>
+  <button onclick="exportGeoJSON()" class="btn-ok">🗺️ GIS GeoJSON Stream</button>
+  <button onclick="openSpatialMap()" style="background: #27ae60; color: white;">🗺️ View Field Map & Route</button>
+  <button onclick="deleteAll()" class="btn-danger">🗑️ Delete All Records</button>
+</div>
     <div id="list"></div>
   </div>
 </div>
@@ -837,6 +853,185 @@ function startVoiceNote(){
   };
   recognition.start();
 }
+
+let mapInstance = null;
+let mapDataGroup = null;      // For station markers, traverse line, and geofence
+let osmTileLayer = null;      // OpenStreetMap Base Layer
+let customOverlayLayer = null; // Uploaded custom map image overlay
+let layerControl = null;      // Leaflet Layer Switcher Control
+
+function openSpatialMap() {
+  const modal = document.getElementById('mapModal');
+  modal.style.display = 'block';
+
+  setTimeout(() => {
+    const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
+
+    if (validPoints.length === 0 && !mapInstance) {
+      alert('No logged records with valid coordinates to map.');
+      modal.style.display = 'none';
+      return;
+    }
+
+    const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
+    const firstLon = validPoints.length > 0 ? parseFloat(validPoints[0].lon) : 78.0;
+
+    if (!mapInstance) {
+      mapInstance = L.map('map').setView([firstLat, firstLon], 13);
+      
+      // Initialize Standard OpenStreetMap Layer
+      osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(mapInstance);
+
+      // Dedicated layer group for survey data (markers, lines, geofence)
+      mapDataGroup = L.layerGroup().addTo(mapInstance);
+
+      // Initialize Leaflet Layer Control widget (top-right corner)
+      layerControl = L.control.layers(
+        { "OpenStreetMap (Standard)": osmTileLayer },
+        { "Survey Stations & Route": mapDataGroup },
+        { position: 'topright' }
+      ).addTo(mapInstance);
+
+    } else {
+      mapInstance.invalidateSize();
+    }
+
+    renderSpatialMapWithGeofence();
+  }, 100);
+}
+
+// Function to handle loading and georeferencing user's custom map image
+function applyCustomMapOverlay() {
+  const fileInput = document.getElementById('customMapFile');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    alert('Please select an image file (JPEG/PNG) of your map first.');
+    return;
+  }
+
+  let minLat = parseFloat(document.getElementById('ovMinLat').value);
+  let maxLat = parseFloat(document.getElementById('ovMaxLat').value);
+  let minLon = parseFloat(document.getElementById('ovMinLon').value);
+  let maxLon = parseFloat(document.getElementById('ovMaxLon').value);
+
+  if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
+    alert('Please provide valid bounding coordinates (SW & NE corners) for the image overlay.');
+    return;
+  }
+
+  // Ensure minimums and maximums are correctly aligned
+  if (minLat > maxLat) [minLat, maxLat] = [maxLat, minLat];
+  if (minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
+
+  const bounds = [[minLat, minLon], [maxLat, maxLon]];
+  const imageUrl = URL.createObjectURL(file);
+
+  // Remove existing custom overlay if re-uploading
+  removeCustomMapOverlay();
+
+  // Create Leaflet ImageOverlay
+  customOverlayLayer = L.imageOverlay(imageUrl, bounds, {
+    opacity: 0.85,
+    interactive: true
+  }).addTo(mapInstance);
+
+  // Add Custom Overlay to Leaflet Layer Switcher
+  layerControl.addOverlay(customOverlayLayer, "Custom Map Overlay");
+
+  // Auto-fit viewport to the uploaded map bounds
+  mapInstance.fitBounds(bounds);
+  alert('Custom map overlay loaded successfully!');
+}
+
+function removeCustomMapOverlay() {
+  if (customOverlayLayer && mapInstance) {
+    layerControl.removeLayer(customOverlayLayer);
+    mapInstance.removeLayer(customOverlayLayer);
+    customOverlayLayer = null;
+  }
+}
+
+function renderSpatialMapWithGeofence() {
+  if (!mapInstance || !mapDataGroup) return;
+
+  mapDataGroup.clearLayers();
+
+  const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
+
+  let minLat = parseFloat(document.getElementById('gfMinLat').value);
+  let maxLat = parseFloat(document.getElementById('gfMaxLat').value);
+  let minLon = parseFloat(document.getElementById('gfMinLon').value);
+  let maxLon = parseFloat(document.getElementById('gfMaxLon').value);
+
+  if (!isNaN(minLat) && !isNaN(maxLat) && minLat > maxLat) [minLat, maxLat] = [maxLat, minLat];
+  if (!isNaN(minLon) && !isNaN(maxLon) && minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
+
+  let boundsArray = [];
+  const hasGeofence = !isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLon) && !isNaN(maxLon);
+
+  if (hasGeofence) {
+    const southWest = [minLat, minLon];
+    const northEast = [maxLat, maxLon];
+
+    L.rectangle([southWest, northEast], {
+      color: '#2980b9',
+      weight: 2,
+      dashArray: '4, 4',
+      fillColor: '#3498db',
+      fillOpacity: 0.1
+    }).addTo(mapDataGroup);
+
+    boundsArray.push(southWest, northEast);
+  }
+
+  let latLngs = [];
+
+  validPoints.forEach((r, index) => {
+    const lat = parseFloat(r.lat);
+    const lon = parseFloat(r.lon);
+    latLngs.push([lat, lon]);
+    boundsArray.push([lat, lon]);
+
+    let statusBadge = '';
+    if (hasGeofence) {
+      const isInside = lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+      statusBadge = isInside 
+        ? '<br><span style="color: #27ae60; font-weight: bold;">✔ Inside Block Boundary</span>' 
+        : '<br><span style="color: #c0392b; font-weight: bold;">✖ Outside Block Boundary</span>';
+    }
+
+    const markerHtml = `<div style="background:#1f3a5f; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; border:2px solid white; box-shadow:0 0 4px rgba(0,0,0,0.4);">${index + 1}</div>`;
+    const customIcon = L.divIcon({ className: 'custom-div-icon', html: markerHtml, iconSize: [24, 24], iconAnchor: [12, 12] });
+
+    const popupContent = `
+      <b>Loc No:</b> ${escapeHTML(r.locNo || 'Station ' + (index+1))}<br>
+      <b>Lat/Lon:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)}<br>
+      <b>Structure:</b> ${escapeHTML(r.formatted || 'N/A')}<br>
+      <b>Lithology:</b> ${escapeHTML(r.lith || 'N/A')}
+      ${statusBadge}
+    `;
+
+    L.marker([lat, lon], { icon: customIcon })
+      .addTo(mapDataGroup)
+      .bindPopup(popupContent);
+  });
+
+  if (latLngs.length > 0) {
+    L.polyline(latLngs, { color: '#e74c3c', weight: 3, dashArray: '5, 5' }).addTo(mapDataGroup);
+  }
+
+  if (boundsArray.length > 0 && !customOverlayLayer) {
+    mapInstance.fitBounds(L.latLngBounds(boundsArray), { padding: [40, 40] });
+  }
+}
+
+function closeSpatialMap() {
+  document.getElementById('mapModal').style.display = 'none';
+}
   
 function handleLocModeChange() {
   const mode = document.getElementById('locCountMode').value;
@@ -973,5 +1168,45 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+  <!-- SPATIAL FIELD MAP MODAL -->
+<div id="mapModal">
+  <div id="mapContainer">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+      <h3 style="margin: 0; color: #1f3a5f; font-size: 16px;">🗺️ Spatial Traverse & Custom Map Overlay</h3>
+      <button type="button" onclick="closeSpatialMap()" class="btn-danger" style="padding: 4px 10px; width: auto; font-size: 13px;">✕ Close</button>
+    </div>
+
+    <!-- Geofence & Custom Map Controls -->
+    <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-top: 6px; font-size: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px;">
+      
+      <!-- Geofence Row -->
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <strong style="color: var(--primary);">Geofence (DD):</strong>
+        <label style="display:flex; align-items:center; gap:4px;">Min Lat: <input type="number" id="gfMinLat" step="any" placeholder="30.1" style="width: 75px; padding: 4px;"></label>
+        <label style="display:flex; align-items:center; gap:4px;">Max Lat: <input type="number" id="gfMaxLat" step="any" placeholder="30.5" style="width: 75px; padding: 4px;"></label>
+        <label style="display:flex; align-items:center; gap:4px;">Min Lon: <input type="number" id="gfMinLon" step="any" placeholder="77.1" style="width: 75px; padding: 4px;"></label>
+        <label style="display:flex; align-items:center; gap:4px;">Max Lon: <input type="number" id="gfMaxLon" step="any" placeholder="77.5" style="width: 75px; padding: 4px;"></label>
+        <button onclick="renderSpatialMapWithGeofence()" style="background: #2980b9; color: white; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Apply Boundary</button>
+      </div>
+
+      <!-- Custom Georeferenced Overlay Row -->
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-top: 1px dashed #ccc; padding-top: 8px;">
+        <strong style="color: #2c3e50;">Custom Overlay Map:</strong>
+        <input type="file" id="customMapFile" accept="image/jpeg,image/png,image/webp" style="font-size: 11px; max-width: 180px;">
+        <label style="display:flex; align-items:center; gap:4px;">SW Lat: <input type="number" id="ovMinLat" step="any" placeholder="Min Lat" style="width: 70px; padding: 4px;"></label>
+        <label style="display:flex; align-items:center; gap:4px;">NE Lat: <input type="number" id="ovMaxLat" step="any" placeholder="Max Lat" style="width: 70px; padding: 4px;"></label>
+        <label style="display:flex; align-items:center; gap:4px;">SW Lon: <input type="number" id="ovMinLon" step="any" placeholder="Min Lon" style="width: 70px; padding: 4px;"></label>
+        <label style="display:flex; align-items:center; gap:4px;">NE Lon: <input type="number" id="ovMaxLon" step="any" placeholder="Max Lon" style="width: 70px; padding: 4px;"></label>
+        
+        <button onclick="applyCustomMapOverlay()" style="background: #27ae60; color: white; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Load Image Map</button>
+        <button onclick="removeCustomMapOverlay()" style="background: #e74c3c; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Remove</button>
+      </div>
+
+    </div>
+
+    <!-- Map Viewport -->
+    <div id="map" style="height: 450px; margin-top: 8px; border-radius: 6px;"></div>
+  </div>
+</div>
 </body>
 </html>
