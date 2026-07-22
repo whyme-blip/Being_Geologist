@@ -1033,7 +1033,7 @@ function startVoiceNote(){
 }
 
 let mapInstance = null;
-let mapDataGroup = null;      // For station markers, traverse line, and geofence
+let mapDataGroup = null;      // For station markers, traverse line, and 
 let osmTileLayer = null;      // OpenStreetMap Base Layer
 let customOverlayLayer = null; // Uploaded custom map image overlay
 let layerControl = null;      // Leaflet Layer Switcher Control
@@ -1058,7 +1058,7 @@ function openSpatialMap() {
         attribution: '© OpenStreetMap contributors'
       }).addTo(mapInstance);
 
-      // Dedicated layer group for survey data (markers, lines, geofence)
+      // Dedicated layer group for survey data (markers, lines, )
       mapDataGroup = L.layerGroup().addTo(mapInstance);
 
       // Initialize Leaflet Layer Control widget
@@ -1110,7 +1110,7 @@ function openSpatialMap() {
     // Trigger the location request every time the map is opened
     mapInstance.locate({setView: false, enableHighAccuracy: true});
 
-    renderSpatialMapWithGeofence();
+    renderSpatialMapWith();
   }, 100);
 }
 
@@ -1166,7 +1166,7 @@ function removeCustomMapOverlay() {
   }
 }
 
-function renderSpatialMapWithGeofence() {
+function renderSpatialMapWith() {
   if (!mapInstance || !mapDataGroup) return;
 
   mapDataGroup.clearLayers();
@@ -1182,9 +1182,9 @@ function renderSpatialMapWithGeofence() {
   if (!isNaN(minLon) && !isNaN(maxLon) && minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
 
   let boundsArray = [];
-  const hasGeofence = !isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLon) && !isNaN(maxLon);
+  const has = !isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLon) && !isNaN(maxLon);
 
-  if (hasGeofence) {
+  if (has) {
     const southWest = [minLat, minLon];
     const northEast = [maxLat, maxLon];
 
@@ -1208,7 +1208,7 @@ function renderSpatialMapWithGeofence() {
     boundsArray.push([lat, lon]);
 
     let statusBadge = '';
-    if (hasGeofence) {
+    if (has) {
       const isInside = lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
       statusBadge = isInside 
         ? '<br><span style="color: #27ae60; font-weight: bold;">✔ Inside Block Boundary</span>' 
@@ -1379,7 +1379,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
-  <!-- SPATIAL FIELD MAP MODAL -->
+<!-- SPATIAL FIELD MAP MODAL -->
 <div id="mapModal">
   <div id="mapContainer">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
@@ -1387,31 +1387,39 @@ if ('serviceWorker' in navigator) {
       <button type="button" onclick="closeSpatialMap()" class="btn-danger" style="padding: 4px 10px; width: auto; font-size: 13px;">✕ Close</button>
     </div>
 
-    <!-- Geofence & Custom Map Controls -->
-    <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-top: 6px; font-size: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px;">
-      
-      <!-- Geofence Row -->
-      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <strong style="color: var(--primary);">Geofence (DD):</strong>
-        <label style="display:flex; align-items:center; gap:4px;">Min Lat: <input type="number" id="gfMinLat" step="any" placeholder="30.1" style="width: 75px; padding: 4px;"></label>
-        <label style="display:flex; align-items:center; gap:4px;">Max Lat: <input type="number" id="gfMaxLat" step="any" placeholder="30.5" style="width: 75px; padding: 4px;"></label>
-        <label style="display:flex; align-items:center; gap:4px;">Min Lon: <input type="number" id="gfMinLon" step="any" placeholder="77.1" style="width: 75px; padding: 4px;"></label>
-        <label style="display:flex; align-items:center; gap:4px;">Max Lon: <input type="number" id="gfMaxLon" step="any" placeholder="77.5" style="width: 75px; padding: 4px;"></label>
-        <button onclick="renderSpatialMapWithGeofence()" style="background: #2980b9; color: white; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Apply Boundary</button>
-      </div>
+    <!-- Collapsible Controls Container -->
+    <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
 
-      <!-- Custom Georeferenced Overlay Row -->
-      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-top: 1px dashed #ccc; padding-top: 8px;">
-        <strong style="color: #2c3e50;">Custom Overlay Map:</strong>
-        <input type="file" id="customMapFile" accept="image/jpeg,image/png,image/webp" style="font-size: 11px; max-width: 180px;">
-        <label style="display:flex; align-items:center; gap:4px;">SW Lat: <input type="number" id="ovMinLat" step="any" placeholder="Min Lat" style="width: 70px; padding: 4px;"></label>
-        <label style="display:flex; align-items:center; gap:4px;">NE Lat: <input type="number" id="ovMaxLat" step="any" placeholder="Max Lat" style="width: 70px; padding: 4px;"></label>
-        <label style="display:flex; align-items:center; gap:4px;">SW Lon: <input type="number" id="ovMinLon" step="any" placeholder="Min Lon" style="width: 70px; padding: 4px;"></label>
-        <label style="display:flex; align-items:center; gap:4px;">NE Lon: <input type="number" id="ovMaxLon" step="any" placeholder="Max Lon" style="width: 70px; padding: 4px;"></label>
-        
-        <button onclick="applyCustomMapOverlay()" style="background: #27ae60; color: white; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Load Image Map</button>
-        <button onclick="removeCustomMapOverlay()" style="background: #e74c3c; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Remove</button>
-      </div>
+      <!-- 1. COLLAPSIBLE GEOFENCE SECTION -->
+      <details style="background: #f8f9fa; padding: 8px 10px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border);">
+        <summary style="font-weight: bold; color: var(--primary); cursor: pointer; user-select: none;">
+          🎯 Geofence Boundary (DD)
+        </summary>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ccc;">
+          <label style="display:flex; align-items:center; gap:4px;">Min Lat: <input type="number" id="gfMinLat" step="any" placeholder="30.1" style="width: 75px; padding: 4px;"></label>
+          <label style="display:flex; align-items:center; gap:4px;">Max Lat: <input type="number" id="gfMaxLat" step="any" placeholder="30.5" style="width: 75px; padding: 4px;"></label>
+          <label style="display:flex; align-items:center; gap:4px;">Min Lon: <input type="number" id="gfMinLon" step="any" placeholder="77.1" style="width: 75px; padding: 4px;"></label>
+          <label style="display:flex; align-items:center; gap:4px;">Max Lon: <input type="number" id="gfMaxLon" step="any" placeholder="77.5" style="width: 75px; padding: 4px;"></label>
+          <button onclick="renderSpatialMapWithGeofence()" style="background: #2980b9; color: white; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Apply Boundary</button>
+        </div>
+      </details>
+
+      <!-- 2. COLLAPSIBLE CUSTOM MAP OVERLAY SECTION -->
+      <details style="background: #f8f9fa; padding: 8px 10px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border);">
+        <summary style="font-weight: bold; color: #2c3e50; cursor: pointer; user-select: none;">
+          🗺️ Custom Georeferenced Overlay Map
+        </summary>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ccc;">
+          <input type="file" id="customMapFile" accept="image/jpeg,image/png,image/webp" style="font-size: 11px; max-width: 180px;">
+          <label style="display:flex; align-items:center; gap:4px;">SW Lat: <input type="number" id="ovMinLat" step="any" placeholder="Min Lat" style="width: 70px; padding: 4px;"></label>
+          <label style="display:flex; align-items:center; gap:4px;">NE Lat: <input type="number" id="ovMaxLat" step="any" placeholder="Max Lat" style="width: 70px; padding: 4px;"></label>
+          <label style="display:flex; align-items:center; gap:4px;">SW Lon: <input type="number" id="ovMinLon" step="any" placeholder="Min Lon" style="width: 70px; padding: 4px;"></label>
+          <label style="display:flex; align-items:center; gap:4px;">NE Lon: <input type="number" id="ovMaxLon" step="any" placeholder="Max Lon" style="width: 70px; padding: 4px;"></label>
+          
+          <button onclick="applyCustomMapOverlay()" style="background: #27ae60; color: white; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Load Image Map</button>
+          <button onclick="removeCustomMapOverlay()" style="background: #e74c3c; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Remove</button>
+        </div>
+      </details>
 
     </div>
 
