@@ -336,77 +336,163 @@
       <div class="form-group"><label>Alteration</label><input id="alteration" placeholder="Silicification, Chloritization"></div>
     </div>
 
-    <div class="grid-layout" style="background: #f8f9f9; padding: 12px; border-radius: var(--radius); border: 1px dashed var(--border);">
-      <div class="form-group">
-        <label>Structure Type</label>
-        <select id="type">
-          <optgroup label="Planar Structures">
-            <option>S0 Bedding</option>
-            <option>Flow Banding</option>
-            <option>S1 Foliation</option>
-            <option>S2 Foliation</option>
-            <option>S3 Foliation</option>
-            <option>S2 Crenulation Cleavage</option>
-            <option>S3 Crenulation Cleavage</option>
-            <option>J1 Joint</option>
-            <option>J2 Joint</option>
-            <option>J3 Joint</option>
-            <option>Axial Planar Cleavage</option>
-            <option>Fault Plane</option>
-            <option>Thrust Plane</option>
-            <option>Shear Plane</option>
-          </optgroup>
-          <optgroup label="Linear Structures">
-            <option>L1 Lineation</option>
-            <option>L2 Lineation</option>
-            <option>L3 Lineation</option>
-            <option>L1 Mineral Lineation</option>
-            <option>L2 Mineral Lineation</option>
-            <option>L3 Mineral Lineation</option>
-            <option>L1 Slickenline</option>
-            <option>L2 Slickenline</option>
-            <option>Fold Axis Lineation</option>
-            <option>Stretching Lineation</option>
-            <option>L1-0 Intersection Lineation</option>
-            <option>L2-1 Intersection Lineation</option>
-            <option>L2 Crenulation Lineation</option>
-            <option>L3 Crenulation Lineation</option>
-            <option>Chatter marks</option>
-          </optgroup>
-          <optgroup label="Veins (Planar)">
-            <option>Quartz Vein</option>
-            <option>Pegmatite Vein</option>
-            <option>Calcite Vein</option>
-            <option>Rods and Mullions</option>
-          </optgroup>
-          <option>Other</option>
-        </select>
-      </div>
-      
-      <div id="customStructureDiv" class="form-group hidden"><label>Custom Structure Name</label><input id="customStructure" placeholder="Enter Type"></div>
+  <!-- Upper Grid: Structure Selection & Measurements -->
+<div class="grid-layout" style="background: #f8f9f9; padding: 12px; border-radius: var(--radius); border: 1px dashed var(--border);">
+  
+  <div class="form-group">
+    <label>Structure Type</label>
+    <select id="type" onchange="handlePrimaryTypeChange()">
+      <optgroup label="Planar Structures">
+        <option>S0 Bedding</option>
+        <option>Flow Banding</option>
+        <option>S1 Foliation</option>
+        <option>S2 Foliation</option>
+        <option>S3 Foliation</option>
+        <option>S2 Crenulation Cleavage</option>
+        <option>S3 Crenulation Cleavage</option>
+        <option>J1 Joint</option>
+        <option>J2 Joint</option>
+        <option>J3 Joint</option>
+        <option>Axial Planar Cleavage</option>
+        <option>Fault Plane</option>
+        <option>Thrust Plane</option>
+        <option>Shear Plane</option>
+        <!-- Custom Planar Option -->
+        <option value="Custom Planar">➕ Custom Planar...</option>
+      </optgroup>
 
-      <div id="planarFields" class="compact-row" style="grid-column: span 2; display: grid;">
-        <div class="form-group"><label>Strike (RHR) (°)</label><input id="strike" type="number" min="0" max="360" placeholder="045"></div>
-        <div class="form-group">
-          <label>Dip & Dip Direction</label>
-          <div class="compact-row">
-            <input id="dip" type="number" min="0" max="90" placeholder="35">
-            <input id="dipdir" readonly placeholder="Auto">
-          </div>
-        </div>
-      </div>
+      <optgroup label="Linear Structures">
+        <option>L1 Lineation</option>
+        <option>L2 Lineation</option>
+        <option>L3 Lineation</option>
+        <option>L1 Mineral Lineation</option>
+        <option>L2 Mineral Lineation</option>
+        <option>L3 Mineral Lineation</option>
+        <option>L1 Slickenline</option>
+        <option>L2 Slickenline</option>
+        <option>Fold Axis Lineation</option>
+        <option>Stretching Lineation</option>
+        <option>L1-0 Intersection Lineation</option>
+        <option>L2-1 Intersection Lineation</option>
+        <option>L2 Crenulation Lineation</option>
+        <option>L3 Crenulation Lineation</option>
+        <option>Chatter marks</option>
+        <!-- Custom Linear Option -->
+        <option value="Custom Linear">➕ Custom Linear...</option>
+      </optgroup>
 
-      <div id="linearFields" class="compact-row hidden" style="grid-column: span 2;">
-        <div class="form-group"><label>Trend (°)</label><input id="trend" type="number" min="0" max="360" placeholder="225"></div>
-        <div class="form-group"><label>Plunge (°)</label><input id="plunge" type="number" min="0" max="90" placeholder="25"></div>
+      <optgroup label="Veins (Planar)">
+        <option>Quartz Vein</option>
+        <option>Pegmatite Vein</option>
+        <option>Calcite Vein</option>
+        <option>Rods and Mullions</option>
+      </optgroup>
+      <option value="Other">Other</option>
+    </select>
+  </div>
+  
+  <!-- Custom Primary Structure Input -->
+  <div id="customStructureDiv" class="form-group hidden">
+    <label style="color: #d97706; font-weight: 600;">Custom Structure Name</label>
+    <input id="customStructure" placeholder="e.g., S4 Foliation, Shear Band">
+  </div>
+
+  <!-- Planar Measurement Fields -->
+  <div id="planarFields" class="compact-row" style="grid-column: span 2; display: grid;">
+    <div class="form-group">
+      <label>Strike (RHR) (°)</label>
+      <input id="strike" type="number" min="0" max="360" placeholder="045" oninput="calculatePlungeFromRake()">
+    </div>
+    <div class="form-group">
+      <label>Dip & Dip Direction</label>
+      <div class="compact-row">
+        <input id="dip" type="number" min="0" max="90" placeholder="35" oninput="calculatePlungeFromRake()">
+        <input id="dipdir" readonly placeholder="Auto">
       </div>
     </div>
+  </div>
 
-    <div class="grid-layout">
-      <div class="form-group"><label>Rake / Pitch (°)</label><input id="rake" type="number" min="0" max="90" placeholder="optional"></div>
-      <div class="form-group"><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
-      <div class="form-group"><label>Kinematic Direction</label><input id="movementDir" placeholder="e.g., Top-to-NE"></div>
-    </div>
+  <!-- Direct Linear Measurement Fields (Hidden by default) -->
+  <div id="linearFields" class="compact-row hidden" style="grid-column: span 2;">
+    <div class="form-group"><label>Trend (°)</label><input id="trend" type="number" min="0" max="360" placeholder="1-360"></div>
+    <div class="form-group"><label>Plunge (°)</label><input id="plunge" type="number" min="0" max="90" placeholder="0-90"></div>
+  </div>
+
+</div>
+
+<!-- Toggle Button to Add Associated Lineation on Plane -->
+<div style="margin: 8px 0;">
+  <button type="button" id="toggleLineationBtn" onclick="toggleAssociatedLineation()" style="background: #e0f2fe; color: #0369a1; border: 1px solid #7dd3fc; border-radius: 6px; padding: 6px 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+    <span id="btnIcon">➕</span> <span id="btnText">Add Associated Lineation on Plane</span>
+  </button>
+</div>
+
+<!-- Associated Lineation Sub-Card (Hidden by default) -->
+<div id="associatedLinearDiv" class="grid-layout hidden" style="background: #f0f9ff; padding: 12px; border-radius: var(--radius); border: 1px solid #bae6fd; margin-bottom: 10px;">
+  
+  <div class="form-group">
+    <label style="color: #0369a1; font-weight: 600;">Associated Lineation Type</label>
+    <select id="assocType" onchange="handleAssocTypeChange()">
+      <option value="L1 Lineation">L1 Lineation</option>
+      <option value="L2 Lineation">L2 Lineation</option>
+      <option value="L3 Lineation">L3 Lineation</option>
+      <option value="L1 Mineral Lineation">L1 Mineral Lineation</option>
+      <option value="L2 Mineral Lineation">L2 Mineral Lineation</option>
+      <option value="L1 Slickenline">L1 Slickenline</option>
+      <option value="Fold Axis Lineation">Fold Axis Lineation</option>
+      <option value="Stretching Lineation">Stretching Lineation</option>
+      <option value="Intersection Lineation">Intersection Lineation</option>
+      <option value="Crenulation Lineation">Crenulation Lineation</option>
+      <!-- Custom Associated Linear Option -->
+      <option value="Custom Linear">➕ Custom Linear...</option>
+    </select>
+  </div>
+
+  <!-- Custom Text Input for Associated Lineation -->
+  <div id="customAssocDiv" class="form-group hidden">
+    <label style="color: #0369a1; font-weight: 600;">Custom Lineation Name</label>
+    <input id="customAssocStructure" placeholder="e.g., L4 Lineation, Fibrous Quartz">
+  </div>
+
+  <div class="form-group">
+    <label style="color: #0369a1; font-weight: 600;">Calculated Trend (°)</label>
+    <input id="calculatedTrend" readonly placeholder="Auto" style="background-color: #ffffff; font-weight: bold; color: #0369a1;">
+  </div>
+</div>
+
+<!-- Lower Grid: Rake / Pitch, Plunge & Kinematics -->
+<div class="grid-layout">
+  <div class="form-group">
+    <label>Rake / Pitch (°)</label>
+    <input id="rake" type="number" min="0" max="90" placeholder="optional" oninput="calculatePlungeFromRake()">
+  </div>
+
+  <!-- AUTO-POPULATED PLUNGE FIELD -->
+  <div class="form-group">
+    <label style="color: #0284c7; font-weight: 600;">Calculated Plunge (°)</label>
+    <input id="calculatedPlunge" readonly placeholder="--" style="background-color: #f8fafc; font-weight: bold; color: #0284c7;">
+  </div>
+
+  <div class="form-group">
+    <label>Movement Sense</label>
+    <select id="sense">
+      <option></option>
+      <option>Normal</option>
+      <option>Reverse</option>
+      <option>Dextral</option>
+      <option>Sinistral</option>
+      <option>Dextral-normal</option>
+      <option>Sinistral-normal</option>
+      <option>Oblique</option>
+      <option>Unknown</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>Kinematic Direction</label>
+    <input id="movementDir" placeholder="e.g., Top-to-NE">
+  </div>
+</div>
 
     <!-- SECTION 3: MEDIA AND SAMPLES -->
     <div class="section-title">📦 3. Media & Sample Management</div>
@@ -500,21 +586,137 @@
 </div>
 
 <script>
-let records = JSON.parse(localStorage.getItem('field_geo_records')||'[]');
-document.getElementById('date').valueAsDate = new Date();
+ // ==========================================
+  // 1. GLOBAL VARIABLES (Must be at the very top!)
+  // ==========================================
+  let isLineationActive = false;
+  let records = [];
 
-const ids=[
-'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
-'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
-'dipdir', 'trend', 'plunge', 'rake', 'sense', 'movementDir', 'photo', 'sampleType', 
-'samplePrefix', 'sample', 'remarks'
-];
+  // ==========================================
+  // 2. PAGE INITIALIZATION
+  // ==========================================
+  document.addEventListener('DOMContentLoaded', () => {
+    // Load existing records (Notice: NO 'let' here so we don't re-declare it)
+    records = JSON.parse(localStorage.getItem('field_geo_records') || '[]');
+    
+    // Set default date
+    const dateEl = document.getElementById('date');
+    if (dateEl) dateEl.valueAsDate = new Date();
 
-ids.forEach(id => {
-  const el = document.getElementById(id);
-  if(el) el.addEventListener('input', updatePreview);
-});
+    const ids = [
+      'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
+      'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
+      'dipdir', 'trend', 'plunge', 'rake', 'sense', 'movementDir', 'photo', 'sampleType', 
+      'samplePrefix', 'sample', 'remarks'
+    ];
+    
+    // Add event listeners to update preview automatically
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', updatePreview);
+    });
+  }); 
 
+function updatePreview() { 
+    const v = validate(); 
+    document.getElementById('preview').innerHTML = 
+      '<span class="fmt-preview">' + fmt() + '</span>' + 
+      (v.length ? '<br><span style="color:#c0392b">' + v.join('<br>') + '</span>' : ''); 
+  }
+
+  // Show/Hide Primary Custom Input Box
+  function handlePrimaryTypeChange() {
+    const typeVal = document.getElementById('type').value;
+    const customDiv = document.getElementById('customStructureDiv');
+
+    if (typeVal === 'Custom Planar' || typeVal === 'Custom Linear' || typeVal === 'Other') {
+      customDiv.classList.remove('hidden');
+    } else {
+      customDiv.classList.add('hidden');
+    }
+  }
+
+  // Show/Hide Associated Lineation Custom Input Box
+  function handleAssocTypeChange() {
+    const assocVal = document.getElementById('assocType').value;
+    const customAssocDiv = document.getElementById('customAssocDiv');
+
+    if (assocVal === 'Custom Linear') {
+      customAssocDiv.classList.remove('hidden');
+    } else {
+      customAssocDiv.classList.add('hidden');
+    }
+  }
+
+  // Toggle Associated Lineation Sub-Card
+  function toggleAssociatedLineation() {
+    const assocDiv = document.getElementById('associatedLinearDiv');
+    const btnIcon = document.getElementById('btnIcon');
+    const btnText = document.getElementById('btnText');
+
+    isLineationActive = !isLineationActive;
+
+    if (isLineationActive) {
+      assocDiv.classList.remove('hidden');
+      btnIcon.innerText = "➖";
+      btnText.innerText = "Remove Associated Lineation";
+      calculatePlungeFromRake();
+    } else {
+      assocDiv.classList.add('hidden');
+      btnIcon.innerText = "➕";
+      btnText.innerText = "Add Associated Lineation on Plane";
+      document.getElementById('calculatedTrend').value = '';
+    }
+  }
+
+  // Calculate Both Trend & Plunge dynamically from Strike, Dip, and Rake
+  function calculatePlungeFromRake() {
+    const strikeInput = document.getElementById('strike');
+    const dipInput = document.getElementById('dip');
+    const rakeInput = document.getElementById('rake');
+    
+    const calcPlungeInput = document.getElementById('calculatedPlunge');
+    const calcTrendInput = document.getElementById('calculatedTrend');
+
+    const rakeVal = parseFloat(rakeInput.value);
+    const dipVal = parseFloat(dipInput.value);
+    const strikeVal = parseFloat(strikeInput.value);
+
+    // If Rake/Pitch is empty, reset outputs
+    if (rakeInput.value.trim() === '' || isNaN(rakeVal)) {
+      calcPlungeInput.value = '--';
+      if (calcTrendInput) calcTrendInput.value = 'Auto';
+      return;
+    }
+
+    // Calculate Plunge: sin(Plunge) = sin(Dip) * sin(Rake)
+    if (!isNaN(dipVal) && dipVal >= 0 && dipVal <= 90) {
+      const dipRad = dipVal * (Math.PI / 180);
+      const rakeRad = rakeVal * (Math.PI / 180);
+
+      const sinPlunge = Math.sin(dipRad) * Math.sin(rakeRad);
+      const plungeDeg = Math.asin(sinPlunge) * (180 / Math.PI);
+
+      calcPlungeInput.value = plungeDeg.toFixed(1) + '°';
+
+      // Calculate Trend if Strike is available & lineation toggle is open
+      if (isLineationActive && !isNaN(strikeVal)) {
+        const strikeRad = strikeVal * (Math.PI / 180);
+
+        // Vector components for lineation direction (RHR strike system)
+        const Lx = Math.cos(rakeRad) * Math.cos(strikeRad) - Math.sin(rakeRad) * Math.sin(strikeRad) * Math.cos(dipRad);
+        const Ly = Math.cos(rakeRad) * Math.sin(strikeRad) + Math.sin(rakeRad) * Math.cos(strikeRad) * Math.cos(dipRad);
+
+        let trendDeg = Math.atan2(Ly, Lx) * (180 / Math.PI);
+        if (trendDeg < 0) trendDeg += 360;
+
+        calcTrendInput.value = String(Math.round(trendDeg)).padStart(3, '0') + '°';
+      }
+    } else {
+      calcPlungeInput.value = 'Needs Dip';
+    }
+  }
+  
 function getQuadrant(deg) {
   const sectors = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   return sectors[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
