@@ -402,7 +402,6 @@
     </div>
 
     <div class="grid-layout">
-      <div class="form-group"><label>Rake / Pitch (°)</label><input id="rake" type="number" min="0" max="90" placeholder="optional"></div>
       <div class="form-group"><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
       <div class="form-group"><label>Kinematic Direction</label><input id="movementDir" placeholder="e.g., Top-to-NE"></div>
     </div>
@@ -743,13 +742,13 @@ function validate(){
 }
 
 function updatePreview(){ 
-  const v=validate(); 
+   v=validate(); 
   document.getElementById('preview').innerHTML='<span class="fmt-preview">'+fmt()+'</span>'+ (v.length?'<br><span style="color:#c0392b">'+v.join('<br>')+'</span>':''); 
 }
 
 function saveEntry(){
   try {
-    const v = validate();
+     v = validate();
     if(v.length){ alert(v.join('\n')); return; }
 
     const r = { id: Date.now(), formatted: fmt() };
@@ -963,8 +962,20 @@ function exportCSV(){
     'trend','plunge','linType','linRake','pitchFrom','linTrend','linPlunge',
     'lith','remarks','photo','sample'
   ];
-  const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
-  download('structural_records.csv',csv,'text/csv');
+
+  const csv = [cols.join(',')]
+    .concat(records.map(r => cols.map(c => {
+      // Clean out ° and Â characters, then escape double quotes
+      const val = String(r[c] || '')
+        .replace(/[°Â]/g, '')
+        .replaceAll('"', '""');
+      
+      return '"' + val + '"';
+    }).join(',')))
+    .join('\n');
+
+  // Prepend '\ufeff' (UTF-8 BOM) to guarantee clean file encoding
+  download('structural_records.csv', '\ufeff' + csv, 'text/csv;charset=utf-8;');
 }
 
 function exportGeoJSON(){
