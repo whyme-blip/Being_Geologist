@@ -595,31 +595,33 @@
 </div>
 
 <script>
- // ==========================================
-  // 1. GLOBAL VARIABLES (Must be at the very top!)
+ <script>
+  // ==========================================
+  // 1. GLOBAL VARIABLES (Accessible everywhere)
   // ==========================================
   let isLineationActive = false;
   let records = [];
+
+  // Form field IDs (Moved here so saveEntry() can read them!)
+  const ids = [
+    'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
+    'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
+    'dipdir', 'trend', 'plunge', 'rake', 'rakeOrigin', 'sense', 'movementDir', 'photo', 'sampleType', 
+    'samplePrefix', 'sample', 'remarks'
+  ];
 
   // ==========================================
   // 2. PAGE INITIALIZATION
   // ==========================================
   document.addEventListener('DOMContentLoaded', () => {
-    // Load existing records (Notice: NO 'let' here so we don't re-declare it)
+    // Load existing records safely
     records = JSON.parse(localStorage.getItem('field_geo_records') || '[]');
     
     // Set default date
     const dateEl = document.getElementById('date');
     if (dateEl) dateEl.valueAsDate = new Date();
 
-    const ids = [
-      'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
-      'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
-      'dipdir', 'trend', 'plunge', 'rake', 'sense', 'movementDir', 'photo', 'sampleType', 
-      'samplePrefix', 'sample', 'remarks'
-    ];
-    
-    // Add event listeners to update preview automatically
+    // Attach preview event listeners using global 'ids'
     ids.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('input', updatePreview);
