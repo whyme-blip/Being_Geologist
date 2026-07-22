@@ -460,11 +460,20 @@
   </div>
 </div>
 
-<!-- Lower Grid: Rake / Pitch, Plunge & Kinematics -->
+<!-- Lower Grid: Rake / Pitch, Rake Origin, Plunge & Kinematics -->
 <div class="grid-layout">
   <div class="form-group">
     <label>Rake / Pitch (°)</label>
     <input id="rake" type="number" min="0" max="90" placeholder="optional" oninput="calculatePlungeFromRake()">
+  </div>
+
+  <!-- Dynamic Rake Reference End Selector -->
+  <div class="form-group">
+    <label>Rake Measured From</label>
+    <select id="rakeOrigin" onchange="calculatePlungeFromRake()">
+      <option value="rhr" id="optRhr">Strike End (RHR)</option>
+      <option value="opp" id="optOpp">Opposite End (+180°)</option>
+    </select>
   </div>
 
   <!-- AUTO-POPULATED PLUNGE FIELD -->
@@ -668,55 +677,75 @@ function updatePreview() {
       document.getElementById('calculatedTrend').value = '';
     }
   }
+  
+// Calculate Both Trend & Plunge dynamically from Strike, Dip, Rake, and Rake Origin
+function calculatePlungeFromRake() {
+  const strikeInput = document.getElementById('strike');
+  const dipInput = document.getElementById('dip');
+  const rakeInput = document.getElementById('rake');
+  const rakeOriginSelect = document.getElementById('rakeOrigin');
+  
+  const calcPlungeInput = document.getElementById('calculatedPlunge');
+  const calcTrendInput = document.getElementById('calculatedTrend');
 
-  // Calculate Both Trend & Plunge dynamically from Strike, Dip, and Rake
-  function calculatePlungeFromRake() {
-    const strikeInput = document.getElementById('strike');
-    const dipInput = document.getElementById('dip');
-    const rakeInput = document.getElementById('rake');
-    
-    const calcPlungeInput = document.getElementById('calculatedPlunge');
-    const calcTrendInput = document.getElementById('calculatedTrend');
+  const rakeVal = parseFloat(rakeInput.value);
+  const dipVal = parseFloat(dipInput.value);
+  const strikeVal = parseFloat(strikeInput.value);
+  const originVal = rakeOriginSelect ? rakeOriginSelect.value : 'rhr';
 
-    const rakeVal = parseFloat(rakeInput.value);
-    const dipVal = parseFloat(dipInput.value);
-    const strikeVal = parseFloat(strikeInput.value);
-
-    // If Rake/Pitch is empty, reset outputs
-    if (rakeInput.value.trim() === '' || isNaN(rakeVal)) {
-      calcPlungeInput.value = '--';
-      if (calcTrendInput) calcTrendInput.value = 'Auto';
-      return;
-    }
-
-    // Calculate Plunge: sin(Plunge) = sin(Dip) * sin(Rake)
-    if (!isNaN(dipVal) && dipVal >= 0 && dipVal <= 90) {
-      const dipRad = dipVal * (Math.PI / 180);
-      const rakeRad = rakeVal * (Math.PI / 180);
-
-      const sinPlunge = Math.sin(dipRad) * Math.sin(rakeRad);
-      const plungeDeg = Math.asin(sinPlunge) * (180 / Math.PI);
-
-      calcPlungeInput.value = plungeDeg.toFixed(1) + '°';
-
-      // Calculate Trend if Strike is available & lineation toggle is open
-      if (isLineationActive && !isNaN(strikeVal)) {
-        const strikeRad = strikeVal * (Math.PI / 180);
-
-        // Vector components for lineation direction (RHR strike system)
-        const Lx = Math.cos(rakeRad) * Math.cos(strikeRad) - Math.sin(rakeRad) * Math.sin(strikeRad) * Math.cos(dipRad);
-        const Ly = Math.cos(rakeRad) * Math.sin(strikeRad) + Math.sin(rakeRad) * Math.cos(strikeRad) * Math.cos(dipRad);
-
-        let trendDeg = Math.atan2(Ly, Lx) * (180 / Math.PI);
-        if (trendDeg < 0) trendDeg += 360;
-
-        calcTrendInput.value = String(Math.round(trendDeg)).padStart(3, '0') + '°';
-      }
+  // 1. Dynamically update dropdown labels with actual azimuth degrees
+  const optRhr = document.getElementById('optRhr');
+  const optOpp = document.getElementById('optOpp');
+  if (optRhr && optOpp) {
+    if (!isNaN(strikeVal)) {
+      const rhrDeg = String(Math.round((strikeVal % 360 + 360) % 360)).padStart(3, '0');
+      const oppDeg = String(Math.round(((strikeVal + 180) % 360 + 360) % 360)).padStart(3, '0');
+      optRhr.innerText = `${rhrDeg}° (RHR Strike)`;
+      optOpp.innerText = `${oppDeg}° (Opposite End)`;
     } else {
-      calcPlungeInput.value = 'Needs Dip';
+      optRhr.innerText = 'Strike End (RHR)';
+      optOpp.innerText = 'Opposite End (+180°)';
     }
   }
-  
+
+  // 2. Reset outputs if Rake is empty
+  if (rakeInput.value.trim() === '' || isNaN(rakeVal)) {
+    calcPlungeInput.value = '--';
+    if (calcTrendInput) calcTrendInput.value = 'Auto';
+    return;
+  }
+
+  // 3. Calculate Plunge: sin(Plunge) = sin(Dip) * sin(Rake)
+  if (!isNaN(dipVal) && dipVal >= 0 && dipVal <= 90) {
+    const dipRad = dipVal * (Math.PI / 180);
+    const rakeRad = rakeVal * (Math.PI / 180);
+
+    const sinPlunge = Math.sin(dipRad) * Math.sin(rakeRad);
+    const plungeDeg = Math.asin(sinPlunge) * (180 / Math.PI);
+
+    calcPlungeInput.value = plungeDeg.toFixed(1) + '°';
+
+    // 4. Calculate Trend if Strike is available & lineation card is open
+    if (isLineationActive && !isNaN(strikeVal)) {
+      const strikeRhrRad = strikeVal * (Math.PI / 180);
+
+      // Starting strike vector direction (RHR end vs Opposite end)
+      const startStrikeVal = (originVal === 'opp') ? (strikeVal + 180) : strikeVal;
+      const startRad = startStrikeVal * (Math.PI / 180);
+
+      // Horizontal vector components sweeping down-dip towards the plane's dip direction
+      const Lx = Math.cos(rakeRad) * Math.sin(startRad) + Math.sin(rakeRad) * Math.cos(dipRad) * Math.cos(strikeRhrRad);
+      const Ly = Math.cos(rakeRad) * Math.cos(startRad) - Math.sin(rakeRad) * Math.cos(dipRad) * Math.sin(strikeRhrRad);
+
+      let trendDeg = Math.atan2(Lx, Ly) * (180 / Math.PI);
+      if (trendDeg < 0) trendDeg += 360;
+
+      calcTrendInput.value = String(Math.round(trendDeg)).padStart(3, '0') + '°';
+    }
+  } else {
+    calcPlungeInput.value = 'Needs Dip';
+  }
+}  
 function getQuadrant(deg) {
   const sectors = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   return sectors[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
