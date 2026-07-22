@@ -407,6 +407,62 @@
       <div class="form-group"><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
       <div class="form-group"><label>Kinematic Direction</label><input id="movementDir" placeholder="e.g., Top-to-NE"></div>
     </div>
+    <!-- Associated Lineation Trigger Button -->
+<div style="margin-top: 10px;">
+  <button type="button" id="toggleLineationBtn" onclick="toggleLineationSection()" class="btn-sec" style="width: auto; padding: 6px 12px; font-size: 13px;">
+    ➕ Add Associated Lineation (Pitch / Rake)
+  </button>
+</div>
+
+<!-- ASSOCIATED LINEATION SUB-PANEL -->
+<div id="associatedLineationDiv" class="hidden" style="background: #eef5fc; padding: 12px; margin-top: 10px; border-radius: var(--radius); border: 1px solid #bce0fd;">
+  <div style="font-weight: bold; font-size: 13px; color: var(--primary); margin-bottom: 8px;">
+    📐 Associated Linear Structure (Calculated from Pitch)
+  </div>
+
+  <div class="grid-layout" style="margin-bottom: 0;">
+    <div class="form-group">
+      <label>Lineation Type</label>
+      <select id="linType">
+        <option value="">-- Select Lineation --</option>
+        <option>L1 Lineation</option>
+        <option>L2 Lineation</option>
+        <option>L3 Lineation</option>
+        <option>L1 Mineral Lineation</option>
+        <option>L2 Mineral Lineation</option>
+        <option>Slickenline / Striae</option>
+        <option>Fold Axis Lineation</option>
+        <option>Stretching Lineation</option>
+        <option>Intersection Lineation</option>
+        <option>Crenulation Lineation</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Pitch / Rake (°)</label>
+      <input id="linRake" type="number" min="0" max="90" placeholder="e.g., 20" oninput="calculateLineationFromPitch()">
+    </div>
+
+    <div class="form-group">
+      <label>Pitch Measured From</label>
+      <select id="pitchFrom" onchange="calculateLineationFromPitch()">
+        <option value="strike">000° (Strike End)</option>
+        <option value="opposite">180° (Opposite End)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="compact-row" style="margin-top: 10px;">
+    <div class="form-group">
+      <label>Calculated Trend (°)</label>
+      <input id="linTrend" readonly placeholder="Auto" style="font-weight: bold; color: var(--accent);">
+    </div>
+    <div class="form-group">
+      <label>Calculated Plunge (°)</label>
+      <input id="linPlunge" readonly placeholder="Auto" style="font-weight: bold; color: var(--accent);">
+    </div>
+  </div>
+</div>
 
     <!-- SECTION 3: MEDIA AND SAMPLES -->
     <div class="section-title">📦 3. Media & Sample Management</div>
@@ -503,11 +559,13 @@
 let records = JSON.parse(localStorage.getItem('field_geo_records')||'[]');
 document.getElementById('date').valueAsDate = new Date();
 
-const ids=[
-'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
-'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
-'dipdir', 'trend', 'plunge', 'rake', 'sense', 'movementDir', 'photo', 'sampleType', 
-'samplePrefix', 'sample', 'remarks'
+const ids = [
+  'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
+  'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
+  'dipdir', 'trend', 'plunge', 'rake', 'sense', 'movementDir', 'photo', 'sampleType', 
+  'samplePrefix', 'sample', 'remarks',
+  // --- New Lineation Fields ---
+  'linType', 'linRake', 'pitchFrom', 'linTrend', 'linPlunge'
 ];
 
 ids.forEach(id => {
@@ -515,6 +573,98 @@ ids.forEach(id => {
   if(el) el.addEventListener('input', updatePreview);
 });
 
+ // Toggle the Associated Lineation Panel
+function toggleLineationSection() {
+  const panel = document.getElementById('associatedLineationDiv');
+  const btn = document.getElementById('toggleLineationBtn');
+  const isHidden = panel.classList.contains('hidden');
+  
+  if (isHidden) {
+    panel.classList.remove('hidden');
+    btn.innerHTML = '➖ Remove Associated Lineation';
+    updatePitchFromOptions();
+    calculateLineationFromPitch();
+  } else {
+    panel.classList.add('hidden');
+    btn.innerHTML = '➕ Add Associated Lineation (Pitch / Rake)';
+    // Clear values if hidden
+    ['linType', 'linRake', 'linTrend', 'linPlunge'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    updatePreview();
+  }
+}
+
+// Dynamically update the 'Pitch Measured From' dropdown options with real strike angles
+function updatePitchFromOptions() {
+  const strikeVal = parseFloat(val('strike'));
+  const pitchSelect = document.getElementById('pitchFrom');
+  
+  if (!isNaN(strikeVal)) {
+    const strikeDeg = pad3(strikeVal);
+    const oppDeg = pad3((strikeVal + 180) % 360);
+    
+    const currentVal = pitchSelect.value;
+    pitchSelect.innerHTML = `
+      <option value="strike">${strikeDeg}° (Strike End)</option>
+      <option value="opposite">${oppDeg}° (Opposite End)</option>
+    `;
+    pitchSelect.value = currentVal || 'strike';
+  } else {
+    pitchSelect.innerHTML = `
+      <option value="strike">---° (Strike End)</option>
+      <option value="opposite">---° (Opposite End)</option>
+    `;
+  }
+}
+
+// Core Math Function: Pitch/Rake -> Trend & Plunge
+function calculateLineationFromPitch() {
+  const strike = parseFloat(val('strike'));
+  const dip = parseFloat(val('dip'));
+  const rake = parseFloat(val('linRake'));
+  const pitchFrom = val('pitchFrom');
+
+  const trendInput = document.getElementById('linTrend');
+  const plungeInput = document.getElementById('linPlunge');
+
+  if (isNaN(strike) || isNaN(dip) || isNaN(rake) || rake < 0 || rake > 90) {
+    trendInput.value = '';
+    plungeInput.value = '';
+    updatePreview();
+    return;
+  }
+
+  // Convert to radians
+  const radDip = (dip * Math.PI) / 180;
+  const radRake = (rake * Math.PI) / 180;
+
+  // 1. Plunge: sin(plunge) = sin(dip) * sin(rake)
+  const radPlunge = Math.asin(Math.sin(radDip) * Math.sin(radRake));
+  const plungeDeg = Math.round((radPlunge * 180) / Math.PI);
+
+  // 2. Horizontal apparent angle (beta) from strike line towards dip direction
+  const radBeta = Math.atan2(Math.tan(radRake) * Math.cos(radDip), 1);
+  const betaDeg = (radBeta * 180) / Math.PI;
+
+  // 3. Trend calculation depending on Reference End
+  let trendDeg = 0;
+  if (pitchFrom === 'opposite') {
+    // Measured from opposite strike end (S + 180°)
+    trendDeg = (strike + 180 - betaDeg + 360) % 360;
+  } else {
+    // Measured from strike end (S)
+    trendDeg = (strike + betaDeg + 360) % 360;
+  }
+
+  trendDeg = Math.round(trendDeg);
+
+  trendInput.value = pad3(trendDeg) + '°';
+  plungeInput.value = String(plungeDeg).padStart(2, '0') + '°';
+
+  updatePreview();
+} 
+  
 function getQuadrant(deg) {
   const sectors = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   return sectors[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
@@ -549,6 +699,12 @@ function fmt(){
   }
 
   let s = `${t}: ${dataStr}`;
+  
+  // Append associated lineation if recorded
+  if (val('linType') && val('linTrend') && val('linPlunge')) {
+    s += ` | ${val('linType')}: ${val('linPlunge')} → ${val('linTrend')} (Pitch ${val('linRake')}°)`;
+  }
+
   if(rk) s += `, rake ${rk}°`; 
   if(se) s += `, ${se} sense`;
   if(md) s += ` (${md})`;
@@ -648,6 +804,16 @@ function clearForm(resetDate=true){
   if (document.getElementById('takeSample')) {
     document.getElementById('takeSample').checked = false;
     toggleSampleState();
+  }
+
+  // --- Reset & Collapse Associated Lineation Panel ---
+  const lineationDiv = document.getElementById('associatedLineationDiv');
+  const lineationBtn = document.getElementById('toggleLineationBtn');
+  if (lineationDiv) {
+    lineationDiv.classList.add('hidden');
+  }
+  if (lineationBtn) {
+    lineationBtn.innerHTML = '➕ Add Associated Lineation (Pitch / Rake)';
   }
 
   if(resetDate && document.getElementById('date')){
@@ -776,8 +942,13 @@ function exportKML(){
   // Use your existing download helper function
   download('structural_records.kml', kml, 'application/vnd.google-earth.kml+xml');
 }
+
 function exportCSV(){
-  const cols=['date','locNo','loc','lat','lon','unit','type','strike','dip','dipdir','trend','plunge','lith','remarks','photo','sample'];
+  const cols=[
+    'date','locNo','loc','lat','lon','unit','type','strike','dip','dipdir',
+    'trend','plunge','linType','linRake','pitchFrom','linTrend','linPlunge',
+    'lith','remarks','photo','sample'
+  ];
   const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
   download('structural_records.csv',csv,'text/csv');
 }
@@ -833,6 +1004,13 @@ document.getElementById('strike').addEventListener('input', function() {
     } else {
         document.getElementById('dipdir').value = '';
     }
+  // Update lineation calculations if lineation section is open
+    updatePitchFromOptions();
+    calculateLineationFromPitch();
+});
+
+document.getElementById('dip').addEventListener('input', function() {
+    calculateLineationFromPitch();
 });
 
 document.getElementById('photoInput').addEventListener('change', function(e) {
