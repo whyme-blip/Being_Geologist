@@ -402,14 +402,32 @@
     </div>
 
     <div class="grid-layout">
-      <div class="form-group"><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
-      <div class="form-group"><label>Kinematic Direction</label><input id="movementDir" placeholder="e.g., Top-to-NE"></div>
-    </div>
-    <!-- Associated Lineation Trigger Button -->
-<div style="margin-top: 10px;">
-  <button type="button" id="toggleLineationBtn" onclick="toggleLineationSection()" class="btn-sec" style="width: auto; padding: 6px 12px; font-size: 13px;">
-    ➕ Add Associated Lineation (Pitch / Rake)
-  </button>
+  <div class="form-group">
+    <label>Movement Sense</label>
+    <select id="sense">
+      <option></option>
+      <option>Normal</option>
+      <option>Reverse</option>
+      <option>Dextral</option>
+      <option>Sinistral</option>
+      <option>Dextral-normal</option>
+      <option>Sinistral-normal</option>
+      <option>Oblique</option>
+      <option>Unknown</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>Kinematic Direction</label>
+    <input id="movementDir" placeholder="e.g., Top-to-NE">
+  </div>
+
+  <!-- Associated Lineation Trigger Button (Moved Inline) -->
+  <div class="form-group" style="display: flex; align-items: flex-end;">
+    <button type="button" id="toggleLineationBtn" onclick="toggleLineationSection()" class="btn-sec" style="width: 100%; padding: 8px 12px; font-size: 13px; white-space: nowrap;">
+      ➕ Add Associated Lineation (Pitch / Rake)
+    </button>
+  </div>
 </div>
 
 <!-- ASSOCIATED LINEATION SUB-PANEL -->
@@ -461,7 +479,6 @@
     </div>
   </div>
 </div>
-
     <!-- SECTION 3: MEDIA AND SAMPLES -->
     <div class="section-title">📦 3. Media & Sample Management</div>
     <div class="grid-layout">
