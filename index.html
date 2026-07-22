@@ -912,7 +912,7 @@ function getGPS(){
   const altField=document.getElementById('alt');
   
   if(!navigator.geolocation){ 
-     alert('GPS Engine Error: Geolocation APIs are disabled or unsupported by your current container/browser browser config.');
+     alert('GPS Engine Error: Geolocation disabled or unsupported.');
      if(latField) latField.value = 'Unsupported';
      return; 
   }
@@ -925,7 +925,7 @@ function getGPS(){
      if(latField) latField.value=p.coords.latitude.toFixed(6);
      if(lonField) lonField.value=p.coords.longitude.toFixed(6);
      if(accField) accField.value = Math.round(p.coords.accuracy) + 'm';
-     if(altField) altField.value = p.coords.altitude ? p.coords.altitude.toFixed(1) : 'N/A';
+     if(altField) altField.value = p.coords.altitude ? p.coords.altitude.toFixed(1) + 'm' : 'N/A';
      updatePreview();
   }, function(e){
      if(e.code === 3) { 
@@ -933,6 +933,7 @@ function getGPS(){
          if(latField) latField.value=p2.coords.latitude.toFixed(6);
          if(lonField) lonField.value=p2.coords.longitude.toFixed(6);
          if(accField) accField.value = Math.round(p2.coords.accuracy) + 'm';
+         if(altField) altField.value = p2.coords.altitude ? p2.coords.altitude.toFixed(1) + 'm' : 'N/A';
          updatePreview();
        }, function(e2){
          handleGeoError(e2);
@@ -942,21 +943,22 @@ function getGPS(){
      }
   },{enableHighAccuracy:true,timeout:7000,maximumAge:0});
   
-  function handleGeoError(err) {
+ function handleGeoError(err) {
      if(latField) latField.value=''; 
      if(lonField) lonField.value='';
      if(accField) accField.value='Error';
+     if(altField) altField.value=''; 
      
      let descriptiveMsg = '';
      if(err.code === 1) descriptiveMsg = "Permission Denied. Please enable site location sharing clearances.";
      else if(err.code === 2) descriptiveMsg = "Position Unavailable (Weak Satellite Sync/Underground Outcrop).";
      else if(err.code === 3) descriptiveMsg = "GPS Timeout Engine Fault.";
-     else descriptiveMsg = err.message;
+     else descriptiveMsg = err.message || "Unknown error";
      
      console.error("GPS System Failure: " + descriptiveMsg);
      
-     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-       alert('GPS Blocked: Mobile browsers require an HTTPS secure connection profiles to deploy spatial arrays. Please host using secure credentials or test locally via localhost.\n\nStatus: ' + descriptiveMsg);
+     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+       alert('GPS Blocked: Mobile browsers require an HTTPS secure connection profile to deploy spatial arrays. Please host using secure credentials or test locally via localhost.\n\nStatus: ' + descriptiveMsg);
      } else {
        alert('GPS Stream Status: ' + descriptiveMsg);
      }
@@ -1040,12 +1042,21 @@ function exportGeoJSON(){
   download('structural_mapping_layer.geojson', JSON.stringify(geojson,null,2), 'application/geo+json');
 }
 
-function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
+function download(name,content,type){
+  const blobUrl = URL.createObjectURL(new Blob([content],{type}));
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(blobUrl);
+}
 function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
 function closeModal() { document.getElementById('analysisModal').classList.remove('active'); }
 function runStructuralSynthesis() { alert('Eigensolver calculations require multiple planar datasets.'); } 
 
-document.getElementById('type').addEventListener('change', function() {
+const typeElem = document.getElementById('type');
+if (typeElem) {
+  typeElem.addEventListener('change', function() {
     document.getElementById('customStructureDiv').classList.toggle('hidden', this.value !== 'Other');
     if(isLinear(this.value)) {
         document.getElementById('planarFields').classList.add('hidden');
@@ -1075,7 +1086,7 @@ document.getElementById('photoInput').addEventListener('change', function(e) {
 });
 
 function startVoiceNote(){
-  const SpeechRecognition = window.SynthesisSpeechRecognition || window.webkitSpeechRecognition;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SpeechRecognition){ alert("Voice parsing unsupported."); return; }
   const recognition = new SpeechRecognition();
   recognition.lang = "en-US";
@@ -1404,13 +1415,12 @@ if (typeof records !== 'undefined' && records.length > 0) {
   localStorage.setItem('locationCounter', isNaN(lastNum) ? 1 : lastNum + 1);
 }
 
-render();
-updatePreview();
-toggleSampleState();
-updateLocationID();
-
 window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(getGPS, 800); 
+  render();
+  updatePreview();
+  toggleSampleState();
+  updateLocationID();
+  setTimeout(getGPS, 800); 
 });
 
 if ('serviceWorker' in navigator) {
