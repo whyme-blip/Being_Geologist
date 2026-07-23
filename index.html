@@ -1427,5 +1427,55 @@ if ('serviceWorker' in navigator) {
     <div id="map" style="height: 450px; margin-top: 8px; border-radius: 6px;"></div>
   </div>
 </div>
+
+<!-- GEOFENCE LOGIC SCRIPT -->
+<script>
+  let geofenceLayer = null;
+
+  function renderSpatialMapWithGeofence() {
+    if (!map) {
+      alert("Map is not initialized yet!");
+      return;
+    }
+
+    const minLat = parseFloat(document.getElementById('gfMinLat').value);
+    const maxLat = parseFloat(document.getElementById('gfMaxLat').value);
+    const minLon = parseFloat(document.getElementById('gfMinLon').value);
+    const maxLon = parseFloat(document.getElementById('gfMaxLon').value);
+
+    if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
+      alert("Please enter valid numeric values for Min/Max Latitude and Longitude.");
+      return;
+    }
+
+    if (minLat >= maxLat || minLon >= maxLon) {
+      alert("Min Lat/Lon must be smaller than Max Lat/Lon!");
+      return;
+    }
+
+    if (geofenceLayer) {
+      map.removeLayer(geofenceLayer);
+    }
+
+    const bounds = [
+      [minLat, minLon],
+      [maxLat, maxLon]
+    ];
+
+    geofenceLayer = L.rectangle(bounds, {
+      color: "#e74c3c",
+      weight: 2,
+      dashArray: "6, 6",
+      fillColor: "#e74c3c",
+      fillOpacity: 0.15
+    }).addTo(map);
+
+    map.fitBounds(bounds, { padding: [20, 20] });
+
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+  }
+</script>
 </body>
 </html>
