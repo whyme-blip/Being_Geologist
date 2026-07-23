@@ -1379,101 +1379,64 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
-<!-- SPATIAL FIELD MAP MODAL -->
-<div id="mapModal">
-  <div id="mapContainer">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-      <h3 style="margin: 0; color: #1f3a5f; font-size: 16px;">🗺️ Spatial Traverse & Custom Map Overlay</h3>
-      <button type="button" onclick="closeSpatialMap()" class="btn-danger" style="padding: 4px 10px; width: auto; font-size: 13px;">✕ Close</button>
-    </div>
-
-    <!-- Collapsible Controls Container -->
-    <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
-
-      <!-- 1. COLLAPSIBLE GEOFENCE SECTION -->
-      <details style="background: #f8f9fa; padding: 8px 10px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border);">
-        <summary style="font-weight: bold; color: var(--primary); cursor: pointer; user-select: none;">
-          🎯 Geofence Boundary (DD)
-        </summary>
-        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ccc;">
-          <label style="display:flex; align-items:center; gap:4px;">Min Lat: <input type="number" id="gfMinLat" step="any" placeholder="30.1" style="width: 75px; padding: 4px;"></label>
-          <label style="display:flex; align-items:center; gap:4px;">Max Lat: <input type="number" id="gfMaxLat" step="any" placeholder="30.5" style="width: 75px; padding: 4px;"></label>
-          <label style="display:flex; align-items:center; gap:4px;">Min Lon: <input type="number" id="gfMinLon" step="any" placeholder="77.1" style="width: 75px; padding: 4px;"></label>
-          <label style="display:flex; align-items:center; gap:4px;">Max Lon: <input type="number" id="gfMaxLon" step="any" placeholder="77.5" style="width: 75px; padding: 4px;"></label>
-          <button onclick="renderSpatialMapWithGeofence()" style="background: #2980b9; color: white; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Apply Boundary</button>
-        </div>
-      </details>
-
-      <!-- 2. COLLAPSIBLE CUSTOM MAP OVERLAY SECTION -->
-      <details style="background: #f8f9fa; padding: 8px 10px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border);">
-        <summary style="font-weight: bold; color: #2c3e50; cursor: pointer; user-select: none;">
-          🗺️ Custom Georeferenced Overlay Map
-        </summary>
-        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ccc;">
-          <input type="file" id="customMapFile" accept="image/jpeg,image/png,image/webp" style="font-size: 11px; max-width: 180px;">
-          <label style="display:flex; align-items:center; gap:4px;">SW Lat: <input type="number" id="ovMinLat" step="any" placeholder="Min Lat" style="width: 70px; padding: 4px;"></label>
-          <label style="display:flex; align-items:center; gap:4px;">NE Lat: <input type="number" id="ovMaxLat" step="any" placeholder="Max Lat" style="width: 70px; padding: 4px;"></label>
-          <label style="display:flex; align-items:center; gap:4px;">SW Lon: <input type="number" id="ovMinLon" step="any" placeholder="Min Lon" style="width: 70px; padding: 4px;"></label>
-          <label style="display:flex; align-items:center; gap:4px;">NE Lon: <input type="number" id="ovMaxLon" step="any" placeholder="Max Lon" style="width: 70px; padding: 4px;"></label>
-          
-          <button onclick="applyCustomMapOverlay()" style="background: #27ae60; color: white; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Load Image Map</button>
-          <button onclick="removeCustomMapOverlay()" style="background: #e74c3c; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Remove</button>
-        </div>
-      </details>
-
-    </div>
-
-    <!-- Map Viewport -->
-    <div id="map" style="height: 450px; margin-top: 8px; border-radius: 6px;"></div>
-  </div>
-</div>
-
-<!-- GEOFENCE LOGIC SCRIPT -->
 <script>
   let geofenceLayer = null;
 
-  function renderSpatialMapWithGeofence() {
-    if (!map) {
-      alert("Map is not initialized yet!");
+  function renderSpatialMapWithGeofence(e) {
+    // Prevent default form submission & page reload
+    if (e) e.preventDefault();
+
+    // Automatically locate the Leaflet map object
+    const targetMap = (typeof map !== 'undefined' && map) ? map : window.map;
+
+    if (!targetMap) {
+      alert("Map instance not found. Please open the spatial map modal first.");
       return;
     }
 
+    // Parse input values as numbers
     const minLat = parseFloat(document.getElementById('gfMinLat').value);
     const maxLat = parseFloat(document.getElementById('gfMaxLat').value);
     const minLon = parseFloat(document.getElementById('gfMinLon').value);
     const maxLon = parseFloat(document.getElementById('gfMaxLon').value);
 
+    // Validate entries
     if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
-      alert("Please enter valid numeric values for Min/Max Latitude and Longitude.");
+      alert("Please enter valid numeric values for all 4 coordinates.");
       return;
     }
 
     if (minLat >= maxLat || minLon >= maxLon) {
-      alert("Min Lat/Lon must be smaller than Max Lat/Lon!");
+      alert("Min Lat/Lon must be strictly smaller than Max Lat/Lon!");
       return;
     }
 
+    // Clear previous rectangle if one exists
     if (geofenceLayer) {
-      map.removeLayer(geofenceLayer);
+      targetMap.removeLayer(geofenceLayer);
     }
 
     const bounds = [
-      [minLat, minLon],
-      [maxLat, maxLon]
+      [minLat, minLon], // SW corner
+      [maxLat, maxLon]  // NE corner
     ];
 
+    // Draw red dashed rectangle
     geofenceLayer = L.rectangle(bounds, {
       color: "#e74c3c",
-      weight: 2,
+      weight: 3,
       dashArray: "6, 6",
       fillColor: "#e74c3c",
-      fillOpacity: 0.15
-    }).addTo(map);
+      fillOpacity: 0.2,
+      interactive: false
+    }).addTo(targetMap);
 
-    map.fitBounds(bounds, { padding: [20, 20] });
+    // Auto-center and zoom map directly to the box
+    targetMap.fitBounds(bounds, { padding: [30, 30] });
 
+    // Refresh Leaflet canvas rendering
     setTimeout(() => {
-      map.invalidateSize();
+      targetMap.invalidateSize();
     }, 100);
   }
 </script>
