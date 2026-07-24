@@ -4,9 +4,21 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Offline Structural Data Logger by Being_Geologist</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1f3a5f">
-<style>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1f3a5f">
+
+  <!-- Apple iOS PWA Enhancements -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GeoLogger">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
   :root {
     --primary: #1f3a5f;
     --primary-light: #2c4d75;
@@ -973,5 +985,12 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Main Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
 </body>
 </html>
