@@ -402,16 +402,33 @@
       </div>
     </div>
 
-    <div class="grid-layout">
-      <div class="form-group"><label>Rake / Pitch (°)</label><input id="rake" type="number" min="0" max="90" placeholder="optional"></div>
-      <div class="form-group"><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
-      <div class="form-group"><label>Kinematic Direction</label><input id="movementDir" placeholder="e.g., Top-to-NE"></div>
-    </div>
-    <!-- Associated Lineation Trigger Button -->
-<div style="margin-top: 10px;">
-  <button type="button" id="toggleLineationBtn" onclick="toggleLineationSection()" class="btn-sec" style="width: auto; padding: 6px 12px; font-size: 13px;">
-    ➕ Add Associated Lineation (Pitch / Rake)
-  </button>
+   <div class="grid-layout">
+  <div class="form-group">
+    <label>Movement Sense</label>
+    <select id="sense">
+      <option></option>
+      <option>Normal</option>
+      <option>Reverse</option>
+      <option>Dextral</option>
+      <option>Sinistral</option>
+      <option>Dextral-normal</option>
+      <option>Sinistral-normal</option>
+      <option>Oblique</option>
+      <option>Unknown</option>
+    </select>
+  </div>
+  
+  <div class="form-group">
+    <label>Kinematic Direction</label>
+    <input id="movementDir" placeholder="e.g., Top-to-NE">
+  </div>
+
+  <div class="form-group">
+    <label>&nbsp;</label>
+    <button type="button" id="toggleLineationBtn" onclick="toggleLineationSection()" class="btn-sec" style="width: 100%; padding: 10px 12px; font-size: 13px; margin: 0;">
+      ➕ Add Associated Lineation (Pitch / Rake)
+    </button>
+  </div>
 </div>
 
 <!-- ASSOCIATED LINEATION SUB-PANEL -->
