@@ -141,10 +141,10 @@ function renderSpatialMapWithGeofence(event) {
     openSpatialMap(); // Fallback open if map isn't initialized
   }
 
-  const minLat = parseFloat(document.getElementById('gtMinLat')?.value);
-  const maxLat = parseFloat(document.getElementById('gtMaxLat')?.value);
-  const minLon = parseFloat(document.getElementById('gtMinLon')?.value);
-  const maxLon = parseFloat(document.getElementById('gtMaxLon')?.value);
+  const minLat = parseFloat(document.getElementById('gfMinLat')?.value);
+  const maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
+  const minLon = parseFloat(document.getElementById('gfMinLon')?.value);
+  const maxLon = parseFloat(document.getElementById('gfMaxLon')?.value);
 
   if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
     alert("Please enter valid numeric coordinates for all 4 Geofence inputs.");
