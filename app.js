@@ -134,6 +134,9 @@ function calculateWeightedAverage(samples) {
 /**
  * Draws geofence box using Min/Max Lat/Lon inputs
  */
+/**
+ * Draws geofence box using Min/Max Lat/Lon inputs (gfMinLat, gfMaxLat, gfMinLon, gfMaxLon)
+ */
 function renderSpatialMapWithGeofence(event) {
   if (event) event.preventDefault();
 
@@ -151,29 +154,42 @@ function renderSpatialMapWithGeofence(event) {
     return;
   }
 
-  // Remove existing geofence box if present
+  // Remove existing geofence boundary layer if already drawn
   if (geofenceLayer && map) {
     map.removeLayer(geofenceLayer);
   }
 
+  // Define bounding box [[South-West], [North-East]]
   const bounds = [[minLat, minLon], [maxLat, maxLon]];
-  geofenceLayer = L.rectangle(bounds, { color: '#e63946', weight: 2, fillOpacity: 0.15 }).addTo(map);
+
+  // Draw semi-transparent bounding box on Leaflet map
+  geofenceLayer = L.rectangle(bounds, {
+    color: '#e63946',
+    weight: 2,
+    fillOpacity: 0.15
+  }).addTo(map);
+
+  // Auto-zoom map to fit the boundary
   map.fitBounds(bounds);
 }
+
 /**
  * Loads uploaded PNG/JPG topo or satellite image onto the map canvas
  */
 function applyCustomMapOverlay() {
+  // 1. Ensure map is initialized and visible
   if (!map) {
     openSpatialMap();
   }
 
+  // 2. Validate Image File Selection
   const fileInput = document.getElementById('customMapFile');
   if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
     alert("Please select an image file (PNG/JPG) first.");
     return;
   }
 
+  // 3. Extract and Parse Overlay Bounding Box Coordinates
   const minLat = parseFloat(document.getElementById('ovMinLat')?.value);
   const maxLat = parseFloat(document.getElementById('ovMaxLat')?.value);
   const minLon = parseFloat(document.getElementById('ovMinLon')?.value);
@@ -184,26 +200,33 @@ function applyCustomMapOverlay() {
     return;
   }
 
-  // Create browser blob URL from selected file
+  // 4. Create Browser Local Blob URL from File
   const file = fileInput.files[0];
   const imageUrl = URL.createObjectURL(file);
   const bounds = [[minLat, minLon], [maxLat, maxLon]];
 
-  // Remove existing image overlay if present
+  // 5. Clean up previous overlay layer to avoid stacking/memory leaks
   if (customOverlayLayer && map) {
     map.removeLayer(customOverlayLayer);
   }
 
-  // Add raster image overlay to Leaflet
-  customOverlayLayer = L.imageOverlay(imageUrl, bounds, { opacity: 0.8 }).addTo(map);
+  // 6. Render Geo-referenced Image Overlay
+  customOverlayLayer = L.imageOverlay(imageUrl, bounds, {
+    opacity: 0.8,
+    interactive: true
+  }).addTo(map);
+
+  // 7. Auto-zoom to fit the custom overlay image
   map.fitBounds(bounds);
 }
 
+/**
+ * Removes active custom map overlay layer from the map
+ */
 function removeCustomMapOverlay() {
   if (customOverlayLayer && map) {
     map.removeLayer(customOverlayLayer);
     customOverlayLayer = null;
-    alert("Map overlay removed.");
   }
 }
 
