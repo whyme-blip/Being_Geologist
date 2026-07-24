@@ -5,8 +5,13 @@ const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+  './app.js',                                                      // Application logic & HighPrecisionGPS engine
+  './icon-192.png',                                                // App home screen icon (192px)
+  './icon-512.png',                                                // App home screen icon (512px)
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',             // Map styling
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',              // Map engine
+  'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',   // Default map pin icon
+  'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'  // Map pin shadow
 ];
 
 // 1. INSTALL EVENT: Cache core assets
