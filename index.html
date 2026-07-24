@@ -18,7 +18,7 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <style>
+<style>
   :root {
     --primary: #1f3a5f;
     --primary-light: #2c4d75;
@@ -33,6 +33,11 @@
     --secondary: #566573;
     --radius: 10px;
   }
+
+  /* Modal styling for the popup map view */
+  #mapModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
+  #mapContainer { width: 95%; max-width: 900px; height: 85vh; margin: 4vh auto; background: #fff; border-radius: var(--radius); position: relative; padding: 16px; display: flex; flex-direction: column; box-sizing: border-box; }
+  #map { width: 100%; flex-grow: 1; border-radius: 6px; margin-top: 8px; }
   
   body {
     margin: 0;
@@ -49,6 +54,11 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     text-align: center;
   }
+/* Fix Leaflet DivIcon default square artifact */
+.custom-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
   
   h1 {
     font-size: 22px;
@@ -399,11 +409,84 @@
       </div>
     </div>
 
-    <div class="grid-layout">
-      <div class="form-group"><label>Rake / Pitch (°)</label><input id="rake" type="number" min="0" max="90" placeholder="optional"></div>
-      <div class="form-group"><label>Movement Sense</label><select id="sense"><option></option><option>Normal</option><option>Reverse</option><option>Dextral</option><option>Sinistral</option><option>Dextral-normal</option><option>Sinistral-normal</option><option>Oblique</option><option>Unknown</option></select></div>
-      <div class="form-group"><label>Kinematic Direction</label><input id="movementDir" placeholder="e.g., Top-to-NE"></div>
+   <div class="grid-layout">
+  <div class="form-group">
+    <label>Movement Sense</label>
+    <select id="sense">
+      <option></option>
+      <option>Normal</option>
+      <option>Reverse</option>
+      <option>Dextral</option>
+      <option>Sinistral</option>
+      <option>Dextral-normal</option>
+      <option>Sinistral-normal</option>
+      <option>Oblique</option>
+      <option>Unknown</option>
+    </select>
+  </div>
+  
+  <div class="form-group">
+    <label>Kinematic Direction</label>
+    <input id="movementDir" placeholder="e.g., Top-to-NE">
+  </div>
+
+  <div class="form-group">
+    <label>&nbsp;</label>
+    <button type="button" id="toggleLineationBtn" onclick="toggleLineationSection()" class="btn-sec" style="width: 100%; padding: 10px 12px; font-size: 13px; margin: 0;">
+      ➕ Add Associated Lineation (Pitch / Rake)
+    </button>
+  </div>
+</div>
+
+<!-- ASSOCIATED LINEATION SUB-PANEL -->
+<div id="associatedLineationDiv" class="hidden" style="background: #eef5fc; padding: 12px; margin-top: 10px; border-radius: var(--radius); border: 1px solid #bce0fd;">
+  <div style="font-weight: bold; font-size: 13px; color: var(--primary); margin-bottom: 8px;">
+    📐 Associated Linear Structure (Calculated from Pitch)
+  </div>
+
+  <div class="grid-layout" style="margin-bottom: 0;">
+    <div class="form-group">
+      <label>Lineation Type</label>
+      <select id="linType">
+        <option value="">-- Select Lineation --</option>
+        <option>L1 Lineation</option>
+        <option>L2 Lineation</option>
+        <option>L3 Lineation</option>
+        <option>L1 Mineral Lineation</option>
+        <option>L2 Mineral Lineation</option>
+        <option>Slickenline / Striae</option>
+        <option>Fold Axis Lineation</option>
+        <option>Stretching Lineation</option>
+        <option>Intersection Lineation</option>
+        <option>Crenulation Lineation</option>
+      </select>
     </div>
+
+    <div class="form-group">
+      <label>Pitch / Rake (°)</label>
+      <input id="linRake" type="number" min="0" max="90" placeholder="e.g., 20" oninput="calculateLineationFromPitch()">
+    </div>
+
+    <div class="form-group">
+      <label>Pitch Measured From</label>
+      <select id="pitchFrom" onchange="calculateLineationFromPitch()">
+        <option value="strike">000° (Strike End)</option>
+        <option value="opposite">180° (Opposite End)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="compact-row" style="margin-top: 10px;">
+    <div class="form-group">
+      <label>Calculated Trend (°)</label>
+      <input id="linTrend" readonly placeholder="Auto" style="font-weight: bold; color: var(--accent);">
+    </div>
+    <div class="form-group">
+      <label>Calculated Plunge (°)</label>
+      <input id="linPlunge" readonly placeholder="Auto" style="font-weight: bold; color: var(--accent);">
+    </div>
+  </div>
+</div>
 
     <!-- SECTION 3: MEDIA AND SAMPLES -->
     <div class="section-title">📦 3. Media & Sample Management</div>
@@ -486,11 +569,12 @@
     </div>
     
     <div class="action-row" style="margin-bottom: 16px;">
-      <button onclick="exportCSV()">📊 Download CSV</button>
-      <button onclick="exportKML()" style="background: #8e44ad; color: white;">🌍 KML (Google Earth)</button>
-      <button onclick="exportGeoJSON()" class="btn-ok">🗺️ GIS GeoJSON Stream</button>
-      <button onclick="deleteAll()" class="btn-danger">🗑️ Delete All Records</button>
-    </div>
+  <button onclick="exportCSV()">📊 Download CSV</button>
+  <button onclick="exportKML()" style="background: #8e44ad; color: white;">🌍 KML (Google Earth)</button>
+  <button onclick="exportGeoJSON()" class="btn-ok">🗺️ GIS GeoJSON Stream</button>
+  <button onclick="openSpatialMap()" style="background: #27ae60; color: white;">🗺️ View Field Map & Route</button>
+  <button onclick="deleteAll()" class="btn-danger">🗑️ Delete All Records</button>
+</div>
     <div id="list"></div>
   </div>
 </div>
@@ -499,11 +583,13 @@
 let records = JSON.parse(localStorage.getItem('field_geo_records')||'[]');
 document.getElementById('date').valueAsDate = new Date();
 
-const ids=[
-'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
-'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
-'dipdir', 'trend', 'plunge', 'rake', 'sense', 'movementDir', 'photo', 'sampleType', 
-'samplePrefix', 'sample', 'remarks'
+const ids = [
+  'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
+  'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
+  'dipdir', 'trend', 'plunge', 'rake', 'sense', 'movementDir', 'photo', 'sampleType', 
+  'samplePrefix', 'sample', 'remarks',
+  // --- New Lineation Fields ---
+  'linType', 'linRake', 'pitchFrom', 'linTrend', 'linPlunge'
 ];
 
 ids.forEach(id => {
@@ -511,6 +597,98 @@ ids.forEach(id => {
   if(el) el.addEventListener('input', updatePreview);
 });
 
+ // Toggle the Associated Lineation Panel
+function toggleLineationSection() {
+  const panel = document.getElementById('associatedLineationDiv');
+  const btn = document.getElementById('toggleLineationBtn');
+  const isHidden = panel.classList.contains('hidden');
+  
+  if (isHidden) {
+    panel.classList.remove('hidden');
+    btn.innerHTML = '➖ Remove Associated Lineation';
+    updatePitchFromOptions();
+    calculateLineationFromPitch();
+  } else {
+    panel.classList.add('hidden');
+    btn.innerHTML = '➕ Add Associated Lineation (Pitch / Rake)';
+    // Clear values if hidden
+    ['linType', 'linRake', 'linTrend', 'linPlunge'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    updatePreview();
+  }
+}
+
+// Dynamically update the 'Pitch Measured From' dropdown options with real strike angles
+function updatePitchFromOptions() {
+  const strikeVal = parseFloat(val('strike'));
+  const pitchSelect = document.getElementById('pitchFrom');
+  
+  if (!isNaN(strikeVal)) {
+    const strikeDeg = pad3(strikeVal);
+    const oppDeg = pad3((strikeVal + 180) % 360);
+    
+    const currentVal = pitchSelect.value;
+    pitchSelect.innerHTML = `
+      <option value="strike">${strikeDeg}° (Strike End)</option>
+      <option value="opposite">${oppDeg}° (Opposite End)</option>
+    `;
+    pitchSelect.value = currentVal || 'strike';
+  } else {
+    pitchSelect.innerHTML = `
+      <option value="strike">---° (Strike End)</option>
+      <option value="opposite">---° (Opposite End)</option>
+    `;
+  }
+}
+
+// Core Math Function: Pitch/Rake -> Trend & Plunge
+function calculateLineationFromPitch() {
+  const strike = parseFloat(val('strike'));
+  const dip = parseFloat(val('dip'));
+  const rake = parseFloat(val('linRake'));
+  const pitchFrom = val('pitchFrom');
+
+  const trendInput = document.getElementById('linTrend');
+  const plungeInput = document.getElementById('linPlunge');
+
+  if (isNaN(strike) || isNaN(dip) || isNaN(rake) || rake < 0 || rake > 90) {
+    trendInput.value = '';
+    plungeInput.value = '';
+    updatePreview();
+    return;
+  }
+
+  // Convert to radians
+  const radDip = (dip * Math.PI) / 180;
+  const radRake = (rake * Math.PI) / 180;
+
+  // 1. Plunge: sin(plunge) = sin(dip) * sin(rake)
+  const radPlunge = Math.asin(Math.sin(radDip) * Math.sin(radRake));
+  const plungeDeg = Math.round((radPlunge * 180) / Math.PI);
+
+  // 2. Horizontal apparent angle (beta) from strike line towards dip direction
+  const radBeta = Math.atan2(Math.tan(radRake) * Math.cos(radDip), 1);
+  const betaDeg = (radBeta * 180) / Math.PI;
+
+  // 3. Trend calculation depending on Reference End
+  let trendDeg = 0;
+  if (pitchFrom === 'opposite') {
+    // Measured from opposite strike end (S + 180°)
+    trendDeg = (strike + 180 - betaDeg + 360) % 360;
+  } else {
+    // Measured from strike end (S)
+    trendDeg = (strike + betaDeg + 360) % 360;
+  }
+
+  trendDeg = Math.round(trendDeg);
+
+  trendInput.value = pad3(trendDeg) + '°';
+  plungeInput.value = String(plungeDeg).padStart(2, '0') + '°';
+
+  updatePreview();
+} 
+  
 function getQuadrant(deg) {
   const sectors = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   return sectors[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
@@ -545,6 +723,12 @@ function fmt(){
   }
 
   let s = `${t}: ${dataStr}`;
+  
+  // Append associated lineation if recorded
+  if (val('linType') && val('linTrend') && val('linPlunge')) {
+    s += ` | ${val('linType')}: ${val('linPlunge')} → ${val('linTrend')} (Pitch ${val('linRake')}°)`;
+  }
+
   if(rk) s += `, rake ${rk}°`; 
   if(se) s += `, ${se} sense`;
   if(md) s += ` (${md})`;
@@ -644,6 +828,16 @@ function clearForm(resetDate=true){
   if (document.getElementById('takeSample')) {
     document.getElementById('takeSample').checked = false;
     toggleSampleState();
+  }
+
+  // --- Reset & Collapse Associated Lineation Panel ---
+  const lineationDiv = document.getElementById('associatedLineationDiv');
+  const lineationBtn = document.getElementById('toggleLineationBtn');
+  if (lineationDiv) {
+    lineationDiv.classList.add('hidden');
+  }
+  if (lineationBtn) {
+    lineationBtn.innerHTML = '➕ Add Associated Lineation (Pitch / Rake)';
   }
 
   if(resetDate && document.getElementById('date')){
@@ -772,8 +966,13 @@ function exportKML(){
   // Use your existing download helper function
   download('structural_records.kml', kml, 'application/vnd.google-earth.kml+xml');
 }
+
 function exportCSV(){
-  const cols=['date','locNo','loc','lat','lon','unit','type','strike','dip','dipdir','trend','plunge','lith','remarks','photo','sample'];
+  const cols=[
+    'date','locNo','loc','lat','lon','unit','type','strike','dip','dipdir',
+    'trend','plunge','linType','linRake','pitchFrom','linTrend','linPlunge',
+    'lith','remarks','photo','sample'
+  ];
   const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
   download('structural_records.csv',csv,'text/csv');
 }
@@ -829,6 +1028,13 @@ document.getElementById('strike').addEventListener('input', function() {
     } else {
         document.getElementById('dipdir').value = '';
     }
+  // Update lineation calculations if lineation section is open
+    updatePitchFromOptions();
+    calculateLineationFromPitch();
+});
+
+document.getElementById('dip').addEventListener('input', function() {
+    calculateLineationFromPitch();
 });
 
 document.getElementById('photoInput').addEventListener('change', function(e) {
@@ -848,6 +1054,218 @@ function startVoiceNote(){
       updatePreview();
   };
   recognition.start();
+}
+
+let mapInstance = null;
+let mapDataGroup = null;      // For station markers, traverse line, and 
+let osmTileLayer = null;      // OpenStreetMap Base Layer
+let customOverlayLayer = null; // Uploaded custom map image overlay
+let layerControl = null;      // Leaflet Layer Switcher Control
+
+function openSpatialMap() {
+  const modal = document.getElementById('mapModal');
+  modal.style.display = 'block';
+
+  setTimeout(() => {
+    const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
+
+    // Don't block map opening if there are no points, just default to a general coordinate
+    const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
+    const firstLon = validPoints.length > 0 ? parseFloat(validPoints[0].lon) : 78.0;
+
+    if (!mapInstance) {
+      mapInstance = L.map('map').setView([firstLat, firstLon], 13);
+      
+      // Initialize Standard OpenStreetMap Layer
+      osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(mapInstance);
+
+      // Dedicated layer group for survey data (markers, lines, )
+      mapDataGroup = L.layerGroup().addTo(mapInstance);
+
+      // Initialize Leaflet Layer Control widget
+      layerControl = L.control.layers(
+        { "OpenStreetMap (Standard)": osmTileLayer },
+        { "Survey Stations & Route": mapDataGroup },
+        { position: 'topright' }
+      ).addTo(mapInstance);
+
+      // --- LIVE "BLUE DOT" LOCATION LOGIC ---
+      let liveMarker = null;
+      let accuracyCircle = null;
+
+      mapInstance.on('locationfound', function(e) {
+        const radius = e.accuracy / 2;
+        
+        // Remove old markers if updating
+        if (liveMarker) mapInstance.removeLayer(liveMarker);
+        if (accuracyCircle) mapInstance.removeLayer(accuracyCircle);
+
+        // Add accuracy radius circle
+        accuracyCircle = L.circle(e.latlng, {
+          radius: radius,
+          color: "#136AEC",
+          fillColor: "#136AEC",
+          fillOpacity: 0.15,
+          weight: 1
+        }).addTo(mapInstance);
+
+        // Add the blue dot
+        liveMarker = L.circleMarker(e.latlng, {
+          radius: 7,
+          fillColor: "#2A93EE",
+          color: "#ffffff",
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 1
+        }).addTo(mapInstance).bindPopup("<b>You are here</b>");
+      });
+
+      mapInstance.on('locationerror', function(e) {
+        console.warn("Live location not available for blue dot: " + e.message);
+      });
+
+    } else {
+      mapInstance.invalidateSize();
+    }
+
+    // Trigger the location request every time the map is opened
+    mapInstance.locate({setView: false, enableHighAccuracy: true});
+
+    renderSpatialMapWith();
+  }, 100);
+}
+
+// Function to handle loading and georeferencing user's custom map image
+function applyCustomMapOverlay() {
+  const fileInput = document.getElementById('customMapFile');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    alert('Please select an image file (JPEG/PNG) of your map first.');
+    return;
+  }
+
+  let minLat = parseFloat(document.getElementById('ovMinLat').value);
+  let maxLat = parseFloat(document.getElementById('ovMaxLat').value);
+  let minLon = parseFloat(document.getElementById('ovMinLon').value);
+  let maxLon = parseFloat(document.getElementById('ovMaxLon').value);
+
+  if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
+    alert('Please provide valid bounding coordinates (SW & NE corners) for the image overlay.');
+    return;
+  }
+
+  // Ensure minimums and maximums are correctly aligned
+  if (minLat > maxLat) [minLat, maxLat] = [maxLat, minLat];
+  if (minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
+
+  const bounds = [[minLat, minLon], [maxLat, maxLon]];
+  const imageUrl = URL.createObjectURL(file);
+
+  // Remove existing custom overlay if re-uploading
+  removeCustomMapOverlay();
+
+  // Create Leaflet ImageOverlay
+  customOverlayLayer = L.imageOverlay(imageUrl, bounds, {
+    opacity: 0.85,
+    interactive: true
+  }).addTo(mapInstance);
+
+  // Add Custom Overlay to Leaflet Layer Switcher
+  layerControl.addOverlay(customOverlayLayer, "Custom Map Overlay");
+
+  // Auto-fit viewport to the uploaded map bounds
+  mapInstance.fitBounds(bounds);
+  alert('Custom map overlay loaded successfully!');
+}
+
+function removeCustomMapOverlay() {
+  if (customOverlayLayer && mapInstance) {
+    layerControl.removeLayer(customOverlayLayer);
+    mapInstance.removeLayer(customOverlayLayer);
+    customOverlayLayer = null;
+  }
+}
+
+function renderSpatialMapWith() {
+  if (!mapInstance || !mapDataGroup) return;
+
+  mapDataGroup.clearLayers();
+
+  const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
+
+  let minLat = parseFloat(document.getElementById('gfMinLat')?.value);
+  let maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
+  let minLon = parseFloat(document.getElementById('gfMinLon')?.value);
+  let maxLon = parseFloat(document.getElementById('gfMaxLon')?.value);
+
+  if (!isNaN(minLat) && !isNaN(maxLat) && minLat > maxLat) [minLat, maxLat] = [maxLat, minLat];
+  if (!isNaN(minLon) && !isNaN(maxLon) && minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
+
+  let boundsArray = [];
+  const has = !isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLon) && !isNaN(maxLon);
+
+  if (has) {
+    const southWest = [minLat, minLon];
+    const northEast = [maxLat, maxLon];
+
+    L.rectangle([southWest, northEast], {
+      color: '#2980b9',
+      weight: 2,
+      dashArray: '4, 4',
+      fillColor: '#3498db',
+      fillOpacity: 0.1
+    }).addTo(mapDataGroup);
+
+    boundsArray.push(southWest, northEast);
+  }
+
+  let latLngs = [];
+
+  validPoints.forEach((r, index) => {
+    const lat = parseFloat(r.lat);
+    const lon = parseFloat(r.lon);
+    latLngs.push([lat, lon]);
+    boundsArray.push([lat, lon]);
+
+    let statusBadge = '';
+    if (has) {
+      const isInside = lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+      statusBadge = isInside 
+        ? '<br><span style="color: #27ae60; font-weight: bold;">✔ Inside Block Boundary</span>' 
+        : '<br><span style="color: #c0392b; font-weight: bold;">✖ Outside Block Boundary</span>';
+    }
+
+    const markerHtml = `<div style="background:#1f3a5f; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; border:2px solid white; box-shadow:0 0 4px rgba(0,0,0,0.4);">${index + 1}</div>`;
+    const customIcon = L.divIcon({ className: 'custom-div-icon', html: markerHtml, iconSize: [24, 24], iconAnchor: [12, 12] });
+
+    const popupContent = `
+      <b>Loc No:</b> ${escapeHTML(r.locNo || 'Station ' + (index+1))}<br>
+      <b>Lat/Lon:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)}<br>
+      <b>Structure:</b> ${escapeHTML(r.formatted || 'N/A')}<br>
+      <b>Lithology:</b> ${escapeHTML(r.lith || 'N/A')}
+      ${statusBadge}
+    `;
+
+    L.marker([lat, lon], { icon: customIcon })
+      .addTo(mapDataGroup)
+      .bindPopup(popupContent);
+  });
+
+  if (latLngs.length > 0) {
+    L.polyline(latLngs, { color: '#e74c3c', weight: 3, dashArray: '5, 5' }).addTo(mapDataGroup);
+  }
+
+  if (boundsArray.length > 0 && !customOverlayLayer) {
+    mapInstance.fitBounds(L.latLngBounds(boundsArray), { padding: [40, 40] });
+  }
+}
+
+function closeSpatialMap() {
+  document.getElementById('mapModal').style.display = 'none';
 }
   
 function handleLocModeChange() {
@@ -984,13 +1402,77 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.error('Service Worker registration failed:', err));
   });
 }
+
+// Dedicated Geofence Apply Trigger
+  function renderSpatialMapWithGeofence(e) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    if (!mapInstance) {
+      alert("Map instance not found. Please open the spatial map modal first.");
+      return;
+    }
+
+    const minLat = parseFloat(document.getElementById('gfMinLat')?.value);
+    const maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
+    const minLon = parseFloat(document.getElementById('gfMinLon')?.value);
+    const maxLon = parseFloat(document.getElementById('gfMaxLon')?.value);
+
+    if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
+      alert("Please enter valid numeric values for all 4 coordinates.");
+      return;
+    }
+
+    if (minLat >= maxLat || minLon >= maxLon) {
+      alert("Min Lat/Lon must be strictly smaller than Max Lat/Lon!");
+      return;
+    }
+
+    // Re-render map layers with active geofence bounding box
+    renderSpatialMapWith();
+  }
 </script>
+<!-- MAP MODAL CONTAINER -->
+<div id="mapModal">
+  <div id="mapContainer">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0; font-size:16px; color:var(--primary);">🗺️ Spatial Traverse & Custom Map Overlay</h3>
+      <button type="button" onclick="closeSpatialMap()" class="btn-danger" style="width:auto; padding:4px 10px; font-size:12px;">✕ Close</button>
+    </div>
+
+    <!-- 1. GEOFENCE ACCORDION PANEL -->
+    <details style="margin-top:8px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+      <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary);">🎯 Geofence Boundary (DD)</summary>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+        <label style="font-size:11px;">Min Lat: <input id="gfMinLat" type="number" step="any" placeholder="32" style="width:70px; padding:4px;"></label>
+        <label style="font-size:11px;">Max Lat: <input id="gfMaxLat" type="number" step="any" placeholder="33" style="width:70px; padding:4px;"></label>
+        <label style="font-size:11px;">Min Lon: <input id="gfMinLon" type="number" step="any" placeholder="74" style="width:70px; padding:4px;"></label>
+        <label style="font-size:11px;">Max Lon: <input id="gfMaxLon" type="number" step="any" placeholder="76" style="width:70px; padding:4px;"></label>
+        <button type="button" onclick="renderSpatialMapWithGeofence(event)" style="background:#2980b9; color:white; padding:4px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">Apply Boundary</button>
+      </div>
+    </details>
+
+    <!-- 2. CUSTOM MAP OVERLAY ACCORDION PANEL -->
+    <details style="margin-top:6px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+      <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary);">🖼️ Upload Custom Image Overlay (PNG/JPG)</summary>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+        <label style="font-size:11px;">Image File: <input id="customMapFile" type="file" accept="image/*" style="font-size:11px; max-width:180px;"></label>
+        <label style="font-size:11px;">Min Lat (SW): <input id="ovMinLat" type="number" step="any" placeholder="30.0" style="width:65px; padding:4px;"></label>
+        <label style="font-size:11px;">Max Lat (NE): <input id="ovMaxLat" type="number" step="any" placeholder="30.5" style="width:65px; padding:4px;"></label>
+        <label style="font-size:11px;">Min Lon (SW): <input id="ovMinLon" type="number" step="any" placeholder="78.0" style="width:65px; padding:4px;"></label>
+        <label style="font-size:11px;">Max Lon (NE): <input id="ovMaxLon" type="number" step="any" placeholder="78.5" style="width:65px; padding:4px;"></label>
+        <button type="button" onclick="applyCustomMapOverlay()" style="background:#27ae60; color:white; padding:4px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">Load Overlay</button>
+        <button type="button" onclick="removeCustomMapOverlay()" style="background:#c0392b; color:white; padding:4px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">Remove</button>
+      </div>
+    </details>
+
+    <div id="map"></div>
+  </div>
+</div>
+<!-- Leaflet JS -->
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- Main Application Logic -->
   <script src="app.js"></script>
-</body>
-</html>
 </body>
 </html>

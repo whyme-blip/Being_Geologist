@@ -1,7 +1,8 @@
-const CACHE_NAME = 'geologger-v1';
+const CACHE_NAME = 'geologger-app-v1';
+const TILE_CACHE_NAME = 'geologger-osm-tiles-v1';
 
-// The essential files to cache immediately upon installation
-const ASSETS_TO_CACHE = [
+// Static assets required for the app to function offline
+const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
@@ -14,55 +15,74 @@ const ASSETS_TO_CACHE = [
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'  // Map pin shadow
 ];
 
-// 1. INSTALL EVENT: Cache core assets
+// Install Event: Cache app shell and Leaflet dependencies
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching V1 assets');
-      return cache.addAll(ASSETS_TO_CACHE);
+      console.log('[SW] Pre-caching static app shell & Leaflet resources');
+      return cache.addAll(STATIC_ASSETS);
     })
   );
-  // We do NOT use self.skipWaiting() here so that the existing 
-  // confirmation prompt in your index.html functions correctly.
+  self.skipWaiting();
 });
 
-// 2. ACTIVATE EVENT: Clean up old caches if you ever change CACHE_NAME
+// Activate Event: Clean up outdated caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then((keys) => {
       return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            console.log('[Service Worker] Clearing old cache:', cache);
-            return caches.delete(cache);
+        keys.map((key) => {
+          if (key !== CACHE_NAME && key !== TILE_CACHE_NAME) {
+            console.log('[SW] Removing old cache layer:', key);
+            return caches.delete(key);
           }
         })
       );
     })
   );
-  return self.clients.claim(); // Take immediate control of the page
+  self.clients.claim();
 });
 
-// 3. FETCH EVENT: Network-First Strategy (Cache Fallback)
+// Fetch Event: Network-first for map tiles, Cache-first for core app files
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests (ignore POST, PUT, etc.)
-  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
 
+  // Strategy for OpenStreetMap Tiles: Network-first, fallback to offline tile cache
+  if (url.hostname.includes('tile.openstreetmap.org')) {
+    event.respondWith(
+      caches.open(TILE_CACHE_NAME).then(async (cache) => {
+        try {
+          const response = await fetch(event.request);
+          if (response.ok) {
+            cache.put(event.request, response.clone());
+          }
+          return response;
+        } catch (err) {
+          // If offline, retrieve cached map tile if available
+          const cachedTile = await cache.match(event.request);
+          if (cachedTile) return cachedTile;
+          throw err;
+        }
+      })
+    );
+    return;
+  }
+
+  // Strategy for App Shell & CDN resources: Cache-first, then Network
   event.respondWith(
-    fetch(event.request)
-      .then((networkResponse) => {
-        // We are ONLINE. The fetch succeeded.
-        // Clone the response and update the cache with the freshest version
-        return caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, networkResponse.clone());
-          return networkResponse;
-        });
-      })
-      .catch(() => {
-        // We are OFFLINE. The fetch failed.
-        // Fall back to the cached version.
-        console.log('[Service Worker] Offline mode: Serving from cache ->', event.request.url);
-        return caches.match(event.request);
-      })
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      });
+    })
   );
 });
