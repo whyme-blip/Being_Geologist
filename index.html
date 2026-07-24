@@ -328,81 +328,84 @@
       <div class="form-group"><label>Unit / Formation</label><input id="unit" placeholder="Deoban/Jaunsar/Jutogh"></div>
     </div>
 
-    <!-- SECTION 2: GEOLOGICAL DATA -->
-    <div class="section-title">⚒️ 2. Lithology & Structural Measurements</div>
-    <div class="grid-layout">
-      <div class="form-group"><label>Lithology</label><input id="lith" placeholder="Quartzite / phyllite / dolomite"></div>
-      <div class="form-group"><label>Mineralization</label><input id="mineralization" placeholder="Pyrite, Chalcopyrite"></div>
-      <div class="form-group"><label>Alteration</label><input id="alteration" placeholder="Silicification, Chloritization"></div>
-    </div>
+ <!-- SECTION 2: GEOLOGICAL DATA -->
+<div class="section-title">⚒️ 2. Lithology & Structural Measurements</div>
+<div class="grid-layout">
+  <div class="form-group"><label>Lithology</label><input id="lith" placeholder="Quartzite / phyllite / dolomite"></div>
+  <div class="form-group"><label>Mineralization</label><input id="mineralization" placeholder="Pyrite, Chalcopyrite"></div>
+  <div class="form-group"><label>Alteration</label><input id="alteration" placeholder="Silicification, Chloritization"></div>
+</div>
 
-    <div class="grid-layout" style="background: #f8f9f9; padding: 12px; border-radius: var(--radius); border: 1px dashed var(--border);">
-      <div class="form-group">
-        <label>Structure Type</label>
-        <select id="type">
-          <optgroup label="Planar Structures">
-            <option>S0 Bedding</option>
-            <option>Flow Banding</option>
-            <option>S1 Foliation</option>
-            <option>S2 Foliation</option>
-            <option>S3 Foliation</option>
-            <option>S2 Crenulation Cleavage</option>
-            <option>S3 Crenulation Cleavage</option>
-            <option>J1 Joint</option>
-            <option>J2 Joint</option>
-            <option>J3 Joint</option>
-            <option>Axial Planar Cleavage</option>
-            <option>Fault Plane</option>
-            <option>Thrust Plane</option>
-            <option>Shear Plane</option>
-          </optgroup>
-          <optgroup label="Linear Structures">
-            <option>L1 Lineation</option>
-            <option>L2 Lineation</option>
-            <option>L3 Lineation</option>
-            <option>L1 Mineral Lineation</option>
-            <option>L2 Mineral Lineation</option>
-            <option>L3 Mineral Lineation</option>
-            <option>L1 Slickenline</option>
-            <option>L2 Slickenline</option>
-            <option>Fold Axis Lineation</option>
-            <option>Stretching Lineation</option>
-            <option>L1-0 Intersection Lineation</option>
-            <option>L2-1 Intersection Lineation</option>
-            <option>L2 Crenulation Lineation</option>
-            <option>L3 Crenulation Lineation</option>
-            <option>Chatter marks</option>
-          </optgroup>
-          <optgroup label="Veins (Planar)">
-            <option>Quartz Vein</option>
-            <option>Pegmatite Vein</option>
-            <option>Calcite Vein</option>
-            <option>Rods and Mullions</option>
-          </optgroup>
-          <option>Other</option>
-        </select>
-      </div>
-      
-      <div id="customStructureDiv" class="form-group hidden"><label>Custom Structure Name</label><input id="customStructure" placeholder="Enter Type"></div>
+<div class="grid-layout" style="background: #f8f9f9; padding: 12px; border-radius: var(--radius); border: 1px dashed var(--border);">
+  <div class="form-group">
+    <label>Structure Type</label>
+    <select id="type">
+      <optgroup label="Planar Structures">
+        <option>S0 Bedding</option>
+        <option>Flow Banding</option>
+        <option>S1 Foliation</option>
+        <option>S2 Foliation</option>
+        <option>S3 Foliation</option>
+        <option>S2 Crenulation Cleavage</option>
+        <option>S3 Crenulation Cleavage</option>
+        <option>J1 Joint</option>
+        <option>J2 Joint</option>
+        <option>J3 Joint</option>
+        <option>Axial Planar Cleavage</option>
+        <option>Fault Plane</option>
+        <option>Thrust Plane</option>
+        <option>Shear Plane</option>
+      </optgroup>
+      <optgroup label="Linear Structures">
+        <option>L1 Lineation</option>
+        <option>L2 Lineation</option>
+        <option>L3 Lineation</option>
+        <option>L1 Mineral Lineation</option>
+        <option>L2 Mineral Lineation</option>
+        <option>L3 Mineral Lineation</option>
+        <option>L1 Slickenline</option>
+        <option>L2 Slickenline</option>
+        <option>Fold Axis Lineation</option>
+        <option>Stretching Lineation</option>
+        <option>L1-0 Intersection Lineation</option>
+        <option>L2-1 Intersection Lineation</option>
+        <option>L2 Crenulation Lineation</option>
+        <option>L3 Crenulation Lineation</option>
+        <option>Chatter marks</option>
+      </optgroup>
+      <optgroup label="Veins (Planar)">
+        <option>Quartz Vein</option>
+        <option>Pegmatite Vein</option>
+        <option>Calcite Vein</option>
+        <option>Rods and Mullions</option>
+      </optgroup>
+      <option value="Other">Other Structure...</option>
+    </select>
+  </div>
 
-      <div id="planarFields" class="compact-row" style="grid-column: span 2; display: grid;">
-        <div class="form-group"><label>Strike (RHR) (°)</label><input id="strike" type="number" min="0" max="360" placeholder="045"></div>
-        <div class="form-group">
-          <label>Dip & Dip Direction</label>
-          <div class="compact-row">
-            <input id="dip" type="number" min="0" max="90" placeholder="35">
-            <input id="dipdir" readonly placeholder="Auto">
-          </div>
-        </div>
-      </div>
+  <div id="customStructureDiv" class="form-group hidden">
+    <label>Custom Structure Name</label>
+    <input id="customStructure" placeholder="Enter Type" oninput="updatePreview()">
+  </div>
 
-      <div id="linearFields" class="compact-row hidden" style="grid-column: span 2;">
-        <div class="form-group"><label>Trend (°)</label><input id="trend" type="number" min="0" max="360" placeholder="225"></div>
-        <div class="form-group"><label>Plunge (°)</label><input id="plunge" type="number" min="0" max="90" placeholder="25"></div>
+  <div id="planarFields" class="compact-row" style="grid-column: span 2; display: grid;">
+    <div class="form-group"><label>Strike (RHR) (°)</label><input id="strike" type="number" min="0" max="360" placeholder="045"></div>
+    <div class="form-group">
+      <label>Dip & Dip Direction</label>
+      <div class="compact-row">
+        <input id="dip" type="number" min="0" max="90" placeholder="35">
+        <input id="dipdir" readonly placeholder="Auto">
       </div>
     </div>
+  </div>
 
-   <div class="grid-layout">
+  <div id="linearFields" class="compact-row hidden" style="grid-column: span 2;">
+    <div class="form-group"><label>Trend (°)</label><input id="trend" type="number" min="0" max="360" placeholder="225"></div>
+    <div class="form-group"><label>Plunge (°)</label><input id="plunge" type="number" min="0" max="90" placeholder="25"></div>
+  </div>
+</div>
+
+<div class="grid-layout">
   <div class="form-group">
     <label>Movement Sense</label>
     <select id="sense">
@@ -417,7 +420,7 @@
       <option>Unknown</option>
     </select>
   </div>
-  
+
   <div class="form-group">
     <label>Kinematic Direction</label>
     <input id="movementDir" placeholder="e.g., Top-to-NE">
@@ -452,7 +455,13 @@
         <option>Stretching Lineation</option>
         <option>Intersection Lineation</option>
         <option>Crenulation Lineation</option>
+        <option value="Other">Other</option>
       </select>
+    </div>
+
+    <div id="customLinTypeDiv" class="form-group hidden">
+      <label>Custom Lineation Name</label>
+      <input id="customLinType" placeholder="e.g., Mineral Streak / Groove" oninput="updatePreview()">
     </div>
 
     <div class="form-group">
@@ -480,7 +489,7 @@
     </div>
   </div>
 </div>
-
+      
     <!-- SECTION 3: MEDIA AND SAMPLES -->
     <div class="section-title">📦 3. Media & Sample Management</div>
     <div class="grid-layout">
@@ -578,10 +587,10 @@ document.getElementById('date').valueAsDate = new Date();
 
 const ids = [
   'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
-  'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
+  'mineralization', 'alteration', 'unit', 'type', 'strike', 'dip', 
   'dipdir', 'trend', 'plunge', 'rake', 'sense', 'movementDir', 'photo', 'sampleType', 
   'samplePrefix', 'sample', 'remarks',
-  // --- New Lineation Fields ---
+  // --- Associated Lineation Fields ---
   'linType', 'linRake', 'pitchFrom', 'linTrend', 'linPlunge'
 ];
 
@@ -604,11 +613,19 @@ function toggleLineationSection() {
   } else {
     panel.classList.add('hidden');
     btn.innerHTML = '➕ Add Associated Lineation (Pitch / Rake)';
-    // Clear values if hidden
-    ['linType', 'linRake', 'linTrend', 'linPlunge'].forEach(id => {
-      document.getElementById(id).value = '';
-    });
-    updatePreview();
+
+// Reset Associated Lineation & Custom Input Fields
+  ['linType', 'customLinType', 'customStructure', 'linRake', 'linTrend', 'linPlunge'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+
+  // Ensure custom containers and lineation panel return to hidden state
+  document.getElementById('customStructureDiv')?.classList.add('hidden');
+  document.getElementById('customLinTypeDiv')?.classList.add('hidden');
+  document.getElementById('associatedLineationDiv')?.classList.add('hidden');
+
+  updatePreview();
   }
 }
 
@@ -728,11 +745,23 @@ function fmt(){
   return s;
 }
 
-function val(id){
+function val(id) {
   const el = document.getElementById(id);
-  return el ? el.value.trim() : '';
-}
+  if (!el) return '';
+  let v = el.value ? el.value.trim() : '';
 
+  // Merge custom entries directly into primary fields for clean CSV/JSON output
+  if (id === 'type' && v === 'Other') {
+    const custom = document.getElementById('customStructure')?.value.trim();
+    return custom || 'Other';
+  }
+  if (id === 'linType' && v === 'Other') {
+    const custom = document.getElementById('customLinType')?.value.trim();
+    return custom || 'Other';
+  }
+  return v;
+}
+  
 function validate(){
   let msg=[]; 
   if(!isLinear(val('type'))) {
@@ -1001,16 +1030,29 @@ function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;',
 function closeModal() { document.getElementById('analysisModal').classList.remove('active'); }
 function runStructuralSynthesis() { alert('Eigensolver calculations require multiple planar datasets.'); } 
 
+// Main Structure Type Listener (Preserves Planar vs Linear UI switching)
 document.getElementById('type').addEventListener('change', function() {
-    document.getElementById('customStructureDiv').classList.toggle('hidden', this.value !== 'Other');
-    if(isLinear(this.value)) {
-        document.getElementById('planarFields').classList.add('hidden');
-        document.getElementById('linearFields').classList.remove('hidden');
-    } else {
-        document.getElementById('planarFields').classList.remove('hidden');
-        document.getElementById('linearFields').classList.add('hidden');
-    }
-    updatePreview();
+  // 1. Toggle custom input field if "Other" is selected
+  document.getElementById('customStructureDiv')?.classList.toggle('hidden', this.value !== 'Other');
+  
+  // 2. Switch between Planar (Strike/Dip) and Linear (Trend/Plunge) form fields
+  if (typeof isLinear === 'function' && isLinear(this.value)) {
+    document.getElementById('planarFields')?.classList.add('hidden');
+    document.getElementById('linearFields')?.classList.remove('hidden');
+  } else {
+    document.getElementById('planarFields')?.classList.remove('hidden');
+    document.getElementById('linearFields')?.classList.add('hidden');
+  }
+
+  updatePreview();
+});
+
+// Associated Lineation Listener
+document.getElementById('linType').addEventListener('change', function() {
+  // Toggle custom input field if "Other" is selected
+  document.getElementById('customLinTypeDiv')?.classList.toggle('hidden', this.value !== 'Other');
+  
+  updatePreview();
 });
 
 document.getElementById('strike').addEventListener('input', function() {
