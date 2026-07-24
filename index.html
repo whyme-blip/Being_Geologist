@@ -354,7 +354,8 @@
         <option>Axial Planar Cleavage</option>
         <option>Fault Plane</option>
         <option>Thrust Plane</option>
-        <option>Shear Plane</option>
+        <option>Shear Plane</option
+        <option value="Other">Other</option>
       </optgroup>
       <optgroup label="Linear Structures">
         <option>L1 Lineation</option>
@@ -372,6 +373,7 @@
         <option>L2 Crenulation Lineation</option>
         <option>L3 Crenulation Lineation</option>
         <option>Chatter marks</option>
+        <option value="Other">Other</option>
       </optgroup>
       <optgroup label="Veins (Planar)">
         <option>Quartz Vein</option>
@@ -705,7 +707,34 @@ function getQuadrant(deg) {
 }
 
 function isLinear(type) {
-  return ['L1 Mineral Lineation', 'L2 Mineral Lineation', 'L3 Mineral Lineation', 'L1 Slickenline', 'Fold Axis', 'Intersection Lineation'].includes(type);
+  if (!type) return false;
+
+  // 1. Check if the currently selected option belongs to the "Linear Structures" optgroup
+  const selectEl = document.getElementById('type');
+  if (selectEl && selectEl.selectedIndex >= 0) {
+    const selectedOpt = selectEl.options[selectEl.selectedIndex];
+    if (selectedOpt && selectedOpt.value === type) {
+      const parentGroup = selectedOpt.parentElement;
+      if (parentGroup && parentGroup.tagName === 'OPTGROUP' && parentGroup.label === 'Linear Structures') {
+        return true;
+      }
+    }
+  }
+
+  // 2. Keyword fallback (handles custom "Other" text & unlisted linear structures)
+  const t = type.toLowerCase();
+  return (
+    t.includes('lineation') ||
+    t.includes('slickenline') ||
+    t.includes('striae') ||
+    t.includes('chatter') ||
+    t.includes('fold axis') ||
+    t.includes('stretching') ||
+    t.includes('groove') ||
+    t.startsWith('l1') ||
+    t.startsWith('l2') ||
+    t.startsWith('l3')
+  );
 }
 
 function pad3(n){ 
@@ -995,10 +1024,20 @@ function exportCSV(){
     'trend','plunge','linType','linRake','pitchFrom','linTrend','linPlunge',
     'lith','remarks','photo','sample'
   ];
-  const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
-  download('structural_records.csv',csv,'text/csv');
-}
+  
+  const csv = [cols.join(',')].concat(
+    records.map(r => 
+      cols.map(c => {
+        // Retrieve value, strip degree symbols (° / Â), and sanitize quotes for CSV
+        const rawVal = String(r[c] || '').replace(/[°Â]/g, '').trim();
+        return '"' + rawVal.replaceAll('"', '""') + '"';
+      }).join(',')
+    )
+  ).join('\n');
 
+  download('structural_records.csv', csv, 'text/csv');
+}
+  
 function exportGeoJSON(){
   const features = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat))).map(r => {
     let latVal = parseFloat(r.lat);
