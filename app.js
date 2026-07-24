@@ -1,3 +1,7 @@
+// Global Map and Layer references
+let map = null;
+let geofenceLayer = null;
+let customOverlayLayer = null;
 // ==========================================
 // 1. HighPrecisionGPS Class
 // ==========================================
@@ -127,6 +131,108 @@ function calculateWeightedAverage(samples) {
   };
 }
 
+/**
+ * Draws geofence box using Min/Max Lat/Lon inputs
+ */
+function renderSpatialMapWithGeofence(event) {
+  if (event) event.preventDefault();
+
+  if (!map) {
+    openSpatialMap(); // Fallback open if map isn't initialized
+  }
+
+  const minLat = parseFloat(document.getElementById('gtMinLat')?.value);
+  const maxLat = parseFloat(document.getElementById('gtMaxLat')?.value);
+  const minLon = parseFloat(document.getElementById('gtMinLon')?.value);
+  const maxLon = parseFloat(document.getElementById('gtMaxLon')?.value);
+
+  if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
+    alert("Please enter valid numeric coordinates for all 4 Geofence inputs.");
+    return;
+  }
+
+  // Remove existing geofence box if present
+  if (geofenceLayer && map) {
+    map.removeLayer(geofenceLayer);
+  }
+
+  const bounds = [[minLat, minLon], [maxLat, maxLon]];
+  geofenceLayer = L.rectangle(bounds, { color: '#e63946', weight: 2, fillOpacity: 0.15 }).addTo(map);
+  map.fitBounds(bounds);
+}
+/**
+ * Loads uploaded PNG/JPG topo or satellite image onto the map canvas
+ */
+function applyCustomMapOverlay() {
+  if (!map) {
+    openSpatialMap();
+  }
+
+  const fileInput = document.getElementById('customMapFile');
+  if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+    alert("Please select an image file (PNG/JPG) first.");
+    return;
+  }
+
+  const minLat = parseFloat(document.getElementById('ovMinLat')?.value);
+  const maxLat = parseFloat(document.getElementById('ovMaxLat')?.value);
+  const minLon = parseFloat(document.getElementById('ovMinLon')?.value);
+  const maxLon = parseFloat(document.getElementById('ovMaxLon')?.value);
+
+  if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
+    alert("Please enter valid SW/NE coordinates (Min Lat, Max Lat, Min Lon, Max Lon) for image georeferencing.");
+    return;
+  }
+
+  // Create browser blob URL from selected file
+  const file = fileInput.files[0];
+  const imageUrl = URL.createObjectURL(file);
+  const bounds = [[minLat, minLon], [maxLat, maxLon]];
+
+  // Remove existing image overlay if present
+  if (customOverlayLayer && map) {
+    map.removeLayer(customOverlayLayer);
+  }
+
+  // Add raster image overlay to Leaflet
+  customOverlayLayer = L.imageOverlay(imageUrl, bounds, { opacity: 0.8 }).addTo(map);
+  map.fitBounds(bounds);
+}
+
+function removeCustomMapOverlay() {
+  if (customOverlayLayer && map) {
+    map.removeLayer(customOverlayLayer);
+    customOverlayLayer = null;
+    alert("Map overlay removed.");
+  }
+}
+
+/**
+ * Opens the map modal and ensures Leaflet calculates container dimensions properly
+ */
+function openSpatialMap() {
+  const modal = document.getElementById('mapModal');
+  if (modal) modal.style.display = 'block';
+
+  // Initialize Leaflet map if it hasn't been created yet
+  if (!map) {
+    map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+  }
+
+  // CRITICAL: Force Leaflet to recalculate size after modal becomes visible
+  setTimeout(() => {
+    if (map) map.invalidateSize();
+  }, 200);
+}
+
+function closeSpatialMap() {
+  const modal = document.getElementById('mapModal');
+  if (modal) modal.style.display = 'none';
+}
 // ==========================================
 // 3. App Initialization & Service Worker Registration
 // ==========================================
