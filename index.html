@@ -1173,10 +1173,10 @@ function renderSpatialMapWith() {
 
   const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
 
-  let minLat = parseFloat(document.getElementById('gfMinLat').value);
-  let maxLat = parseFloat(document.getElementById('gfMaxLat').value);
-  let minLon = parseFloat(document.getElementById('gfMinLon').value);
-  let maxLon = parseFloat(document.getElementById('gfMaxLon').value);
+  let minLat = parseFloat(document.getElementById('gfMinLat')?.value);
+  let maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
+  let minLon = parseFloat(document.getElementById('gfMinLon')?.value);
+  let maxLon = parseFloat(document.getElementById('gfMaxLon')?.value);
 
   if (!isNaN(minLat) && !isNaN(maxLat) && minLat > maxLat) [minLat, maxLat] = [maxLat, minLat];
   if (!isNaN(minLon) && !isNaN(maxLon) && minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
@@ -1379,44 +1379,12 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-<!-- DEDICATED MAP & GEOFENCE SCRIPT -->
-  // Use window object to avoid "Identifier already declared" syntax errors
-  window.geofenceLayer = window.geofenceLayer || null;
-
-  // 1. Function to Open Map Modal
-  function openSpatialMap() {
-    const modal = document.getElementById('mapModal');
-    if (modal) {
-      modal.style.display = 'block';
-      
-      // Refresh Leaflet canvas after opening modal
-      const targetMap = (typeof map !== 'undefined' && map) ? map : window.map;
-      if (targetMap) {
-        setTimeout(() => {
-          targetMap.invalidateSize();
-        }, 150);
-      }
-    } else {
-      console.error("mapModal element not found in HTML!");
-    }
-  }
-
-  // 2. Function to Close Map Modal
-  function closeSpatialMap() {
-    const modal = document.getElementById('mapModal');
-    if (modal) {
-      modal.style.display = 'none';
-    }
-  }
-
-  // 3. Function to Render Geofence Boundary
+// Dedicated Geofence Apply Trigger
   function renderSpatialMapWithGeofence(e) {
-    if (e) e.preventDefault(); // Stop form submits
+    if (e && e.preventDefault) e.preventDefault();
 
-    const targetMap = (typeof map !== 'undefined' && map) ? map : window.map;
-
-    if (!targetMap) {
-      alert("Map instance not found. Please open the map first.");
+    if (!mapInstance) {
+      alert("Map instance not found. Please open the spatial map modal first.");
       return;
     }
 
@@ -1431,36 +1399,37 @@ if ('serviceWorker' in navigator) {
     }
 
     if (minLat >= maxLat || minLon >= maxLon) {
-      alert("Min Lat/Lon must be smaller than Max Lat/Lon!");
+      alert("Min Lat/Lon must be strictly smaller than Max Lat/Lon!");
       return;
     }
 
-    // Clear previous rectangle if it exists
-    if (window.geofenceLayer) {
-      targetMap.removeLayer(window.geofenceLayer);
-    }
-
-    const bounds = [
-      [minLat, minLon],
-      [maxLat, maxLon]
-    ];
-
-    // Draw dashed red rectangle
-    window.geofenceLayer = L.rectangle(bounds, {
-      color: "#e74c3c",
-      weight: 3,
-      dashArray: "6, 6",
-      fillColor: "#e74c3c",
-      fillOpacity: 0.15
-    }).addTo(targetMap);
-
-    // Auto-fit bounds
-    targetMap.fitBounds(bounds, { padding: [30, 30] });
-
-    setTimeout(() => {
-      targetMap.invalidateSize();
-    }, 100);
+    // Re-render map layers with active geofence bounding box
+    renderSpatialMapWith();
   }
 </script>
+<!-- MAP MODAL CONTAINER -->
+<div id="mapModal">
+  <div id="mapContainer">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0; font-size:16px; color:var(--primary);">🗺️ Spatial Traverse & Custom Map Overlay</h3>
+      <button type="button" onclick="closeSpatialMap()" class="btn-danger" style="width:auto; padding:4px 10px; font-size:12px;">✕ Close</button>
+    </div>
+
+    <!-- Geofence Accordion Control Panel -->
+    <details style="margin-top:10px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+      <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary);">🎯 Geofence Boundary (DD)</summary>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+        <label style="font-size:11px;">Min Lat: <input id="gfMinLat" type="number" step="any" placeholder="32" style="width:70px; padding:4px;"></label>
+        <label style="font-size:11px;">Max Lat: <input id="gfMaxLat" type="number" step="any" placeholder="33" style="width:70px; padding:4px;"></label>
+        <label style="font-size:11px;">Min Lon: <input id="gfMinLon" type="number" step="any" placeholder="74" style="width:70px; padding:4px;"></label>
+        <label style="font-size:11px;">Max Lon: <input id="gfMaxLon" type="number" step="any" placeholder="76" style="width:70px; padding:4px;"></label>
+        <button type="button" onclick="renderSpatialMapWithGeofence(event)" style="background:#2980b9; color:white; padding:4px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">Apply Boundary</button>
+      </div>
+    </details>
+
+    <div id="map"></div>
+  </div>
+</div>
+
 </body>
 </html>
