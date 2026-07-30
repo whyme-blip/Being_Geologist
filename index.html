@@ -1764,9 +1764,24 @@ function getLinearSvgIcon(trend, plunge, type) {
   });
 }
 
-// ------------------------------------------
-// 2. MAIN MAP DISPLAY & TOGGLE HELPERS
-// ------------------------------------------
+/**
+ * Helper to get consistent structural colors across both SVG symbols and Simple Dots.
+ */
+function getStructureColor(type) {
+  const structType = type || '';
+  if (structType.includes('Foliation') || structType.includes('S1') || structType.includes('S2')) {
+    return '#e67e22'; // Orange
+  } else if (structType.includes('Joint')) {
+    return '#27ae60'; // Green
+  } else if (structType.includes('Fault') || structType.includes('Shear')) {
+    return '#c0392b'; // Red
+  } else if (structType.includes('Bedding') || structType.includes('S0')) {
+    return '#2980b9'; // Blue
+  } else if (structType.includes('Lineation') || structType.includes('Fold')) {
+    return '#8e44ad'; // Purple
+  }
+  return '#2c3e50'; // Default Slate
+}
 
 function updateMapDisplay() {
   if (typeof records === 'undefined') return;
@@ -1779,7 +1794,7 @@ function updateMapDisplay() {
     !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
   );
 
-  // If external map renderer function exists, invoke it as primary
+  // If external map renderer exists, invoke it
   if (typeof renderSpatialMapWith === 'function') {
     renderSpatialMapWith(visibleMapRecords);
   }
@@ -1792,6 +1807,10 @@ function updateMapDisplay() {
   mapDataGroup.clearLayers();
   if (visibleMapRecords.length === 0) return;
 
+  // Check UI toggle state for showing vectors vs simple dots (defaulting to vectors if checkbox doesn't exist)
+  const vectorToggleEl = document.getElementById('showVectors') || document.getElementById('toggleVectors');
+  const showVectors = vectorToggleEl ? vectorToggleEl.checked : true;
+
   const routeCoordinates = [];
 
   visibleMapRecords.forEach((r) => {
@@ -1800,16 +1819,33 @@ function updateMapDisplay() {
     const latlng = [lat, lon];
     routeCoordinates.push(latlng);
 
-    let markerIcon;
-    const checkLinear = (typeof isLinear === 'function') ? isLinear(r.type) : false;
+    let marker;
 
-    if (checkLinear || (r.trend && r.plunge && !r.strike)) {
-      markerIcon = getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType);
+    if (showVectors) {
+      // 1. Full Dynamic SVG Vector Symbols
+      let markerIcon;
+      const checkLinear = (typeof isLinear === 'function') ? isLinear(r.type) : false;
+
+      if (checkLinear || (r.trend && r.plunge && !r.strike)) {
+        markerIcon = getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType);
+      } else {
+        markerIcon = getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding');
+      }
+
+      marker = L.marker(latlng, { icon: markerIcon });
     } else {
-      markerIcon = getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding');
+      // 2. Simple Color-Coded Dots (Circle Markers)
+      const dotColor = getStructureColor(r.type);
+      marker = L.circleMarker(latlng, {
+        radius: 6,
+        fillColor: dotColor,
+        color: '#ffffff',
+        weight: 1.5,
+        opacity: 1,
+        fillOpacity: 0.9
+      });
     }
 
-    const marker = L.marker(latlng, { icon: markerIcon });
     const safeEscape = (typeof escapeHTML === 'function') ? escapeHTML : (s => s || '');
 
     const popupHtml = `
@@ -1832,7 +1868,7 @@ function updateMapDisplay() {
     mapDataGroup.addLayer(marker);
   });
 
-  // Draw dashed line connecting stations in sequential field-traversal order
+  // Traverse Line
   if (routeCoordinates.length > 1) {
     const routeLine = L.polyline(routeCoordinates, {
       color: '#e74c3c',
@@ -2090,6 +2126,15 @@ if ('serviceWorker' in navigator) {
       <button type="button" onclick="closeSpatialMap()" class="btn-danger" style="width:auto; padding:4px 10px; font-size:12px;">✕ Close</button>
     </div>
 
+    <!-- MAP DISPLAY TOOLBAR / VECTOR TOGGLE -->
+    <div style="margin-top:8px; padding:6px 10px; background:#eef2f5; border-radius:6px; border:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+      <label style="font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--primary);">
+        <input type="checkbox" id="showVectors" checked onchange="updateMapDisplay()"> 
+        Show Structural Vectors (Strike/Dip)
+      </label>
+      <span style="font-size:11px; color:#7f8c8d;">Uncheck for simple dots</span>
+    </div>
+
     <!-- 1. GEOFENCE ACCORDION PANEL -->
     <details style="margin-top:8px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
       <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary);">🎯 Geofence Boundary (DD)</summary>
@@ -2115,8 +2160,9 @@ if ('serviceWorker' in navigator) {
         <button type="button" onclick="removeCustomMapOverlay()" style="background:#c0392b; color:white; padding:4px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">Remove</button>
       </div>
     </details>
+
     <!-- 3. KML VECTOR OVERLAY ACCORDION PANEL -->
-    <details style="margin-top:8px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+    <details style="margin-top:6px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
       <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary);">🌍 KML Map Vector Overlay</summary>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
         <input type="file" id="kmlOverlayFile" accept=".kml" style="font-size:12px; width:220px;">
@@ -2125,7 +2171,7 @@ if ('serviceWorker' in navigator) {
       </div>
     </details>
     
-    <div id="map"></div>
+    <div id="map" style="margin-top:8px;"></div>
   </div>
 </div>
 <!-- Leaflet JS -->
