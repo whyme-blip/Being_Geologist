@@ -1,7 +1,9 @@
 // Global Map and Layer references
 let map = null;
+let mapDataGroup = null; // Holds survey stations, vectors, dots & route line
 let geofenceLayer = null;
 let customOverlayLayer = null;
+
 // ==========================================
 // 1. HighPrecisionGPS Class
 // ==========================================
@@ -131,17 +133,168 @@ function calculateWeightedAverage(samples) {
   };
 }
 
+// ==========================================
+// 3. Map Controls & Structural Vector Logic
+// ==========================================
+
 /**
- * Draws geofence box using Min/Max Lat/Lon inputs
+ * Adds the Vector/Dot toggle checkbox directly into the top-right map controls overlay
  */
+function initVectorToggleControl(mapInstance) {
+  if (!mapInstance || mapInstance._vectorControlAdded) return;
+
+  const VectorControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function () {
+      const container = L.DomUtil.create('div', 'leaflet-control-layers leaflet-control');
+      container.style.padding = '8px 10px';
+      container.style.marginTop = '6px';
+
+      container.innerHTML = `
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; font-weight:600; color:#333; margin:0;">
+          <input type="checkbox" id="showVectors" checked onchange="updateMapDisplay()" style="cursor:pointer;">
+          Structural Vectors (Strike/Dip)
+        </label>
+      `;
+
+      L.DomEvent.disableClickPropagation(container);
+      return container;
+    }
+  });
+
+  new VectorControl().addTo(mapInstance);
+  mapInstance._vectorControlAdded = true;
+}
+
 /**
- * Draws geofence box using Min/Max Lat/Lon inputs (gfMinLat, gfMaxLat, gfMinLon, gfMaxLon)
+ * Color mapping for structural measurement dots when vectors are toggled off
  */
+function getStructureColor(type) {
+  const structType = type || '';
+  if (structType.includes('Foliation') || structType.includes('S1') || structType.includes('S2')) {
+    return '#e67e22'; // Orange
+  } else if (structType.includes('Joint')) {
+    return '#27ae60'; // Green
+  } else if (structType.includes('Fault') || structType.includes('Shear')) {
+    return '#c0392b'; // Red
+  } else if (structType.includes('Bedding') || structType.includes('S0')) {
+    return '#2980b9'; // Blue
+  } else if (structType.includes('Lineation') || structType.includes('Fold')) {
+    return '#8e44ad'; // Purple
+  }
+  return '#2c3e50'; // Slate default
+}
+
+/**
+ * Main map renderer: renders either vector symbols or circle dots based on checkbox status
+ */
+function updateMapDisplay() {
+  if (!map || !mapDataGroup) return;
+
+  mapDataGroup.clearLayers();
+
+  if (typeof records === 'undefined' || !Array.isArray(records)) return;
+
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
+  const visibleRecords = records.filter(r => 
+    (r.projectId || 'PROJ-001') === currentProj && 
+    r.showOnMap !== false &&
+    r.lat && r.lon && 
+    !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
+  );
+
+  if (visibleRecords.length === 0) return;
+
+  const vectorToggleEl = document.getElementById('showVectors');
+  const showVectors = vectorToggleEl ? vectorToggleEl.checked : true;
+
+  const routeCoordinates = [];
+
+  visibleRecords.forEach((r) => {
+    const lat = parseFloat(r.lat);
+    const lon = parseFloat(r.lon);
+    const latlng = [lat, lon];
+    routeCoordinates.push(latlng);
+
+    let marker;
+
+    if (showVectors) {
+      // 1. Draw SVG Structural Vector Symbols
+      let markerIcon;
+      const checkLinear = (typeof isLinear === 'function') ? isLinear(r.type) : false;
+
+      if (checkLinear || (r.trend && r.plunge && !r.strike)) {
+        markerIcon = (typeof getLinearSvgIcon === 'function') 
+          ? getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType)
+          : null;
+      } else {
+        markerIcon = (typeof getPlanarSvgIcon === 'function')
+          ? getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding')
+          : null;
+      }
+
+      if (markerIcon) {
+        marker = L.marker(latlng, { icon: markerIcon });
+      } else {
+        // Standard fallback marker if SVG helpers aren't loaded
+        marker = L.marker(latlng);
+      }
+    } else {
+      // 2. Draw Simple Color-Coded Dots
+      const dotColor = getStructureColor(r.type);
+      marker = L.circleMarker(latlng, {
+        radius: 6,
+        fillColor: dotColor,
+        color: '#ffffff',
+        weight: 1.5,
+        opacity: 1,
+        fillOpacity: 0.9
+      });
+    }
+
+    const safeEscape = (typeof escapeHTML === 'function') ? escapeHTML : (s => s || '');
+
+    const popupHtml = `
+      <div style="font-family: system-ui, -apple-system, sans-serif; font-size: 13px; line-height: 1.4; max-width: 240px;">
+        <div style="font-weight: bold; font-size: 14px; color: #2c3e50; border-bottom: 1px solid #dcdfe6; padding-bottom: 4px; margin-bottom: 6px;">
+          📍 Station: ${safeEscape(r.locNo || 'N/A')}
+        </div>
+        <div style="margin-bottom: 4px;"><b>Attitude:</b> ${safeEscape(r.formatted || r.type || 'N/A')}</div>
+        ${r.unit ? `<div style="margin-bottom: 4px;"><b>Formation/Unit:</b> ${safeEscape(r.unit)}</div>` : ''}
+        ${r.lith ? `<div style="margin-bottom: 4px;"><b>Lithology:</b> ${safeEscape(r.lith)}</div>` : ''}
+        ${r.sample ? `<div style="margin-bottom: 4px;"><b>Sample ID:</b> <span style="background: #e1f5fe; color: #0288d1; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${safeEscape(r.sample)}</span></div>` : ''}
+        ${r.remarks ? `<div style="margin-top: 6px; font-style: italic; background: #f8f9fa; padding: 6px; border-radius: 4px; font-size: 12px; border: 1px solid #e9ecef;">${safeEscape(r.remarks)}</div>` : ''}
+        <div style="margin-top: 8px; font-size: 11px; color: #7f8c8d; border-top: 1px dashed #eee; padding-top: 4px;">
+          Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)} ${r.alt ? '| Alt: ' + safeEscape(r.alt) + 'm' : ''}
+        </div>
+      </div>
+    `;
+
+    marker.bindPopup(popupHtml);
+    mapDataGroup.addLayer(marker);
+  });
+
+  // Traverse Line between stations
+  if (routeCoordinates.length > 1) {
+    const routeLine = L.polyline(routeCoordinates, {
+      color: '#e74c3c',
+      weight: 2,
+      dashArray: '5, 7',
+      opacity: 0.65
+    });
+    mapDataGroup.addLayer(routeLine);
+  }
+}
+
+// ==========================================
+// 4. Spatial Map Modal & Overlays
+// ==========================================
+
 function renderSpatialMapWithGeofence(event) {
   if (event) event.preventDefault();
 
   if (!map) {
-    openSpatialMap(); // Fallback open if map isn't initialized
+    openSpatialMap();
   }
 
   const minLat = parseFloat(document.getElementById('gfMinLat')?.value);
@@ -154,42 +307,32 @@ function renderSpatialMapWithGeofence(event) {
     return;
   }
 
-  // Remove existing geofence boundary layer if already drawn
   if (geofenceLayer && map) {
     map.removeLayer(geofenceLayer);
   }
 
-  // Define bounding box [[South-West], [North-East]]
   const bounds = [[minLat, minLon], [maxLat, maxLon]];
 
-  // Draw semi-transparent bounding box on Leaflet map
   geofenceLayer = L.rectangle(bounds, {
     color: '#e63946',
     weight: 2,
     fillOpacity: 0.15
   }).addTo(map);
 
-  // Auto-zoom map to fit the boundary
   map.fitBounds(bounds);
 }
 
-/**
- * Loads uploaded PNG/JPG topo or satellite image onto the map canvas
- */
 function applyCustomMapOverlay() {
-  // 1. Ensure map is initialized and visible
   if (!map) {
     openSpatialMap();
   }
 
-  // 2. Validate Image File Selection
   const fileInput = document.getElementById('customMapFile');
   if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
     alert("Please select an image file (PNG/JPG) first.");
     return;
   }
 
-  // 3. Extract and Parse Overlay Bounding Box Coordinates
   const minLat = parseFloat(document.getElementById('ovMinLat')?.value);
   const maxLat = parseFloat(document.getElementById('ovMaxLat')?.value);
   const minLon = parseFloat(document.getElementById('ovMinLon')?.value);
@@ -200,29 +343,22 @@ function applyCustomMapOverlay() {
     return;
   }
 
-  // 4. Create Browser Local Blob URL from File
   const file = fileInput.files[0];
   const imageUrl = URL.createObjectURL(file);
   const bounds = [[minLat, minLon], [maxLat, maxLon]];
 
-  // 5. Clean up previous overlay layer to avoid stacking/memory leaks
   if (customOverlayLayer && map) {
     map.removeLayer(customOverlayLayer);
   }
 
-  // 6. Render Geo-referenced Image Overlay
   customOverlayLayer = L.imageOverlay(imageUrl, bounds, {
     opacity: 0.8,
     interactive: true
   }).addTo(map);
 
-  // 7. Auto-zoom to fit the custom overlay image
   map.fitBounds(bounds);
 }
 
-/**
- * Removes active custom map overlay layer from the map
- */
 function removeCustomMapOverlay() {
   if (customOverlayLayer && map) {
     map.removeLayer(customOverlayLayer);
@@ -230,25 +366,24 @@ function removeCustomMapOverlay() {
   }
 }
 
-/**
- * Opens the map modal and ensures Leaflet calculates container dimensions properly
- */
 function openSpatialMap() {
   const modal = document.getElementById('mapModal');
   if (modal) modal.style.display = 'block';
 
-  // Initialize Leaflet map if it hasn't been created yet
   if (!map) {
     map = L.map('map').setView([0, 0], 2);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap'
     }).addTo(map);
+
+    mapDataGroup = L.layerGroup().addTo(map);
+    initVectorToggleControl(map);
   }
 
-  // CRITICAL: Force Leaflet to recalculate size after modal becomes visible
   setTimeout(() => {
     if (map) map.invalidateSize();
+    updateMapDisplay();
   }, 200);
 }
 
@@ -256,20 +391,29 @@ function closeSpatialMap() {
   const modal = document.getElementById('mapModal');
   if (modal) modal.style.display = 'none';
 }
+
 // ==========================================
-// 3. App Initialization & Service Worker Registration
+// 5. App Initialization & Service Worker Registration
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-  // Register Service Worker for offline support
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
       .then(() => console.log('[PWA] Service Worker Registered'))
       .catch((err) => console.error('[PWA] Service Worker Error:', err));
   }
 
-  // Initialize Map & GPS Tracker
-  const map = L.map('map').setView([0, 0], 2);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+  // Auto-initialize map instance if #map container exists on page load
+  const mapElement = document.getElementById('map');
+  if (mapElement && !map) {
+    map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    mapDataGroup = L.layerGroup().addTo(map);
+    initVectorToggleControl(map);
+  }
 
   let userMarker = null;
   let accuracyCircle = null;
@@ -278,14 +422,16 @@ document.addEventListener('DOMContentLoaded', () => {
     (coords) => {
       const { lat, lng, accuracy } = coords;
 
-      if (!userMarker) {
-        userMarker = L.marker([lat, lng]).addTo(map);
-        accuracyCircle = L.circle([lat, lng], { radius: accuracy, color: '#1f3a5f', fillOpacity: 0.15 }).addTo(map);
-        map.setView([lat, lng], 17);
-      } else {
-        userMarker.setLatLng([lat, lng]);
-        accuracyCircle.setLatLng([lat, lng]);
-        accuracyCircle.setRadius(accuracy);
+      if (map) {
+        if (!userMarker) {
+          userMarker = L.marker([lat, lng]).addTo(map);
+          accuracyCircle = L.circle([lat, lng], { radius: accuracy, color: '#1f3a5f', fillOpacity: 0.15 }).addTo(map);
+          map.setView([lat, lng], 17);
+        } else {
+          userMarker.setLatLng([lat, lng]);
+          accuracyCircle.setLatLng([lat, lng]);
+          accuracyCircle.setRadius(accuracy);
+        }
       }
     },
     (err) => console.error('GPS Error:', err.message)
