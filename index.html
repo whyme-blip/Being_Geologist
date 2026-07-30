@@ -297,6 +297,18 @@
 </header>
 
 <div class="wrap">
+  <!-- PROJECT SELECTION HEADER -->
+<div class="card" style="margin-bottom: 15px; padding: 12px; background: #eef2f5; border-left: 5px solid var(--primary);">
+  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+    <label for="projectIdSelect" style="font-weight: bold; min-width: 120px;">📁 Project ID:</label>
+    <select id="projectIdSelect" onchange="switchProject()" style="flex: 1; min-width: 160px; padding: 6px; font-weight: bold;">
+      <!-- Options populated dynamically -->
+    </select>
+    <button type="button" onclick="createNewProject()" class="btn-ok" style="padding: 6px 14px; width: auto; margin: 0;">
+      + New Project
+    </button>
+  </div>
+</div>
   <!-- SECTION 1: SPATIAL CONTEXT & LOCATION -->
   <details class="section-card" open>
     <summary class="section-title">📍 1. Spatial Context & Location</summary>
@@ -596,11 +608,69 @@
         <button onclick="exportGeoJSON()" class="btn-ok">🗺️ GIS GeoJSON Stream</button>
         <button onclick="deleteAll()" class="btn-danger">🗑️ Delete All Records</button>
       </div>
+      <!-- MAP VISIBILITY CONTROLS -->
+<div style="display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; border: 1px solid #e2e8f0;">
+  <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+    <input type="checkbox" id="selectAllMap" onchange="toggleSelectAllMap(this.checked)" checked> 
+    Show All on Map
+  </label>
+  <span style="font-size: 11px; color: #6c757d;">Check/uncheck to filter map pins</span>
+</div>
       <div id="list"></div>
     </details>
   </div>
   
 <script>
+// Global State for Active Project
+let activeProjectId = localStorage.getItem('activeProjectId') || 'PROJ-001';
+
+// 1. Initialize project list on page load
+function initProjects() {
+  let projects = JSON.parse(localStorage.getItem('projectList') || '["PROJ-001"]');
+  if (!projects.includes(activeProjectId)) {
+    projects.push(activeProjectId);
+    localStorage.setItem('projectList', JSON.stringify(projects));
+  }
+  renderProjectDropdown();
+}
+
+// 2. Populate the Project dropdown
+function renderProjectDropdown() {
+  const select = document.getElementById('projectIdSelect');
+  if (!select) return;
+  
+  let projects = JSON.parse(localStorage.getItem('projectList') || '["PROJ-001"]');
+  select.innerHTML = projects.map(p => 
+    `<option value="${p}" ${p === activeProjectId ? 'selected' : ''}>${p}</option>`
+  ).join('');
+}
+
+// 3. Create a new Project ID
+function createNewProject() {
+  const newId = prompt("Enter New Project ID (e.g., PROJ-2026-01, JAUNSAR-BLOCK-A):");
+  if (newId && newId.trim()) {
+    const cleanId = newId.trim().toUpperCase();
+    let projects = JSON.parse(localStorage.getItem('projectList') || '[]');
+    
+    if (!projects.includes(cleanId)) {
+      projects.push(cleanId);
+      localStorage.setItem('projectList', JSON.stringify(projects));
+    }
+    
+    activeProjectId = cleanId;
+    localStorage.setItem('activeProjectId', activeProjectId);
+    renderProjectDropdown();
+    render(); // Re-render table and map for the new project (starts empty)
+  }
+}
+
+// 4. Switch active project
+function switchProject() {
+  activeProjectId = document.getElementById('projectIdSelect').value;
+  localStorage.setItem('activeProjectId', activeProjectId);
+  render(); // Re-render table and map with the selected project's data
+}
+  
 let records = JSON.parse(localStorage.getItem('field_geo_records')||'[]');
 document.getElementById('date').valueAsDate = new Date();
 
@@ -615,7 +685,13 @@ const ids = [
 
 ids.forEach(id => {
   const el = document.getElementById(id);
-  if(el) el.addEventListener('input', updatePreview);
+  if (el) el.addEventListener('input', updatePreview);
+});
+
+// Initialize project controls on page load
+document.addEventListener('DOMContentLoaded', () => {
+  initProjects();
+  render();
 });
 
  // Toggle the Associated Lineation Panel
@@ -787,7 +863,13 @@ function saveEntry(){
     const v = validate();
     if(v.length){ alert(v.join('\n')); return; }
 
-    const r = { id: Date.now(), formatted: fmt() };
+    // 📍 ADDED 'projectId: activeProjectId' HERE
+    const r = { 
+      id: Date.now(), 
+      projectId: activeProjectId, 
+      formatted: fmt() 
+    };
+    
     ids.forEach(id => r[id] = val(id));
 
     const hasSample = document.getElementById('takeSample').checked;
@@ -869,19 +951,93 @@ function clearForm(resetDate=true){
 
 function persist(){localStorage.setItem('field_geo_records',JSON.stringify(records))}
 
-function render(){
-  document.getElementById('count').textContent=records.length;
-  document.getElementById('list').innerHTML=records.map((r,i)=>`
+function render() {
+  // Filter records belonging ONLY to the active project 
+  // (falls back to 'PROJ-001' for older legacy records without a projectId)
+  const projectRecords = records.filter(r => (r.projectId || 'PROJ-001') === activeProjectId);
+
+  // Update count for the ACTIVE project only
+  document.getElementById('count').textContent = projectRecords.length;
+
+  // Sync master "Show All on Map" checkbox state
+  const masterCheck = document.getElementById('selectAllMap');
+  if (masterCheck && projectRecords.length > 0) {
+    masterCheck.checked = projectRecords.every(r => r.showOnMap !== false);
+  }
+
+  // Render active project entries
+  document.getElementById('list').innerHTML = projectRecords.map((r, i) => `
     <div class="entry">
-      <div class="fmt-output">${escapeHTML(r.formatted)}</div>
-      <div style="font-size: 13px;">Loc: <b>${escapeHTML(r.locNo)}</b> (${escapeHTML(r.loc || 'No Desc')}) ${r.unit?' | '+escapeHTML(r.unit):''} ${r.lith?' | '+escapeHTML(r.lith):''}</div>
-      <div class="meta-text">${r.date} | Lat ${r.lat||'-'}, Long ${r.lon||'-'} | Photo ${r.photo||'-'} | Sample ${r.sample||'None'}</div>
+      <!-- Header row with formatted string and map toggle -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <div class="fmt-output" style="margin-bottom: 0;">${escapeHTML(r.formatted)}</div>
+        <label style="font-size: 12px; font-weight: bold; cursor: pointer; background: #eef2f5; padding: 3px 8px; border-radius: 4px; display: flex; align-items: center; gap: 5px; border: 1px solid #dcdfe6;">
+          <input type="checkbox" onchange="toggleMapRecord(${r.id}, this.checked)" ${r.showOnMap !== false ? 'checked' : ''}>
+          📍 Map
+        </label>
+      </div>
+
+      <div style="font-size: 13px;">Loc: <b>${escapeHTML(r.locNo)}</b> (${escapeHTML(r.loc || 'No Desc')}) ${r.unit ? ' | ' + escapeHTML(r.unit) : ''} ${r.lith ? ' | ' + escapeHTML(r.lith) : ''}</div>
+      <div class="meta-text">${r.date} | Lat ${r.lat || '-'}, Long ${r.lon || '-'} | Photo ${r.photo || '-'} | Sample ${r.sample || 'None'}</div>
       ${r.remarks ? `<div style="font-style:italic; color:#566573; margin-top:6px; font-size:13px; background:#f2f4f4; padding:6px; border-radius:6px;">${escapeHTML(r.remarks)}</div>` : ''}
       <button class="btn-danger" onclick="del(${r.id})" style="width:auto; padding:4px 10px; font-size:11px; margin-top:8px; border-radius:6px;">Delete Record</button>
     </div>
   `).join('');
+
+  // Refresh map pins every time list renders
+  if (typeof updateMapDisplay === 'function') {
+    updateMapDisplay();
+  }
+}
+  
+// Active project state
+let activeProjectId = localStorage.getItem('activeProjectId') || 'PROJ-001';
+
+// Initialize projects on page load
+function initProjects() {
+  let projects = JSON.parse(localStorage.getItem('projectList') || '["PROJ-001"]');
+  if (!projects.includes(activeProjectId)) {
+    projects.push(activeProjectId);
+    localStorage.setItem('projectList', JSON.stringify(projects));
+  }
+  renderProjectDropdown();
 }
 
+// Populate project dropdown
+function renderProjectDropdown() {
+  const select = document.getElementById('projectIdSelect');
+  if (!select) return;
+  let projects = JSON.parse(localStorage.getItem('projectList') || '["PROJ-001"]');
+  select.innerHTML = projects.map(p => 
+    `<option value="${p}" ${p === activeProjectId ? 'selected' : ''}>${p}</option>`
+  ).join('');
+}
+
+// Switch project handler
+function switchProject() {
+  activeProjectId = document.getElementById('projectIdSelect').value;
+  localStorage.setItem('activeProjectId', activeProjectId);
+  render(); // Refresh list to show only records for the selected project
+  if (typeof updatePreview === 'function') updatePreview();
+}
+
+// Create new project handler
+function createNewProject() {
+  const newId = prompt("Enter New Project ID (e.g. JAUNSAR-2026):");
+  if (newId && newId.trim()) {
+    const cleanId = newId.trim().toUpperCase();
+    let projects = JSON.parse(localStorage.getItem('projectList') || '[]');
+    if (!projects.includes(cleanId)) {
+      projects.push(cleanId);
+      localStorage.setItem('projectList', JSON.stringify(projects));
+    }
+    activeProjectId = cleanId;
+    localStorage.setItem('activeProjectId', activeProjectId);
+    renderProjectDropdown();
+    render();
+  }
+}
+  
 function del(id){
   if(confirm('Are you sure you want to delete this specific record? This action cannot be undone.')){
     records = records.filter(r => r.id !== id);
@@ -949,84 +1105,149 @@ function getGPS(){
   }
 }
 
-function exportKML(){
-  // Filter out any records that don't have valid GPS coordinates
-  const validRecords = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)));
+function exportKML() {
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
   
+  // Filter for active project records with valid GPS coordinates
+  const validRecords = records.filter(
+    r => (r.projectId || 'PROJ-001') === currentProj &&
+         r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
+  );
+
   if (validRecords.length === 0) {
-    alert('No records with valid GPS coordinates to export.');
+    alert(`No records with valid GPS coordinates to export for project: ${currentProj}`);
     return;
   }
 
   // Build the KML header
   let kml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   kml += '<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n';
-  kml += '  <name>GeoLogger Structural Data</name>\n';
+  kml += `  <name>GeoLogger Structural Data - ${escapeHTML(currentProj)}</name>\n`;
 
   // Loop through records and create KML Placemarks
   validRecords.forEach(r => {
     const lat = parseFloat(r.lat);
     const lon = parseFloat(r.lon);
-    // Use altitude if available, otherwise default to 0
     const alt = r.alt && !isNaN(parseFloat(r.alt)) ? parseFloat(r.alt) : 0;
-    
-    // Create the pop-up balloon description using CDATA to format it nicely in Google Earth
+
+    // Create pop-up balloon description including Project ID
     let desc = '<![CDATA[';
-    desc += `<b>Structure:</b> ${escapeHTML(r.formatted)}<br>`;
-    if(r.lith) desc += `<b>Lithology:</b> ${escapeHTML(r.lith)}<br>`;
-    if(r.unit) desc += `<b>Unit:</b> ${escapeHTML(r.unit)}<br>`;
-    if(r.sample) desc += `<b>Sample:</b> ${escapeHTML(r.sample)}<br>`;
-    if(r.remarks) desc += `<br><b>Remarks:</b> ${escapeHTML(r.remarks)}`;
+    desc += `<b>Project ID:</b> ${escapeHTML(r.projectId || currentProj)}<br>`;
+    if (r.formatted) desc += `<b>Structure:</b> ${escapeHTML(r.formatted)}<br>`;
+    if (r.type) desc += `<b>Type:</b> ${escapeHTML(r.type)}<br>`;
+    if (r.strike || r.dip) desc += `<b>Attitude (S/D/DD):</b> ${r.strike || '-'}/${r.dip || '-'}/${r.dipdir || '-'}<br>`;
+    if (r.trend || r.plunge) desc += `<b>Lineation (T/P):</b> ${r.trend || '-'}/${r.plunge || '-'}<br>`;
+    if (r.lith) desc += `<b>Lithology:</b> ${escapeHTML(r.lith)}<br>`;
+    if (r.unit) desc += `<b>Unit:</b> ${escapeHTML(r.unit)}<br>`;
+    if (r.sample) desc += `<b>Sample:</b> ${escapeHTML(r.sample)}<br>`;
+    if (r.remarks) desc += `<br><b>Remarks:</b> ${escapeHTML(r.remarks)}`;
     desc += ']]>';
 
     kml += '  <Placemark>\n';
-    kml += `    <name>${escapeHTML(r.locNo)}</name>\n`;
+    kml += `    <name>${escapeHTML(r.locNo || 'Point')}</name>\n`;
     kml += `    <description>${desc}</description>\n`;
     kml += '    <Point>\n';
-    // KML strictly requires Longitude, Latitude, Altitude order
     kml += `      <coordinates>${lon},${lat},${alt}</coordinates>\n`;
     kml += '    </Point>\n';
     kml += '  </Placemark>\n';
   });
 
   kml += '</Document>\n</kml>';
+
+  download(`structural_records_${currentProj}.kml`, kml, 'application/vnd.google-earth.kml+xml');
+}
+
+function exportCSV() {
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
   
-  // Use your existing download helper function
-  download('structural_records.kml', kml, 'application/vnd.google-earth.kml+xml');
-}
+  // Filter records for active project
+  const projectRecords = records.filter(r => (r.projectId || 'PROJ-001') === currentProj);
 
-function exportCSV(){
-  const cols=[
-    'date','locNo','loc','lat','lon','unit','type','strike','dip','dipdir',
-    'trend','plunge','linType','linRake','pitchFrom','linTrend','linPlunge',
-    'lith','remarks','photo','sample'
+  if (projectRecords.length === 0) {
+    alert(`No records to export for project: ${currentProj}`);
+    return;
+  }
+
+  // Include 'projectId' as the first column
+  const cols = [
+    'projectId', 'date', 'locNo', 'loc', 'lat', 'lon', 'alt', 'unit', 'type',
+    'strike', 'dip', 'dipdir', 'trend', 'plunge', 'linType',
+    'linRake', 'pitchFrom', 'linTrend', 'linPlunge', 'lith',
+    'remarks', 'photo', 'sample', 'formatted'
   ];
-  const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
-  download('structural_records.csv',csv,'text/csv');
+
+  const csv = [cols.join(',')]
+    .concat(
+      projectRecords.map(r =>
+        cols.map(c => {
+          const val = c === 'projectId' ? (r.projectId || currentProj) : (r[c] ?? '');
+          return '"' + String(val).replaceAll('"', '""') + '"';
+        }).join(',')
+      )
+    )
+    .join('\n');
+
+  download(`structural_records_${currentProj}.csv`, csv, 'text/csv');
 }
 
-function exportGeoJSON(){
-  const features = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat))).map(r => {
-    let latVal = parseFloat(r.lat);
-    let lonVal = parseFloat(r.lon);
+function exportGeoJSON() {
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
+
+  // Filter for active project records with valid GPS coordinates
+  const validRecords = records.filter(
+    r => (r.projectId || 'PROJ-001') === currentProj &&
+         r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
+  );
+
+  if (validRecords.length === 0) {
+    alert(`No records with valid GPS coordinates to export for project: ${currentProj}`);
+    return;
+  }
+
+  const features = validRecords.map(r => {
+    const latVal = parseFloat(r.lat);
+    const lonVal = parseFloat(r.lon);
+    const altVal = r.alt && !isNaN(parseFloat(r.alt)) ? parseFloat(r.alt) : 0;
+
     return {
       type: "Feature",
-      geometry: { type: "Point", coordinates: [lonVal, latVal] },
+      geometry: {
+        type: "Point",
+        coordinates: [lonVal, latVal, altVal]
+      },
       properties: {
-        location_id: r.locNo,
-        formation: r.unit,
-        structure_type: r.type,
-        strike: r.strike ? parseInt(r.strike) : null,
-        dip: r.dip ? parseInt(r.dip) : null,
-        trend: r.trend ? parseInt(r.trend) : null,
-        plunge: r.plunge ? parseInt(r.plunge) : null,
-        lithology: r.lith,
-        remarks: r.remarks,
-        sample: r.sample,
-        formatted_label: r.formatted
+        project_id: r.projectId || currentProj,
+        date: r.date || null,
+        location_id: r.locNo || null,
+        location_name: r.loc || null,
+        formation: r.unit || null,
+        structure_type: r.type || null,
+        strike: r.strike !== undefined && r.strike !== "" ? parseInt(r.strike) : null,
+        dip: r.dip !== undefined && r.dip !== "" ? parseInt(r.dip) : null,
+        dip_direction: r.dipdir !== undefined && r.dipdir !== "" ? parseInt(r.dipdir) : null,
+        trend: r.trend !== undefined && r.trend !== "" ? parseInt(r.trend) : null,
+        plunge: r.plunge !== undefined && r.plunge !== "" ? parseInt(r.plunge) : null,
+        lineation_type: r.linType || null,
+        lineation_rake: r.linRake !== undefined && r.linRake !== "" ? parseInt(r.linRake) : null,
+        pitch_from: r.pitchFrom || null,
+        lineation_trend: r.linTrend !== undefined && r.linTrend !== "" ? parseInt(r.linTrend) : null,
+        lineation_plunge: r.linPlunge !== undefined && r.linPlunge !== "" ? parseInt(r.linPlunge) : null,
+        lithology: r.lith || null,
+        remarks: r.remarks || null,
+        photo: r.photo || null,
+        sample: r.sample || null,
+        formatted_label: r.formatted || null
       }
     };
   });
+
+  const geojson = {
+    type: "FeatureCollection",
+    features: features
+  };
+
+  download(`structural_records_${currentProj}.geojson`, JSON.stringify(geojson, null, 2), 'application/json');
+}
   const geojson = { type: "FeatureCollection", features: features };
   download('structural_mapping_layer.geojson', JSON.stringify(geojson,null,2), 'application/geo+json');
 }
@@ -1034,7 +1255,6 @@ function exportGeoJSON(){
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
 function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
 function closeModal() { document.getElementById('analysisModal').classList.remove('active'); }
-function runStructuralSynthesis() { alert('Eigensolver calculations require multiple planar datasets.'); } 
 
 document.getElementById('type').addEventListener('change', function() {
     document.getElementById('customStructureDiv').classList.toggle('hidden', this.value !== 'Other');
@@ -1433,6 +1653,42 @@ function renderSpatialMapWith() {
 
 function closeSpatialMap() {
   document.getElementById('mapModal').style.display = 'none';
+}
+
+// 1. Toggle visibility for a single record
+function toggleMapRecord(id, isChecked) {
+  const rec = records.find(r => r.id === id);
+  if (rec) {
+    rec.showOnMap = isChecked;
+    persist();          // Save choice to localStorage
+    updateMapDisplay(); // Re-plot map markers
+  }
+}
+
+// 2. Select / Deselect All records for current project
+function toggleSelectAllMap(isChecked) {
+  records.forEach(r => {
+    if ((r.projectId || 'PROJ-001') === activeProjectId) {
+      r.showOnMap = isChecked;
+    }
+  });
+  persist();
+  render(); // Re-render list checkboxes and update map
+}
+
+// 3. Filter records and pass only visible ones to your map function
+function updateMapDisplay() {
+  // Get only records belonging to active project that have coordinates and are checked for map
+  const visibleMapRecords = records.filter(r => 
+    (r.projectId || 'PROJ-001') === activeProjectId && 
+    r.lat && r.lon && 
+    r.showOnMap !== false
+  );
+
+  // Send filtered records to your existing map rendering function
+  if (typeof renderSpatialMapWith === 'function') {
+    renderSpatialMapWith(visibleMapRecords);
+  }
 }
   
 function handleLocModeChange() {
