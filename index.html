@@ -621,97 +621,130 @@
   </div>
   
 <script>
-// Global State - Top of script
+// ==========================================
+// 1. GLOBAL STATE INITIALIZATION
+// ==========================================
 let activeProjectId = localStorage.getItem('activeProjectId') || 'PROJ-001';
-let projects = JSON.parse(localStorage.getItem('geoProjects')) || ['PROJ-001'];
+let projects = [];
 
-// 1. Initialize project list on page load
-function initProjects() {
-  let projects = JSON.parse(localStorage.getItem('projectList') || '["PROJ-001"]');
-  if (!projects.includes(activeProjectId)) {
-    projects.push(activeProjectId);
-    localStorage.setItem('projectList', JSON.stringify(projects));
-  }
-  renderProjectDropdown();
+try {
+  projects = JSON.parse(localStorage.getItem('projectList')) || ['PROJ-001'];
+} catch (e) {
+  projects = ['PROJ-001'];
 }
 
-// 2. Populate the Project dropdown
-function renderProjectDropdown() {
-  const select = document.getElementById('projectIdSelect');
-  if (!select) return;
-  
-  let projects = JSON.parse(localStorage.getItem('projectList') || '["PROJ-001"]');
-  select.innerHTML = projects.map(p => 
-    `<option value="${p}" ${p === activeProjectId ? 'selected' : ''}>${p}</option>`
-  ).join('');
-}
-// Call this whenever you create or switch projects
-function setActiveProject(newProjectId) {
-  activeProjectId = newProjectId;
-  localStorage.setItem('activeProjectId', activeProjectId);
-  
-  if (!projects.includes(activeProjectId)) {
-    projects.push(activeProjectId);
-    localStorage.setItem('geoProjects', JSON.stringify(projects));
-  }
-  
-  updateProjectDropdown();
-  render();
+if (!projects.includes(activeProjectId)) {
+  projects.push(activeProjectId);
+  localStorage.setItem('projectList', JSON.stringify(projects));
 }
 
-// Function to handle "Add New Project" button click
-function createNewProject() {
-  const projName = prompt('Enter New Project ID / Name (e.g., PROJ-002):');
-  if (!projName || !projName.trim()) return;
-
-  const sanitizedId = projName.trim().toUpperCase().replace(/\s+/g, '-');
-  setActiveProject(sanitizedId);
+let records = [];
+try {
+  records = JSON.parse(localStorage.getItem('field_geo_records')) || [];
+} catch (e) {
+  records = [];
 }
 
-// Populate / update project selection dropdowns
-function updateProjectDropdown() {
-  const selectEl = document.getElementById('projectSelect'); // update ID to match your HTML select element
-  if (!selectEl) return;
-
-  selectEl.innerHTML = projects
-    .map(p => `<option value="${p}" ${p === activeProjectId ? 'selected' : ''}>${p}</option>`)
-    .join('');
-}
-
-// 4. Switch active project
-function switchProject() {
-  activeProjectId = document.getElementById('projectIdSelect').value;
-  localStorage.setItem('activeProjectId', activeProjectId);
-  render(); // Re-render table and map with the selected project's data
-}
-  
-let records = JSON.parse(localStorage.getItem('field_geo_records')||'[]');
-document.getElementById('date').valueAsDate = new Date();
+let currentOverlayUrl = null;
 
 const ids = [
   'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
   'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
   'dipdir', 'trend', 'plunge', 'rake', 'sense', 'movementDir', 'photo', 'sampleType', 
   'samplePrefix', 'sample', 'remarks',
-  // --- New Lineation Fields ---
   'linType', 'linRake', 'pitchFrom', 'linTrend', 'linPlunge'
 ];
 
-ids.forEach(id => {
+// ==========================================
+// 2. HELPER UTILITIES
+// ==========================================
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function val(id) {
   const el = document.getElementById(id);
-  if (el) el.addEventListener('input', updatePreview);
-});
+  return el ? el.value.trim() : '';
+}
+function pad3(n) { 
+  if (n === '' || n === null || isNaN(n)) return '000'; 
+  let x = ((Number(n) % 360) + 360) % 360; 
+  return String(Math.round(x)).padStart(3, '0'); 
+}
 
-// Initialize project controls on page load
-document.addEventListener('DOMContentLoaded', () => {
-  initProjects();
+function getQuadrant(deg) {
+  const sectors = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return sectors[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+}
+
+function isLinear(type) {
+  return [
+    'L1 Mineral Lineation','L1 Lineation', 'L2 Lineation', 'L3 Lineation', 
+    'Chatter marks', 'L3 Crenulation Lineation', 'L2 Crenulation Lineation', 
+    'Stretching Lineation', 'L2-1 Intersection Lineation', 'L1-0 Intersection Lineation', 
+    'L2 Mineral Lineation', 'L3 Mineral Lineation', 'L1 Slickenline', 
+    'Fold Axis Lineation', 'Intersection Lineation'
+  ].includes(type);
+}
+
+function persist() {
+  localStorage.setItem('field_geo_records', JSON.stringify(records));
+}
+
+// ==========================================
+// 3. PROJECT MANAGEMENT
+// ==========================================
+function renderProjectDropdown() {
+  const select = document.getElementById('projectIdSelect');
+  if (!select) return;
+  
+  select.innerHTML = projects.map(p => 
+    `<option value="${p}" ${p === activeProjectId ? 'selected' : ''}>${p}</option>`
+  ).join('');
+}
+
+function switchProject() {
+  const select = document.getElementById('projectIdSelect');
+  if (!select) return;
+  
+  activeProjectId = select.value;
+  localStorage.setItem('activeProjectId', activeProjectId);
   render();
-});
+  if (typeof updatePreview === 'function') updatePreview();
+}
 
- // Toggle the Associated Lineation Panel
+function createNewProject() {
+  const newId = prompt("Enter New Project ID (e.g. JAUNSAR-2026):");
+  if (newId && newId.trim()) {
+    const cleanId = newId.trim().toUpperCase().replace(/\s+/g, '-');
+    
+    if (!projects.includes(cleanId)) {
+      projects.push(cleanId);
+      localStorage.setItem('projectList', JSON.stringify(projects));
+    }
+    
+    activeProjectId = cleanId;
+    localStorage.setItem('activeProjectId', activeProjectId);
+    
+    renderProjectDropdown();
+    render();
+  }
+}
+
+// ==========================================
+// 4. CALCULATION & FORM PREVIEW
+// ==========================================
 function toggleLineationSection() {
   const panel = document.getElementById('associatedLineationDiv');
   const btn = document.getElementById('toggleLineationBtn');
+  if (!panel || !btn) return;
+
   const isHidden = panel.classList.contains('hidden');
   
   if (isHidden) {
@@ -722,24 +755,24 @@ function toggleLineationSection() {
   } else {
     panel.classList.add('hidden');
     btn.innerHTML = '➕ Add Associated Lineation (Pitch / Rake)';
-    // Clear values if hidden
     ['linType', 'linRake', 'linTrend', 'linPlunge'].forEach(id => {
-      document.getElementById(id).value = '';
+      const el = document.getElementById(id);
+      if (el) el.value = '';
     });
     updatePreview();
   }
 }
 
-// Dynamically update the 'Pitch Measured From' dropdown options with real strike angles
 function updatePitchFromOptions() {
   const strikeVal = parseFloat(val('strike'));
   const pitchSelect = document.getElementById('pitchFrom');
+  if (!pitchSelect) return;
   
   if (!isNaN(strikeVal)) {
     const strikeDeg = pad3(strikeVal);
     const oppDeg = pad3((strikeVal + 180) % 360);
-    
     const currentVal = pitchSelect.value;
+    
     pitchSelect.innerHTML = `
       <option value="strike">${strikeDeg}° (Strike End)</option>
       <option value="opposite">${oppDeg}° (Opposite End)</option>
@@ -753,7 +786,6 @@ function updatePitchFromOptions() {
   }
 }
 
-// Core Math Function: Pitch/Rake -> Trend & Plunge
 function calculateLineationFromPitch() {
   const strike = parseFloat(val('strike'));
   const dip = parseFloat(val('dip'));
@@ -763,6 +795,8 @@ function calculateLineationFromPitch() {
   const trendInput = document.getElementById('linTrend');
   const plungeInput = document.getElementById('linPlunge');
 
+  if (!trendInput || !plungeInput) return;
+
   if (isNaN(strike) || isNaN(dip) || isNaN(rake) || rake < 0 || rake > 90) {
     trendInput.value = '';
     plungeInput.value = '';
@@ -770,27 +804,18 @@ function calculateLineationFromPitch() {
     return;
   }
 
-  // Convert to radians
   const radDip = (dip * Math.PI) / 180;
   const radRake = (rake * Math.PI) / 180;
 
-  // 1. Plunge: sin(plunge) = sin(dip) * sin(rake)
   const radPlunge = Math.asin(Math.sin(radDip) * Math.sin(radRake));
   const plungeDeg = Math.round((radPlunge * 180) / Math.PI);
 
-  // 2. Horizontal apparent angle (beta) from strike line towards dip direction
   const radBeta = Math.atan2(Math.tan(radRake) * Math.cos(radDip), 1);
   const betaDeg = (radBeta * 180) / Math.PI;
 
-  // 3. Trend calculation depending on Reference End
-  let trendDeg = 0;
-  if (pitchFrom === 'opposite') {
-    // Measured from opposite strike end (S + 180°)
-    trendDeg = (strike + 180 - betaDeg + 360) % 360;
-  } else {
-    // Measured from strike end (S)
-    trendDeg = (strike + betaDeg + 360) % 360;
-  }
+  let trendDeg = (pitchFrom === 'opposite') 
+    ? (strike + 180 - betaDeg + 360) % 360 
+    : (strike + betaDeg + 360) % 360;
 
   trendDeg = Math.round(trendDeg);
 
@@ -798,86 +823,71 @@ function calculateLineationFromPitch() {
   plungeInput.value = String(plungeDeg).padStart(2, '0') + '°';
 
   updatePreview();
-} 
-  
-function getQuadrant(deg) {
-  const sectors = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-  return sectors[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
 }
 
-function isLinear(type) {
-  return ['L1 Mineral Lineation','L1 Lineation', 'L2 Lineation', 'L3 Lineation', 'Chatter marks', 'L3 Crenulation Lineation', 'L2 Crenulation Lineation', 'Stretching Lineation', 'L2-1 Intersection Lineation', 'L1-0 Intersection Lineation', 'L2 Mineral Lineation', 'L3 Mineral Lineation', 'L1 Slickenline', 'Fold Axis Lineation', 'Intersection Lineation'].includes(type);
-}
-
-function pad3(n){ 
-  if(n===''||n===null||isNaN(n)) return '000'; 
-  let x=((Number(n)%360)+360)%360; 
-  return String(Math.round(x)).padStart(3,'0'); 
-}
-
-function fmt(){
+function fmt() {
   let t = val('type');
   if (t === 'Other' && val('customStructure')) t = val('customStructure');
   
   const se = val('sense'), rk = val('rake'), md = val('movementDir');
   let dataStr = '';
 
-  if(isLinear(val('type'))) {
+  if (isLinear(val('type'))) {
     const tr = val('trend') ? pad3(val('trend')) + '°' : '---°';
     const pl = val('plunge') ? val('plunge') + '°' : '--°';
     dataStr = `${pl} → ${tr}`;
   } else {
     const st = val('strike') ? pad3(val('strike')) : '000';
     const dp = val('dip') ? val('dip') + '°' : '--°';
-    const dd = val('strike') ? getQuadrant((parseInt(val('strike')) + 90) % 360) : '';
+    const dd = val('strike') ? getQuadrant((parseInt(val('strike'), 10) + 90) % 360) : '';
     dataStr = `${st}/${dp} ${dd}`.trim();
   }
 
   let s = `${t}: ${dataStr}`;
   
-  // Append associated lineation if recorded
   if (val('linType') && val('linTrend') && val('linPlunge')) {
     s += ` | ${val('linType')}: ${val('linPlunge')} → ${val('linTrend')} (Pitch ${val('linRake')}°)`;
   }
 
-  if(rk) s += `, rake ${rk}°`; 
-  if(se) s += `, ${se} sense`;
-  if(md) s += ` (${md})`;
+  if (rk) s += `, rake ${rk}°`; 
+  if (se) s += `, ${se} sense`;
+  if (md) s += ` (${md})`;
   return s;
 }
 
-function val(id){
-  const el = document.getElementById(id);
-  return el ? el.value.trim() : '';
-}
-
-function validate(){
-  let msg=[]; 
-  if(!isLinear(val('type'))) {
-    const st=Number(val('strike')), dp=Number(val('dip'));
-    if(val('strike') && (st<0||st>360)) msg.push('Strike must be 0–360°');
-    if(val('dip') && (dp<0||dp>90)) msg.push('Dip must be 0–90°');
+function validate() {
+  let msg = []; 
+  if (!isLinear(val('type'))) {
+    const st = Number(val('strike')), dp = Number(val('dip'));
+    if (val('strike') && (st < 0 || st > 360)) msg.push('Strike must be 0–360°');
+    if (val('dip') && (dp < 0 || dp > 90)) msg.push('Dip must be 0–90°');
   } else {
-    const tr=Number(val('trend')), pl=Number(val('plunge'));
-    if(val('trend') && (tr<0||tr>360)) msg.push('Trend must be 0–360°');
-    if(val('plunge') && (pl<0||pl>90)) msg.push('Plunge must be 0–90°');
+    const tr = Number(val('trend')), pl = Number(val('plunge'));
+    if (val('trend') && (tr < 0 || tr > 360)) msg.push('Trend must be 0–360°');
+    if (val('plunge') && (pl < 0 || pl > 90)) msg.push('Plunge must be 0–90°');
   }
-  const rk=Number(val('rake'));
-  if(val('rake') && (rk<0||rk>90)) msg.push('Rake must be 0–90°');
+  const rk = Number(val('rake'));
+  if (val('rake') && (rk < 0 || rk > 90)) msg.push('Rake must be 0–90°');
   return msg;
 }
 
-function updatePreview(){ 
-  const v=validate(); 
-  document.getElementById('preview').innerHTML='<span class="fmt-preview">'+fmt()+'</span>'+ (v.length?'<br><span style="color:#c0392b">'+v.join('<br>')+'</span>':''); 
+function updatePreview() { 
+  const v = validate(); 
+  const el = document.getElementById('preview');
+  if (el) {
+    el.innerHTML = '<span class="fmt-preview">' + fmt() + '</span>' + 
+      (v.length ? '<br><span style="color:#c0392b">' + v.join('<br>') + '</span>' : ''); 
+  }
 }
 
-function saveEntry(){
+// ==========================================
+// 5. DATA ACTIONS & RENDER
+// ==========================================
+function saveEntry() {
   try {
     const v = validate();
-    if(v.length){ alert(v.join('\n')); return; }
+    if (v.length) { alert(v.join('\n')); return; }
 
-    // 📍 ADDED 'projectId: activeProjectId' HERE
     const r = { 
       id: Date.now(), 
       projectId: activeProjectId, 
@@ -886,7 +896,9 @@ function saveEntry(){
     
     ids.forEach(id => r[id] = val(id));
 
-    const hasSample = document.getElementById('takeSample').checked;
+    const sampleCheckbox = document.getElementById('takeSample');
+    const hasSample = sampleCheckbox ? sampleCheckbox.checked : false;
+    
     if (!hasSample) {
       r['sample'] = '';
       r['sampleType'] = '';
@@ -899,103 +911,95 @@ function saveEntry(){
       localStorage.setItem('sampleCounter', sCounter + 1);
     }
 
-    const locMode = document.getElementById('locCountMode').value;
+    const locModeEl = document.getElementById('locCountMode');
+    const locMode = locModeEl ? locModeEl.value : 'continue';
     let lCounter = parseInt(localStorage.getItem('locationCounter') || '1', 10);
     
     if (locMode === 'reset') {
-        lCounter = 1;
-        document.getElementById('locCountMode').value = 'continue';
-        document.getElementById('locNo').readOnly = true;
+      lCounter = 1;
+      if (locModeEl) locModeEl.value = 'continue';
+      const locNoEl = document.getElementById('locNo');
+      if (locNoEl) locNoEl.readOnly = true;
     } else if (locMode === 'manual') {
-        let manualStr = String(document.getElementById('locNo').value);
-        let matches = manualStr.match(/\d+$/);
-        let manualNum = matches ? parseInt(matches[0], 10) : NaN;
-        
-        lCounter = isNaN(manualNum) ? lCounter + 1 : manualNum + 1; 
-        document.getElementById('locCountMode').value = 'continue';
-        document.getElementById('locNo').readOnly = true;
+      let manualStr = String(val('locNo'));
+      let matches = manualStr.match(/\d+$/);
+      let manualNum = matches ? parseInt(matches[0], 10) : NaN;
+      
+      lCounter = isNaN(manualNum) ? lCounter + 1 : manualNum + 1; 
+      if (locModeEl) locModeEl.value = 'continue';
+      const locNoEl = document.getElementById('locNo');
+      if (locNoEl) locNoEl.readOnly = true;
     } else {
-        lCounter = lCounter + 1;
+      lCounter = lCounter + 1;
     }
     localStorage.setItem('locationCounter', lCounter);
 
     persist();
     clearForm(false);
-    updateLocationID();
+    
+    if (typeof updateLocationID === 'function') updateLocationID();
     render();
     alert('Record saved successfully!');
-    getGPS(); 
-  } catch(err) {
+    if (typeof getGPS === 'function') getGPS(); 
+  } catch (err) {
     alert('Save Engine Blocked: ' + err.message);
   }
 }
-  
-function clearForm(resetDate=true){
+
+function clearForm(resetDate = true) {
   const baseProtected = ['date', 'sample', 'samplePrefix', 'locNo', 'locPrefix', 'type'];
   const saveProtected = [...baseProtected, 'loc', 'lith', 'unit', 'lat', 'lon', 'alt', 'accuracy', 'mineralization', 'alteration'];
   
   ids.forEach(id => {
     const currentProtected = resetDate ? baseProtected : saveProtected;
-    if(!currentProtected.includes(id)){
-       const el = document.getElementById(id);
-       if(el) el.value = '';
+    if (!currentProtected.includes(id)) {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
     }
   });
 
-  if (document.getElementById('takeSample')) {
-    document.getElementById('takeSample').checked = false;
-    toggleSampleState();
+  const takeSampleEl = document.getElementById('takeSample');
+  if (takeSampleEl) {
+    takeSampleEl.checked = false;
+    if (typeof toggleSampleState === 'function') toggleSampleState();
   }
 
-  // --- Reset & Collapse Associated Lineation Panel ---
   const lineationDiv = document.getElementById('associatedLineationDiv');
   const lineationBtn = document.getElementById('toggleLineationBtn');
-  if (lineationDiv) {
-    lineationDiv.classList.add('hidden');
-  }
-  if (lineationBtn) {
-    lineationBtn.innerHTML = '➕ Add Associated Lineation (Pitch / Rake)';
-  }
+  if (lineationDiv) lineationDiv.classList.add('hidden');
+  if (lineationBtn) lineationBtn.innerHTML = '➕ Add Associated Lineation (Pitch / Rake)';
 
-  if(resetDate && document.getElementById('date')){
-    document.getElementById('date').valueAsDate = new Date();
+  const dateEl = document.getElementById('date');
+  if (resetDate && dateEl) {
+    dateEl.valueAsDate = new Date();
   }
   updatePreview();
 }
 
-function persist(){localStorage.setItem('field_geo_records',JSON.stringify(records))}
-
 function render() {
-  const currentProj = typeof activeProjectId !== 'undefined' ? activeProjectId : 'PROJ-001';
-  
-  // Filter active project records
+  const currentProj = activeProjectId || 'PROJ-001';
   const projectRecords = records.filter(r => (r.projectId || 'PROJ-001') === currentProj);
 
-  // 1. Total Record Count
   const countEl = document.getElementById('count');
   if (countEl) countEl.textContent = projectRecords.length;
 
-  // 2. Unique Location Count (Auto-calculated)
   const locCountEl = document.getElementById('locCount');
   if (locCountEl) {
     const uniqueLocations = new Set(projectRecords.map(r => r.locNo).filter(Boolean));
     locCountEl.textContent = uniqueLocations.size;
   }
 
-  // 3. Sample Count (Auto-calculated)
   const sampleCountEl = document.getElementById('sampleCount');
   if (sampleCountEl) {
     const sampleRecords = projectRecords.filter(r => r.sample && r.sample !== 'None' && r.sample.trim() !== '');
     sampleCountEl.textContent = sampleRecords.length;
   }
 
-  // 4. Sync master "Select All" checkbox safely
   const masterCheck = document.getElementById('selectAllMap');
   if (masterCheck && projectRecords.length > 0) {
     masterCheck.checked = projectRecords.every(r => r.showOnMap !== false);
   }
 
-  // 5. Render active project entries safely
   const listEl = document.getElementById('list');
   if (listEl) {
     listEl.innerHTML = projectRecords.map((r) => `
@@ -1003,139 +1007,108 @@ function render() {
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
           <div class="fmt-output" style="margin-bottom: 0;">${escapeHTML(r.formatted || '')}</div>
           <label style="font-size: 12px; font-weight: bold; cursor: pointer; background: #eef2f5; padding: 3px 8px; border-radius: 4px; display: flex; align-items: center; gap: 5px; border: 1px solid #dcdfe6;">
-            <input type="checkbox" onchange="toggleMapRecord(${r.id}, this.checked)" ${r.showOnMap !== false ? 'checked' : ''}>
+            <input type="checkbox" onchange="if(typeof toggleMapRecord === 'function') toggleMapRecord(${r.id}, this.checked)" ${r.showOnMap !== false ? 'checked' : ''}>
             📍 Map
           </label>
         </div>
         <div style="font-size: 13px;">Loc: <b>${escapeHTML(r.locNo || '')}</b> (${escapeHTML(r.loc || 'No Desc')}) ${r.unit ? ' | ' + escapeHTML(r.unit) : ''} ${r.lith ? ' | ' + escapeHTML(r.lith) : ''}</div>
-        <div class="meta-text">${r.date || ''} | Lat ${r.lat || '-'}, Long ${r.lon || '-'} | Photo ${r.photo || '-'} | Sample ${r.sample || 'None'}</div>
+        <div class="meta-text">${escapeHTML(r.date || '')} | Lat ${escapeHTML(r.lat || '-')} Long ${escapeHTML(r.lon || '-')} | Photo ${escapeHTML(r.photo || '-')} | Sample ${escapeHTML(r.sample || 'None')}</div>
         ${r.remarks ? `<div style="font-style:italic; color:#566573; margin-top:6px; font-size:13px; background:#f2f4f4; padding:6px; border-radius:6px;">${escapeHTML(r.remarks)}</div>` : ''}
-        <button class="btn-danger" onclick="del(${r.id})" style="width:auto; padding:4px 10px; font-size:11px; margin-top:8px; border-radius:6px;">Delete Record</button>
+        <button class="btn-danger" onclick="if(typeof del === 'function') del(${r.id})" style="width:auto; padding:4px 10px; font-size:11px; margin-top:8px; border-radius:6px;">Delete Record</button>
       </div>
     `).join('');
   }
 
-  // 6. Refresh map pins safely (won't throw error if map function doesn't exist yet)
   if (typeof updateMapDisplay === 'function') {
     updateMapDisplay();
   }
 }
-// Initialize projects on page load
-function initProjects() {
-  let projects = JSON.parse(localStorage.getItem('projectList') || '["PROJ-001"]');
-  if (!projects.includes(activeProjectId)) {
-    projects.push(activeProjectId);
-    localStorage.setItem('projectList', JSON.stringify(projects));
-  }
-  renderProjectDropdown();
-}
-
-// Populate project dropdown
-function renderProjectDropdown() {
-  const select = document.getElementById('projectIdSelect');
-  if (!select) return;
-  let projects = JSON.parse(localStorage.getItem('projectList') || '["PROJ-001"]');
-  select.innerHTML = projects.map(p => 
-    `<option value="${p}" ${p === activeProjectId ? 'selected' : ''}>${p}</option>`
-  ).join('');
-}
-
-// Switch project handler
-function switchProject() {
-  activeProjectId = document.getElementById('projectIdSelect').value;
-  localStorage.setItem('activeProjectId', activeProjectId);
-  render(); // Refresh list to show only records for the selected project
-  if (typeof updatePreview === 'function') updatePreview();
-}
-
-// Create new project handler
-function createNewProject() {
-  const newId = prompt("Enter New Project ID (e.g. JAUNSAR-2026):");
-  if (newId && newId.trim()) {
-    const cleanId = newId.trim().toUpperCase();
-    let projects = JSON.parse(localStorage.getItem('projectList') || '[]');
-    if (!projects.includes(cleanId)) {
-      projects.push(cleanId);
-      localStorage.setItem('projectList', JSON.stringify(projects));
-    }
-    activeProjectId = cleanId;
-    localStorage.setItem('activeProjectId', activeProjectId);
-    renderProjectDropdown();
-    render();
-  }
-}
   
-function del(id){
-  if(confirm('Are you sure you want to delete this specific record? This action cannot be undone.')){
+function del(id) {
+  if (confirm('Are you sure you want to delete this specific record? This action cannot be undone.')) {
     records = records.filter(r => r.id !== id);
     persist();
     render();
   }
 }
-  
-function deleteAll(){if(confirm('Delete all saved field records?')){records=[];persist();render()}}
 
-function getGPS(){
-  const latField=document.getElementById('lat'), lonField=document.getElementById('lon');
-  const accField=document.getElementById('accuracy');
-  const altField=document.getElementById('alt');
-  
-  if(!navigator.geolocation){ 
-     alert('GPS Engine Error: Geolocation APIs are disabled or unsupported by your current container/browser browser config.');
-     if(latField) latField.value = 'Unsupported';
-     return; 
+function deleteAll() {
+  if (confirm('Delete all saved field records?')) {
+    records = [];
+    persist();
+    render();
   }
-  
-  if(latField) latField.value='Fetching...'; 
-  if(lonField) lonField.value='Fetching...';
-  if(accField) accField.value='...';
+}
 
-  navigator.geolocation.getCurrentPosition(function(p){
-     if(latField) latField.value=p.coords.latitude.toFixed(6);
-     if(lonField) lonField.value=p.coords.longitude.toFixed(6);
-     if(accField) accField.value = Math.round(p.coords.accuracy) + 'm';
-     if(altField) altField.value = p.coords.altitude ? p.coords.altitude.toFixed(1) : 'N/A';
-     updatePreview();
-  }, function(e){
-     if(e.code === 3) { 
-       navigator.geolocation.getCurrentPosition(function(p2){
-         if(latField) latField.value=p2.coords.latitude.toFixed(6);
-         if(lonField) lonField.value=p2.coords.longitude.toFixed(6);
-         if(accField) accField.value = Math.round(p2.coords.accuracy) + 'm';
-         updatePreview();
-       }, function(e2){
-         handleGeoError(e2);
-       }, {enableHighAccuracy: false, timeout: 12000});
-     } else {
-       handleGeoError(e);
-     }
-  },{enableHighAccuracy:true,timeout:7000,maximumAge:0});
-  
+function getGPS() {
+  const latField = document.getElementById('lat');
+  const lonField = document.getElementById('lon');
+  const accField = document.getElementById('accuracy');
+  const altField = document.getElementById('alt');
+
+  if (!navigator.geolocation) {
+    alert('GPS Engine Error: Geolocation APIs are disabled or unsupported by your current container/browser configuration.');
+    if (latField) latField.value = 'Unsupported';
+    return;
+  }
+
+  if (latField) latField.value = 'Fetching...';
+  if (lonField) lonField.value = 'Fetching...';
+  if (accField) accField.value = '...';
+
+  navigator.geolocation.getCurrentPosition(
+    function (p) {
+      if (latField) latField.value = p.coords.latitude.toFixed(6);
+      if (lonField) lonField.value = p.coords.longitude.toFixed(6);
+      if (accField) accField.value = Math.round(p.coords.accuracy) + 'm';
+      if (altField) altField.value = p.coords.altitude ? p.coords.altitude.toFixed(1) : 'N/A';
+      updatePreview();
+    },
+    function (e) {
+      if (e.code === 3) {
+        navigator.geolocation.getCurrentPosition(
+          function (p2) {
+            if (latField) latField.value = p2.coords.latitude.toFixed(6);
+            if (lonField) lonField.value = p2.coords.longitude.toFixed(6);
+            if (accField) accField.value = Math.round(p2.coords.accuracy) + 'm';
+            updatePreview();
+          },
+          function (e2) {
+            handleGeoError(e2);
+          },
+          { enableHighAccuracy: false, timeout: 12000 }
+        );
+      } else {
+        handleGeoError(e);
+      }
+    },
+    { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
+  );
+
   function handleGeoError(err) {
-     if(latField) latField.value=''; 
-     if(lonField) lonField.value='';
-     if(accField) accField.value='Error';
-     
-     let descriptiveMsg = '';
-     if(err.code === 1) descriptiveMsg = "Permission Denied. Please enable site location sharing clearances.";
-     else if(err.code === 2) descriptiveMsg = "Position Unavailable (Weak Satellite Sync/Underground Outcrop).";
-     else if(err.code === 3) descriptiveMsg = "GPS Timeout Engine Fault.";
-     else descriptiveMsg = err.message;
-     
-     console.error("GPS System Failure: " + descriptiveMsg);
-     
-     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-       alert('GPS Blocked: Mobile browsers require an HTTPS secure connection profiles to deploy spatial arrays. Please host using secure credentials or test locally via localhost.\n\nStatus: ' + descriptiveMsg);
-     } else {
-       alert('GPS Stream Status: ' + descriptiveMsg);
-     }
+    if (latField) latField.value = '';
+    if (lonField) lonField.value = '';
+    if (accField) accField.value = 'Error';
+
+    let descriptiveMsg = '';
+    if (err.code === 1) descriptiveMsg = "Permission Denied. Please enable site location sharing clearances.";
+    else if (err.code === 2) descriptiveMsg = "Position Unavailable (Weak Satellite Sync/Underground Outcrop).";
+    else if (err.code === 3) descriptiveMsg = "GPS Timeout Engine Fault.";
+    else descriptiveMsg = err.message;
+
+    console.error("GPS System Failure: " + descriptiveMsg);
+
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      alert('GPS Blocked: Mobile browsers require an HTTPS secure connection profile to deploy spatial arrays. Please host using secure credentials or test locally via localhost.\n\nStatus: ' + descriptiveMsg);
+    } else {
+      alert('GPS Stream Status: ' + descriptiveMsg);
+    }
   }
 }
 
 function exportKML() {
   const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
-  
-  // Filter for active project records with valid GPS coordinates
+
   const validRecords = records.filter(
     r => (r.projectId || 'PROJ-001') === currentProj &&
          r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
@@ -1146,18 +1119,15 @@ function exportKML() {
     return;
   }
 
-  // Build the KML header
   let kml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   kml += '<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n';
   kml += `  <name>GeoLogger Structural Data - ${escapeHTML(currentProj)}</name>\n`;
 
-  // Loop through records and create KML Placemarks
   validRecords.forEach(r => {
     const lat = parseFloat(r.lat);
     const lon = parseFloat(r.lon);
     const alt = r.alt && !isNaN(parseFloat(r.alt)) ? parseFloat(r.alt) : 0;
 
-    // Create pop-up balloon description including Project ID
     let desc = '<![CDATA[';
     desc += `<b>Project ID:</b> ${escapeHTML(r.projectId || currentProj)}<br>`;
     if (r.formatted) desc += `<b>Structure:</b> ${escapeHTML(r.formatted)}<br>`;
@@ -1186,8 +1156,7 @@ function exportKML() {
 
 function exportCSV() {
   const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
-  
-  // Filter records for active project
+
   const projectRecords = records.filter(r => (r.projectId || 'PROJ-001') === currentProj);
 
   if (projectRecords.length === 0) {
@@ -1195,7 +1164,6 @@ function exportCSV() {
     return;
   }
 
-  // Include 'projectId' as the first column
   const cols = [
     'projectId', 'date', 'locNo', 'loc', 'lat', 'lon', 'alt', 'unit', 'type',
     'strike', 'dip', 'dipdir', 'trend', 'plunge', 'linType',
@@ -1220,7 +1188,6 @@ function exportCSV() {
 function exportGeoJSON() {
   const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
 
-  // Filter for active project records with valid GPS coordinates
   const validRecords = records.filter(
     r => (r.projectId || 'PROJ-001') === currentProj &&
          r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
@@ -1249,16 +1216,16 @@ function exportGeoJSON() {
         location_name: r.loc || null,
         formation: r.unit || null,
         structure_type: r.type || null,
-        strike: r.strike !== undefined && r.strike !== "" ? parseInt(r.strike) : null,
-        dip: r.dip !== undefined && r.dip !== "" ? parseInt(r.dip) : null,
-        dip_direction: r.dipdir !== undefined && r.dipdir !== "" ? parseInt(r.dipdir) : null,
-        trend: r.trend !== undefined && r.trend !== "" ? parseInt(r.trend) : null,
-        plunge: r.plunge !== undefined && r.plunge !== "" ? parseInt(r.plunge) : null,
+        strike: r.strike !== undefined && r.strike !== "" ? parseInt(r.strike, 10) : null,
+        dip: r.dip !== undefined && r.dip !== "" ? parseInt(r.dip, 10) : null,
+        dip_direction: r.dipdir !== undefined && r.dipdir !== "" ? parseInt(r.dipdir, 10) : null,
+        trend: r.trend !== undefined && r.trend !== "" ? parseInt(r.trend, 10) : null,
+        plunge: r.plunge !== undefined && r.plunge !== "" ? parseInt(r.plunge, 10) : null,
         lineation_type: r.linType || null,
-        lineation_rake: r.linRake !== undefined && r.linRake !== "" ? parseInt(r.linRake) : null,
+        lineation_rake: r.linRake !== undefined && r.linRake !== "" ? parseInt(r.linRake, 10) : null,
         pitch_from: r.pitchFrom || null,
-        lineation_trend: r.linTrend !== undefined && r.linTrend !== "" ? parseInt(r.linTrend) : null,
-        lineation_plunge: r.linPlunge !== undefined && r.linPlunge !== "" ? parseInt(r.linPlunge) : null,
+        lineation_trend: r.linTrend !== undefined && r.linTrend !== "" ? parseInt(r.linTrend, 10) : null,
+        lineation_plunge: r.linPlunge !== undefined && r.linPlunge !== "" ? parseInt(r.linPlunge, 10) : null,
         lithology: r.lith || null,
         remarks: r.remarks || null,
         photo: r.photo || null,
@@ -1273,108 +1240,75 @@ function exportGeoJSON() {
     features: features
   };
 
-  download(`structural_records_${currentProj}.geojson`, JSON.stringify(geojson, null, 2), 'application/json');
-}
-  const geojson = { type: "FeatureCollection", features: features };
-  download('structural_mapping_layer.geojson', JSON.stringify(geojson,null,2), 'application/geo+json');
+  download(`structural_records_${currentProj}.geojson`, JSON.stringify(geojson, null, 2), 'application/geo+json');
 }
 
-function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
-function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
-function closeModal() { document.getElementById('analysisModal').classList.remove('active'); }
+function download(name, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = name;
+  a.click();
+}
 
-document.getElementById('type').addEventListener('change', function() {
-    document.getElementById('customStructureDiv').classList.toggle('hidden', this.value !== 'Other');
-    if(isLinear(this.value)) {
-        document.getElementById('planarFields').classList.add('hidden');
-        document.getElementById('linearFields').classList.remove('hidden');
-    } else {
-        document.getElementById('planarFields').classList.remove('hidden');
-        document.getElementById('linearFields').classList.add('hidden');
-    }
-    updatePreview();
-});
+function closeModal() {
+  const modal = document.getElementById('analysisModal');
+  if (modal) modal.classList.remove('active');
+}
 
-document.getElementById('strike').addEventListener('input', function() {
-    let strike = parseInt(this.value);
-    if (!isNaN(strike)) {
-        let dipdir = (strike + 90) % 360;
-        document.getElementById('dipdir').value = dipdir.toString().padStart(3, '0') + '° (' + getQuadrant(dipdir) + ')';
-    } else {
-        document.getElementById('dipdir').value = '';
-    }
-  // Update lineation calculations if lineation section is open
-    updatePitchFromOptions();
-    calculateLineationFromPitch();
-});
-
-document.getElementById('dip').addEventListener('input', function() {
-    calculateLineationFromPitch();
-});
-
-document.getElementById('photoInput').addEventListener('change', function(e) {
-    if (e.target.files && e.target.files[0]) {
-        document.getElementById('photo').value = "IMG-" + Date.now().toString().slice(-4);
-        updatePreview();
-    }
-});
-
-function startVoiceNote(){
-  const SpeechRecognition = window.SynthesisSpeechRecognition || window.webkitSpeechRecognition;
-  if(!SpeechRecognition){ alert("Voice parsing unsupported."); return; }
+function startVoiceNote() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { alert("Voice parsing unsupported."); return; }
   const recognition = new SpeechRecognition();
   recognition.lang = "en-US";
-  recognition.onresult = function(event){
-      document.getElementById("remarks").value += " " + event.results[0][0].transcript;
-      updatePreview();
+  recognition.onresult = function (event) {
+    const remarksEl = document.getElementById("remarks");
+    if (remarksEl) remarksEl.value += " " + event.results[0][0].transcript;
+    updatePreview();
   };
   recognition.start();
 }
 
+// ==========================================
+// 6. MAP & OVERLAY UTILITIES
+// ==========================================
 let mapInstance = null;
-let mapDataGroup = null;        // For station markers and traverse lines
-let osmTileLayer = null;        // OpenStreetMap Base Layer
-let customOverlayLayer = null;  // Uploaded custom map image overlay
-let layerControl = null;        // Leaflet Layer Switcher Control
-let kmlMapOverlayLayer = null;  // Uploaded KML vector overlay
+let mapDataGroup = null;
+let osmTileLayer = null;
+let layerControl = null;
+let kmlMapOverlayLayer = null;
 
 function openSpatialMap() {
   const modal = document.getElementById('mapModal');
-  modal.style.display = 'block';
+  if (modal) modal.style.display = 'block';
 
   setTimeout(() => {
     const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
 
-    // Default coordinate if no valid survey points exist
     const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
     const firstLon = validPoints.length > 0 ? parseFloat(validPoints[0].lon) : 78.0;
 
     if (!mapInstance) {
       mapInstance = L.map('map').setView([firstLat, firstLon], 13);
-      
-      // Initialize Standard OpenStreetMap Layer
+
       osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap contributors'
       }).addTo(mapInstance);
 
-      // Dedicated layer group for survey data (markers, lines)
       mapDataGroup = L.layerGroup().addTo(mapInstance);
 
-      // Initialize Leaflet Layer Control widget
       layerControl = L.control.layers(
         { "OpenStreetMap (Standard)": osmTileLayer },
         { "Survey Stations & Route": mapDataGroup },
         { position: 'topright' }
       ).addTo(mapInstance);
 
-      // --- LIVE "BLUE DOT" LOCATION LOGIC ---
       let liveMarker = null;
       let accuracyCircle = null;
 
-      mapInstance.on('locationfound', function(e) {
+      mapInstance.on('locationfound', function (e) {
         const radius = e.accuracy / 2;
-        
+
         if (liveMarker) mapInstance.removeLayer(liveMarker);
         if (accuracyCircle) mapInstance.removeLayer(accuracyCircle);
 
@@ -1396,7 +1330,7 @@ function openSpatialMap() {
         }).addTo(mapInstance).bindPopup("<b>You are here</b>");
       });
 
-      mapInstance.on('locationerror', function(e) {
+      mapInstance.on('locationerror', function (e) {
         console.warn("Live location not available for blue dot: " + e.message);
       });
 
@@ -1404,14 +1338,13 @@ function openSpatialMap() {
       mapInstance.invalidateSize();
     }
 
-    // Trigger location request every time the map opens
-    mapInstance.locate({setView: false, enableHighAccuracy: true});
-
-    renderSpatialMapWith();
+    mapInstance.locate({ setView: false, enableHighAccuracy: true });
+    if (typeof updateMapDisplay === 'function') {
+      updateMapDisplay();
+    }
   }, 100);
 }
 
-// Parse KML Placemarks into standard GeoJSON features
 function kmlToGeoJson(xmlDoc) {
   const features = [];
   const placemarks = xmlDoc.getElementsByTagName("Placemark");
@@ -1421,7 +1354,6 @@ function kmlToGeoJson(xmlDoc) {
     const name = pm.getElementsByTagName("name")[0]?.textContent || `KML Feature ${i + 1}`;
     const desc = pm.getElementsByTagName("description")[0]?.textContent || "";
 
-    // Points
     const point = pm.getElementsByTagName("Point")[0];
     if (point) {
       const coords = point.getElementsByTagName("coordinates")[0]?.textContent.trim().split(',');
@@ -1434,7 +1366,6 @@ function kmlToGeoJson(xmlDoc) {
       }
     }
 
-    // LineStrings (Traverses / Paths)
     const line = pm.getElementsByTagName("LineString")[0];
     if (line) {
       const coordsText = line.getElementsByTagName("coordinates")[0]?.textContent.trim();
@@ -1454,7 +1385,6 @@ function kmlToGeoJson(xmlDoc) {
       }
     }
 
-    // Polygons (Boundaries)
     const poly = pm.getElementsByTagName("Polygon")[0];
     if (poly) {
       const coordsText = poly.getElementsByTagName("coordinates")[0]?.textContent.trim();
@@ -1477,7 +1407,6 @@ function kmlToGeoJson(xmlDoc) {
   return { type: "FeatureCollection", features };
 }
 
-// --- KML OVERLAY HANDLER ---
 function applyKMLOverlay() {
   const fileInput = document.getElementById('kmlOverlayFile');
   const file = fileInput ? fileInput.files[0] : null;
@@ -1492,7 +1421,7 @@ function applyKMLOverlay() {
   }
 
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = function (e) {
     try {
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(e.target.result, "text/xml");
@@ -1503,22 +1432,20 @@ function applyKMLOverlay() {
         return;
       }
 
-      // Remove previous layer from map & layer control if active
       removeKMLOverlay(false);
 
       kmlMapOverlayLayer = L.geoJSON(geojson, {
         style: { color: '#8e44ad', weight: 3, opacity: 0.85, fillOpacity: 0.25 },
-        pointToLayer: function(feature, latlng) {
+        pointToLayer: function (feature, latlng) {
           return L.circleMarker(latlng, { radius: 6, fillColor: '#8e44ad', color: '#ffffff', weight: 2, opacity: 1, fillOpacity: 0.9 });
         },
-        onEachFeature: function(feature, layer) {
+        onEachFeature: function (feature, layer) {
           if (feature.properties && feature.properties.name) {
             layer.bindPopup(`<b>${feature.properties.name}</b><br>${feature.properties.desc || ''}`);
           }
         }
       }).addTo(mapInstance);
 
-      // Add dynamic toggle entry into Leaflet's Layer Control widget
       if (layerControl) {
         layerControl.addOverlay(kmlMapOverlayLayer, "🌍 KML Map Overlay");
       }
@@ -1536,10 +1463,7 @@ function applyKMLOverlay() {
 
 function removeKMLOverlay(showAlert = true) {
   if (kmlMapOverlayLayer && mapInstance) {
-    // Remove from Layer Switcher widget
-    if (layerControl) {
-      layerControl.removeLayer(kmlMapOverlayLayer);
-    }
+    if (layerControl) layerControl.removeLayer(kmlMapOverlayLayer);
     mapInstance.removeLayer(kmlMapOverlayLayer);
     kmlMapOverlayLayer = null;
 
@@ -1551,65 +1475,125 @@ function removeKMLOverlay(showAlert = true) {
     alert("No active KML overlay to remove.");
   }
 }
-  
-// Function to handle loading and georeferencing user's custom map image
+
+// ==========================================
+// 7. SAFE EVENT LISTENER INITIALIZATION
+// ==========================================
+document.addEventListener('DOMContentLoaded', function () {
+  const typeEl = document.getElementById('type');
+  if (typeEl) {
+    typeEl.addEventListener('change', function () {
+      const customDiv = document.getElementById('customStructureDiv');
+      if (customDiv) customDiv.classList.toggle('hidden', this.value !== 'Other');
+      
+      const planar = document.getElementById('planarFields');
+      const linear = document.getElementById('linearFields');
+      if (isLinear(this.value)) {
+        if (planar) planar.classList.add('hidden');
+        if (linear) linear.classList.remove('hidden');
+      } else {
+        if (planar) planar.classList.remove('hidden');
+        if (linear) linear.classList.add('hidden');
+      }
+      updatePreview();
+    });
+  }
+
+  const strikeEl = document.getElementById('strike');
+  if (strikeEl) {
+    strikeEl.addEventListener('input', function () {
+      let strike = parseInt(this.value, 10);
+      const dipdirEl = document.getElementById('dipdir');
+      if (!isNaN(strike)) {
+        let dipdir = (strike + 90) % 360;
+        if (dipdirEl) dipdirEl.value = dipdir.toString().padStart(3, '0') + '° (' + getQuadrant(dipdir) + ')';
+      } else {
+        if (dipdirEl) dipdirEl.value = '';
+      }
+      updatePitchFromOptions();
+      calculateLineationFromPitch();
+    });
+  }
+
+  const dipEl = document.getElementById('dip');
+  if (dipEl) {
+    dipEl.addEventListener('input', function () {
+      calculateLineationFromPitch();
+    });
+  }
+
+  const photoInputEl = document.getElementById('photoInput');
+  if (photoInputEl) {
+    photoInputEl.addEventListener('change', function (e) {
+      if (e.target.files && e.target.files[0]) {
+        const photoEl = document.getElementById('photo');
+        if (photoEl) photoEl.value = "IMG-" + Date.now().toString().slice(-4);
+        updatePreview();
+      }
+    });
+  }
+});
+
 function applyCustomMapOverlay() {
   const fileInput = document.getElementById('customMapFile');
-  const file = fileInput.files[0];
+  const file = fileInput ? fileInput.files[0] : null;
 
   if (!file) {
     alert('Please select an image file (JPEG/PNG) of your map first.');
     return;
   }
 
-  let minLat = parseFloat(document.getElementById('ovMinLat').value);
-  let maxLat = parseFloat(document.getElementById('ovMaxLat').value);
-  let minLon = parseFloat(document.getElementById('ovMinLon').value);
-  let maxLon = parseFloat(document.getElementById('ovMaxLon').value);
+  let minLat = parseFloat(document.getElementById('ovMinLat')?.value);
+  let maxLat = parseFloat(document.getElementById('ovMaxLat')?.value);
+  let minLon = parseFloat(document.getElementById('ovMinLon')?.value);
+  let maxLon = parseFloat(document.getElementById('ovMaxLon')?.value);
 
   if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
     alert('Please provide valid bounding coordinates (SW & NE corners) for the image overlay.');
     return;
   }
 
-  // Ensure minimums and maximums are correctly aligned
   if (minLat > maxLat) [minLat, maxLat] = [maxLat, minLat];
   if (minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
 
   const bounds = [[minLat, minLon], [maxLat, maxLon]];
-  const imageUrl = URL.createObjectURL(file);
-
-  // Remove existing custom overlay if re-uploading
+  
   removeCustomMapOverlay();
 
-  // Create Leaflet ImageOverlay
-  customOverlayLayer = L.imageOverlay(imageUrl, bounds, {
+  currentOverlayUrl = URL.createObjectURL(file);
+
+  customOverlayLayer = L.imageOverlay(currentOverlayUrl, bounds, {
     opacity: 0.85,
     interactive: true
   }).addTo(mapInstance);
 
-  // Add Custom Overlay to Leaflet Layer Switcher
-  layerControl.addOverlay(customOverlayLayer, "Custom Map Overlay");
-
-  // Auto-fit viewport to the uploaded map bounds
+  if (typeof layerControl !== 'undefined' && layerControl) {
+    layerControl.addOverlay(customOverlayLayer, "Custom Map Overlay");
+  }
   mapInstance.fitBounds(bounds);
   alert('Custom map overlay loaded successfully!');
 }
 
 function removeCustomMapOverlay() {
   if (customOverlayLayer && mapInstance) {
-    layerControl.removeLayer(customOverlayLayer);
+    if (typeof layerControl !== 'undefined' && layerControl) {
+      layerControl.removeLayer(customOverlayLayer);
+    }
     mapInstance.removeLayer(customOverlayLayer);
     customOverlayLayer = null;
   }
+  if (currentOverlayUrl) {
+    URL.revokeObjectURL(currentOverlayUrl);
+    currentOverlayUrl = null;
+  }
 }
 
-function renderSpatialMapWith() {
-  if (!mapInstance || !mapDataGroup) return;
+function renderSpatialMapWith(targetRecords = (typeof records !== 'undefined' ? records : [])) {
+  if (typeof mapInstance === 'undefined' || !mapInstance || typeof mapDataGroup === 'undefined' || !mapDataGroup) return;
 
   mapDataGroup.clearLayers();
 
-  const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
+  const validPoints = targetRecords.filter(r => r && r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
 
   let minLat = parseFloat(document.getElementById('gfMinLat')?.value);
   let maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
@@ -1620,9 +1604,9 @@ function renderSpatialMapWith() {
   if (!isNaN(minLon) && !isNaN(maxLon) && minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
 
   let boundsArray = [];
-  const has = !isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLon) && !isNaN(maxLon);
+  const hasGeofence = !isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLon) && !isNaN(maxLon);
 
-  if (has) {
+  if (hasGeofence) {
     const southWest = [minLat, minLon];
     const northEast = [maxLat, maxLon];
 
@@ -1646,7 +1630,7 @@ function renderSpatialMapWith() {
     boundsArray.push([lat, lon]);
 
     let statusBadge = '';
-    if (has) {
+    if (hasGeofence) {
       const isInside = lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
       statusBadge = isInside 
         ? '<br><span style="color: #27ae60; font-weight: bold;">✔ Inside Block Boundary</span>' 
@@ -1657,7 +1641,7 @@ function renderSpatialMapWith() {
     const customIcon = L.divIcon({ className: 'custom-div-icon', html: markerHtml, iconSize: [24, 24], iconAnchor: [12, 12] });
 
     const popupContent = `
-      <b>Loc No:</b> ${escapeHTML(r.locNo || 'Station ' + (index+1))}<br>
+      <b>Loc No:</b> ${escapeHTML(r.locNo || 'Station ' + (index + 1))}<br>
       <b>Lat/Lon:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)}<br>
       <b>Structure:</b> ${escapeHTML(r.formatted || 'N/A')}<br>
       <b>Lithology:</b> ${escapeHTML(r.lith || 'N/A')}
@@ -1673,62 +1657,65 @@ function renderSpatialMapWith() {
     L.polyline(latLngs, { color: '#e74c3c', weight: 3, dashArray: '5, 5' }).addTo(mapDataGroup);
   }
 
-  if (boundsArray.length > 0 && !customOverlayLayer) {
+  if (boundsArray.length > 0 && typeof customOverlayLayer !== 'undefined' && !customOverlayLayer) {
     mapInstance.fitBounds(L.latLngBounds(boundsArray), { padding: [40, 40] });
   }
 }
 
 function closeSpatialMap() {
-  document.getElementById('mapModal').style.display = 'none';
+  const modal = document.getElementById('mapModal');
+  if (modal) modal.style.display = 'none';
 }
 
-// 1. Toggle visibility for a single record
 function toggleMapRecord(id, isChecked) {
+  if (typeof records === 'undefined') return;
   const rec = records.find(r => r.id === id);
   if (rec) {
     rec.showOnMap = isChecked;
-    persist();          // Save choice to localStorage
-    updateMapDisplay(); // Re-plot map markers
+    if (typeof persist === 'function') persist();
+    updateMapDisplay();
   }
 }
 
-// 2. Select / Deselect All records for current project
 function toggleSelectAllMap(isChecked) {
+  if (typeof records === 'undefined') return;
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
   records.forEach(r => {
-    if ((r.projectId || 'PROJ-001') === activeProjectId) {
+    if ((r.projectId || 'PROJ-001') === currentProj) {
       r.showOnMap = isChecked;
     }
   });
-  persist();
-  render(); // Re-render list checkboxes and update map
+  if (typeof persist === 'function') persist();
+  if (typeof render === 'function') render();
+  updateMapDisplay();
 }
 
-// 3. Filter records and pass only visible ones to your map function
 function updateMapDisplay() {
-  // Get only records belonging to active project that have coordinates and are checked for map
+  if (typeof records === 'undefined') return;
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
   const visibleMapRecords = records.filter(r => 
-    (r.projectId || 'PROJ-001') === activeProjectId && 
+    (r.projectId || 'PROJ-001') === currentProj && 
     r.lat && r.lon && 
     r.showOnMap !== false
   );
 
-  // Send filtered records to your existing map rendering function
-  if (typeof renderSpatialMapWith === 'function') {
-    renderSpatialMapWith(visibleMapRecords);
-  }
+  renderSpatialMapWith(visibleMapRecords);
 }
-  
+
 function handleLocModeChange() {
-  const mode = document.getElementById('locCountMode').value;
+  const modeEl = document.getElementById('locCountMode');
   const locNoInput = document.getElementById('locNo');
-  
+  if (!modeEl || !locNoInput) return;
+
+  const mode = modeEl.value;
+
   if (mode === 'manual') {
     if (confirm("Do you really want to manually enter the location number?")) {
       locNoInput.readOnly = false;
       locNoInput.focus();
       locNoInput.select();
     } else {
-      document.getElementById('locCountMode').value = 'continue';
+      modeEl.value = 'continue';
     }
   } else if (mode === 'reset') {
     if (confirm("Do you really want to reset the counter to 0?")) {
@@ -1736,20 +1723,20 @@ function handleLocModeChange() {
       localStorage.setItem('locationCounter', '0');
       updateLocationID();
     } else {
-      document.getElementById('locCountMode').value = 'continue';
+      modeEl.value = 'continue';
     }
   } else {
     locNoInput.readOnly = true;
-    
+
     if (typeof records !== 'undefined' && records.length > 0) {
       let latestRecord = records.reduce((latest, current) => {
         return (current.id > latest.id) ? current : latest;
       }, records[0]);
-      
+
       let lastLocStr = latestRecord.locNo ? String(latestRecord.locNo) : '';
       let matches = lastLocStr.match(/\d+$/);
       let lastNum = matches ? parseInt(matches[0], 10) : NaN;
-      
+
       let nextNum = isNaN(lastNum) ? 1 : lastNum + 1;
       localStorage.setItem('locationCounter', nextNum);
     } else {
@@ -1758,79 +1745,143 @@ function handleLocModeChange() {
     updateLocationID();
   }
 }
-  
-function updateLocationID(){
-    const mode = document.getElementById('locCountMode').value;
-    if (mode !== 'manual') {
-        const prefix = document.getElementById('locPrefix').value || 'JU';
-        const num = parseInt(localStorage.getItem('locationCounter') || '1', 10);
-        document.getElementById('locNo').value = prefix + '-' + String(num).padStart(3,'0');
-    }
+
+function updateLocationID() {
+  const modeEl = document.getElementById('locCountMode');
+  const locNoEl = document.getElementById('locNo');
+  if (!modeEl || !locNoEl) return;
+
+  if (modeEl.value !== 'manual') {
+    const prefix = document.getElementById('locPrefix')?.value || 'JU';
+    const num = parseInt(localStorage.getItem('locationCounter') || '1', 10);
+    locNoEl.value = prefix + '-' + String(num).padStart(3, '0');
+  }
 }
 
 function toggleSampleState() {
-  const isChecked = document.getElementById('takeSample').checked;
-  document.getElementById('sampleType').disabled = !isChecked;
-  document.getElementById('samplePrefix').disabled = !isChecked;
-  document.getElementById('sampleCounterBtn').disabled = !isChecked;
+  const takeSampleEl = document.getElementById('takeSample');
+  if (!takeSampleEl) return;
+
+  const isChecked = takeSampleEl.checked;
+  const sampleType = document.getElementById('sampleType');
+  const samplePrefix = document.getElementById('samplePrefix');
+  const sampleCounterBtn = document.getElementById('sampleCounterBtn');
+
+  if (sampleType) sampleType.disabled = !isChecked;
+  if (samplePrefix) samplePrefix.disabled = !isChecked;
+  if (sampleCounterBtn) sampleCounterBtn.disabled = !isChecked;
   updateSampleID();
 }
 
 function updateSampleID() {
-    const isChecked = document.getElementById('takeSample').checked;
-    if(document.getElementById('sample')) {
-        if (isChecked) {
-            const prefix = document.getElementById('samplePrefix').value || 'DD';
-            const num = parseInt(localStorage.getItem('sampleCounter') || '1', 10);
-            document.getElementById('sample').value = prefix + '-' + String(num).padStart(3,'0');
-        } else {
-            document.getElementById('sample').value = 'No Sample Collected';
-        }
-    }
+  const takeSampleEl = document.getElementById('takeSample');
+  const sampleInput = document.getElementById('sample');
+  if (!takeSampleEl || !sampleInput) return;
+
+  const isChecked = takeSampleEl.checked;
+  if (isChecked) {
+    const prefix = document.getElementById('samplePrefix')?.value || 'DD';
+    const num = parseInt(localStorage.getItem('sampleCounter') || '1', 10);
+    sampleInput.value = prefix + '-' + String(num).padStart(3, '0');
+  } else {
+    sampleInput.value = 'No Sample Collected';
+  }
 }
 
 function setSampleCounter() {
   const userInput = prompt("Enter the next starting sample number sequence (e.g., 2 for 002, 5 for 005):");
-  if (userInput === null) return; 
-  
+  if (userInput === null) return;
+
   const parsedNum = parseInt(userInput.replace(/^\D+/g, ''), 10);
   if (isNaN(parsedNum) || parsedNum < 0) {
     alert("Please enter a valid numeric value (0 or higher).");
     return;
   }
-  
+
   localStorage.setItem('sampleCounter', parsedNum);
   updateSampleID();
-  updatePreview();
+  if (typeof updatePreview === 'function') updatePreview();
   alert(`Sample tracking updated! The next saved entry will use sequence number: ${parsedNum}`);
 }
 
-document.getElementById('samplePrefix').addEventListener('input', function(){
-   this.value = this.value.toUpperCase(); updateSampleID();
-});
-document.getElementById('locPrefix').addEventListener('input', function(){
-   this.value = this.value.toUpperCase(); updateLocationID();
-});
+function renderSpatialMapWithGeofence(e) {
+  if (e && e.preventDefault) e.preventDefault();
 
-if (typeof records !== 'undefined' && records.length > 0) {
-  let latestRecord = records.reduce((latest, current) => {
-    return (current.id > latest.id) ? current : latest;
-  }, records[0]);
-  
-  let lastLocStr = latestRecord.locNo ? String(latestRecord.locNo) : '';
-  let matches = lastLocStr.match(/\d+$/);
-  let lastNum = matches ? parseInt(matches[0], 10) : NaN;
-  
-  localStorage.setItem('locationCounter', isNaN(lastNum) ? 1 : lastNum + 1);
+  if (typeof mapInstance === 'undefined' || !mapInstance) {
+    alert("Map instance not found. Please open the spatial map modal first.");
+    return;
+  }
+
+  const minLat = parseFloat(document.getElementById('gfMinLat')?.value);
+  const maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
+  const minLon = parseFloat(document.getElementById('gfMinLon')?.value);
+  const maxLon = parseFloat(document.getElementById('gfMaxLon')?.value);
+
+  if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
+    alert("Please enter valid numeric values for all 4 coordinates.");
+    return;
+  }
+
+  if (minLat >= maxLat || minLon >= maxLon) {
+    alert("Min Lat/Lon must be strictly smaller than Max Lat/Lon!");
+    return;
+  }
+
+  updateMapDisplay();
 }
 
-render();
-updatePreview();
-toggleSampleState();
-updateLocationID();
+document.addEventListener('DOMContentLoaded', () => {
+  const dateEl = document.getElementById('date');
+  if (dateEl && !dateEl.value) {
+    dateEl.valueAsDate = new Date();
+  }
 
-window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(getGPS, 800); 
+  if (typeof ids !== 'undefined' && Array.isArray(ids)) {
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && typeof updatePreview === 'function') {
+        el.addEventListener('input', updatePreview);
+      }
+    });
+  }
+
+  const samplePrefixEl = document.getElementById('samplePrefix');
+  if (samplePrefixEl) {
+    samplePrefixEl.addEventListener('input', function () {
+      this.value = this.value.toUpperCase();
+      updateSampleID();
+    });
+  }
+
+  const locPrefixEl = document.getElementById('locPrefix');
+  if (locPrefixEl) {
+    locPrefixEl.addEventListener('input', function () {
+      this.value = this.value.toUpperCase();
+      updateLocationID();
+    });
+  }
+
+  if (typeof records !== 'undefined' && records.length > 0) {
+    let latestRecord = records.reduce((latest, current) => {
+      return (current.id > latest.id) ? current : latest;
+    }, records[0]);
+
+    let lastLocStr = latestRecord.locNo ? String(latestRecord.locNo) : '';
+    let matches = lastLocStr.match(/\d+$/);
+    let lastNum = matches ? parseInt(matches[0], 10) : NaN;
+
+    localStorage.setItem('locationCounter', isNaN(lastNum) ? 1 : lastNum + 1);
+  }
+
+  if (typeof renderProjectDropdown === 'function') renderProjectDropdown();
+  if (typeof render === 'function') render();
+  if (typeof updatePreview === 'function') updatePreview();
+  toggleSampleState();
+  updateLocationID();
+
+  if (typeof getGPS === 'function') {
+    setTimeout(getGPS, 800);
+  }
 });
 
 if ('serviceWorker' in navigator) {
@@ -1852,34 +1903,6 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.error('Service Worker registration failed:', err));
   });
 }
-
-// Dedicated Geofence Apply Trigger
-  function renderSpatialMapWithGeofence(e) {
-    if (e && e.preventDefault) e.preventDefault();
-
-    if (!mapInstance) {
-      alert("Map instance not found. Please open the spatial map modal first.");
-      return;
-    }
-
-    const minLat = parseFloat(document.getElementById('gfMinLat')?.value);
-    const maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
-    const minLon = parseFloat(document.getElementById('gfMinLon')?.value);
-    const maxLon = parseFloat(document.getElementById('gfMaxLon')?.value);
-
-    if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
-      alert("Please enter valid numeric values for all 4 coordinates.");
-      return;
-    }
-
-    if (minLat >= maxLat || minLon >= maxLon) {
-      alert("Min Lat/Lon must be strictly smaller than Max Lat/Lon!");
-      return;
-    }
-
-    // Re-render map layers with active geofence bounding box
-    renderSpatialMapWith();
-  }
 </script>
 <!-- MAP MODAL CONTAINER -->
 <div id="mapModal">
