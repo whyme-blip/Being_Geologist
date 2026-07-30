@@ -621,8 +621,9 @@
   </div>
   
 <script>
-// Global State for Active Project
+// Global State - Top of script
 let activeProjectId = localStorage.getItem('activeProjectId') || 'PROJ-001';
+let projects = JSON.parse(localStorage.getItem('geoProjects')) || ['PROJ-001'];
 
 // 1. Initialize project list on page load
 function initProjects() {
@@ -644,24 +645,37 @@ function renderProjectDropdown() {
     `<option value="${p}" ${p === activeProjectId ? 'selected' : ''}>${p}</option>`
   ).join('');
 }
-
-// 3. Create a new Project ID
-function createNewProject() {
-  const newId = prompt("Enter New Project ID (e.g., PROJ-2026-01, JAUNSAR-BLOCK-A):");
-  if (newId && newId.trim()) {
-    const cleanId = newId.trim().toUpperCase();
-    let projects = JSON.parse(localStorage.getItem('projectList') || '[]');
-    
-    if (!projects.includes(cleanId)) {
-      projects.push(cleanId);
-      localStorage.setItem('projectList', JSON.stringify(projects));
-    }
-    
-    activeProjectId = cleanId;
-    localStorage.setItem('activeProjectId', activeProjectId);
-    renderProjectDropdown();
-    render(); // Re-render table and map for the new project (starts empty)
+// Call this whenever you create or switch projects
+function setActiveProject(newProjectId) {
+  activeProjectId = newProjectId;
+  localStorage.setItem('activeProjectId', activeProjectId);
+  
+  if (!projects.includes(activeProjectId)) {
+    projects.push(activeProjectId);
+    localStorage.setItem('geoProjects', JSON.stringify(projects));
   }
+  
+  updateProjectDropdown();
+  render();
+}
+
+// Function to handle "Add New Project" button click
+function createNewProject() {
+  const projName = prompt('Enter New Project ID / Name (e.g., PROJ-002):');
+  if (!projName || !projName.trim()) return;
+
+  const sanitizedId = projName.trim().toUpperCase().replace(/\s+/g, '-');
+  setActiveProject(sanitizedId);
+}
+
+// Populate / update project selection dropdowns
+function updateProjectDropdown() {
+  const selectEl = document.getElementById('projectSelect'); // update ID to match your HTML select element
+  if (!selectEl) return;
+
+  selectEl.innerHTML = projects
+    .map(p => `<option value="${p}" ${p === activeProjectId ? 'selected' : ''}>${p}</option>`)
+    .join('');
 }
 
 // 4. Switch active project
@@ -952,47 +966,60 @@ function clearForm(resetDate=true){
 function persist(){localStorage.setItem('field_geo_records',JSON.stringify(records))}
 
 function render() {
-  // Filter records belonging ONLY to the active project 
-  // (falls back to 'PROJ-001' for older legacy records without a projectId)
-  const projectRecords = records.filter(r => (r.projectId || 'PROJ-001') === activeProjectId);
+  const currentProj = typeof activeProjectId !== 'undefined' ? activeProjectId : 'PROJ-001';
+  
+  // Filter active project records
+  const projectRecords = records.filter(r => (r.projectId || 'PROJ-001') === currentProj);
 
-  // Update count for the ACTIVE project only
-  document.getElementById('count').textContent = projectRecords.length;
+  // 1. Total Record Count
+  const countEl = document.getElementById('count');
+  if (countEl) countEl.textContent = projectRecords.length;
 
-  // Sync master "Show All on Map" checkbox state
+  // 2. Unique Location Count (Auto-calculated)
+  const locCountEl = document.getElementById('locCount');
+  if (locCountEl) {
+    const uniqueLocations = new Set(projectRecords.map(r => r.locNo).filter(Boolean));
+    locCountEl.textContent = uniqueLocations.size;
+  }
+
+  // 3. Sample Count (Auto-calculated)
+  const sampleCountEl = document.getElementById('sampleCount');
+  if (sampleCountEl) {
+    const sampleRecords = projectRecords.filter(r => r.sample && r.sample !== 'None' && r.sample.trim() !== '');
+    sampleCountEl.textContent = sampleRecords.length;
+  }
+
+  // 4. Sync master "Select All" checkbox safely
   const masterCheck = document.getElementById('selectAllMap');
   if (masterCheck && projectRecords.length > 0) {
     masterCheck.checked = projectRecords.every(r => r.showOnMap !== false);
   }
 
-  // Render active project entries
-  document.getElementById('list').innerHTML = projectRecords.map((r, i) => `
-    <div class="entry">
-      <!-- Header row with formatted string and map toggle -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-        <div class="fmt-output" style="margin-bottom: 0;">${escapeHTML(r.formatted)}</div>
-        <label style="font-size: 12px; font-weight: bold; cursor: pointer; background: #eef2f5; padding: 3px 8px; border-radius: 4px; display: flex; align-items: center; gap: 5px; border: 1px solid #dcdfe6;">
-          <input type="checkbox" onchange="toggleMapRecord(${r.id}, this.checked)" ${r.showOnMap !== false ? 'checked' : ''}>
-          📍 Map
-        </label>
+  // 5. Render active project entries safely
+  const listEl = document.getElementById('list');
+  if (listEl) {
+    listEl.innerHTML = projectRecords.map((r) => `
+      <div class="entry">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div class="fmt-output" style="margin-bottom: 0;">${escapeHTML(r.formatted || '')}</div>
+          <label style="font-size: 12px; font-weight: bold; cursor: pointer; background: #eef2f5; padding: 3px 8px; border-radius: 4px; display: flex; align-items: center; gap: 5px; border: 1px solid #dcdfe6;">
+            <input type="checkbox" onchange="toggleMapRecord(${r.id}, this.checked)" ${r.showOnMap !== false ? 'checked' : ''}>
+            📍 Map
+          </label>
+        </div>
+        <div style="font-size: 13px;">Loc: <b>${escapeHTML(r.locNo || '')}</b> (${escapeHTML(r.loc || 'No Desc')}) ${r.unit ? ' | ' + escapeHTML(r.unit) : ''} ${r.lith ? ' | ' + escapeHTML(r.lith) : ''}</div>
+        <div class="meta-text">${r.date || ''} | Lat ${r.lat || '-'}, Long ${r.lon || '-'} | Photo ${r.photo || '-'} | Sample ${r.sample || 'None'}</div>
+        ${r.remarks ? `<div style="font-style:italic; color:#566573; margin-top:6px; font-size:13px; background:#f2f4f4; padding:6px; border-radius:6px;">${escapeHTML(r.remarks)}</div>` : ''}
+        <button class="btn-danger" onclick="del(${r.id})" style="width:auto; padding:4px 10px; font-size:11px; margin-top:8px; border-radius:6px;">Delete Record</button>
       </div>
+    `).join('');
+  }
 
-      <div style="font-size: 13px;">Loc: <b>${escapeHTML(r.locNo)}</b> (${escapeHTML(r.loc || 'No Desc')}) ${r.unit ? ' | ' + escapeHTML(r.unit) : ''} ${r.lith ? ' | ' + escapeHTML(r.lith) : ''}</div>
-      <div class="meta-text">${r.date} | Lat ${r.lat || '-'}, Long ${r.lon || '-'} | Photo ${r.photo || '-'} | Sample ${r.sample || 'None'}</div>
-      ${r.remarks ? `<div style="font-style:italic; color:#566573; margin-top:6px; font-size:13px; background:#f2f4f4; padding:6px; border-radius:6px;">${escapeHTML(r.remarks)}</div>` : ''}
-      <button class="btn-danger" onclick="del(${r.id})" style="width:auto; padding:4px 10px; font-size:11px; margin-top:8px; border-radius:6px;">Delete Record</button>
-    </div>
-  `).join('');
-
-  // Refresh map pins every time list renders
+  // 6. Refresh map pins safely (won't throw error if map function doesn't exist yet)
   if (typeof updateMapDisplay === 'function') {
     updateMapDisplay();
   }
 }
-  
-// Active project state
-let activeProjectId = localStorage.getItem('activeProjectId') || 'PROJ-001';
-
 // Initialize projects on page load
 function initProjects() {
   let projects = JSON.parse(localStorage.getItem('projectList') || '["PROJ-001"]');
