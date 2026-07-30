@@ -1677,7 +1677,184 @@ function toggleMapRecord(id, isChecked) {
   }
 }
 
-function toggleSelectAllMap(isChecked) {
+// ==========================================
+// PART 2: DYNAMIC SVG SYMBOLS, MAP & FIELD HELPERS
+// ==========================================
+
+// ------------------------------------------
+// 1. DYNAMIC SVG MARKER GENERATORS
+// ------------------------------------------
+
+/**
+ * Generates an SVG strike & dip symbol rotated according to strike angle.
+ * Dip tick points 90° clockwise in the dip direction.
+ */
+function getPlanarSvgIcon(strike, dip, type) {
+  const strikeDeg = parseFloat(strike) || 0;
+  const dipVal = dip !== undefined && dip !== '' ? dip : '';
+  const structType = type || 'Bedding';
+  
+  // Color coding by structure type
+  let strokeColor = '#2c3e50'; // Default dark slate
+  if (structType.includes('Foliation') || structType.includes('S1') || structType.includes('S2')) {
+    strokeColor = '#e67e22'; // Orange
+  } else if (structType.includes('Joint')) {
+    strokeColor = '#27ae60'; // Green
+  } else if (structType.includes('Fault') || structType.includes('Shear')) {
+    strokeColor = '#c0392b'; // Red
+  } else if (structType.includes('Bedding') || structType.includes('S0')) {
+    strokeColor = '#2980b9'; // Blue
+  }
+
+  // 40x40 SVG container with center pivot at (20,20)
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+      <g transform="rotate(${strikeDeg}, 20, 20)">
+        <!-- Strike Line -->
+        <line x1="6" y1="20" x2="34" y2="20" stroke="${strokeColor}" stroke-width="3" stroke-linecap="round" />
+        <!-- Dip Tick Mark (90° clockwise to right) -->
+        <line x1="20" y1="20" x2="20" y2="28" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" />
+        <!-- Station Pivot Point -->
+        <circle cx="20" cy="20" r="2" fill="${strokeColor}" />
+      </g>
+      <!-- Dip Angle Numerical Label -->
+      <text x="24" y="14" font-size="11" font-weight="bold" fill="${strokeColor}" font-family="monospace">${dipVal}</text>
+    </svg>
+  `;
+
+  return L.divIcon({
+    html: svg,
+    className: 'geo-svg-marker',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -10]
+  });
+}
+
+/**
+ * Generates an SVG arrow symbol for linear features (Lineations, Fold Axes) 
+ * rotated according to trend azimuth.
+ */
+function getLinearSvgIcon(trend, plunge, type) {
+  const trendDeg = parseFloat(trend) || 0;
+  const plungeVal = plunge !== undefined && plunge !== '' ? plunge : '';
+  const strokeColor = '#8e44ad'; // Purple for linear features
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+      <g transform="rotate(${trendDeg}, 20, 20)">
+        <!-- Lineation Trend Vector -->
+        <line x1="20" y1="32" x2="20" y2="8" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" />
+        <!-- Arrowhead -->
+        <path d="M 15 14 L 20 6 L 25 14" fill="none" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Pivot Point -->
+        <circle cx="20" cy="20" r="2" fill="${strokeColor}" />
+      </g>
+      <!-- Plunge Angle Label -->
+      <text x="24" y="34" font-size="11" font-weight="bold" fill="${strokeColor}" font-family="monospace">${plungeVal}°</text>
+    </svg>
+  `;
+
+  return L.divIcon({
+    html: svg,
+    className: 'geo-svg-marker',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -10]
+  });
+}
+
+// ------------------------------------------
+// 2. MAIN MAP DISPLAY & TOGGLE HELPERS
+// ------------------------------------------
+
+function updateMapDisplay() {
+  if (typeof records === 'undefined') return;
+
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
+  const visibleMapRecords = records.filter(r => 
+    (r.projectId || 'PROJ-001') === currentProj && 
+    r.showOnMap !== false &&
+    r.lat && r.lon && 
+    !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
+  );
+
+  // If external map renderer function exists, invoke it as primary
+  if (typeof renderSpatialMapWith === 'function') {
+    renderSpatialMapWith(visibleMapRecords);
+  }
+
+  // Direct Leaflet Layer Rendering
+  if (typeof mapInstance === 'undefined' || !mapInstance || typeof mapDataGroup === 'undefined' || !mapDataGroup) {
+    return;
+  }
+
+  mapDataGroup.clearLayers();
+  if (visibleMapRecords.length === 0) return;
+
+  const routeCoordinates = [];
+
+  visibleMapRecords.forEach((r) => {
+    const lat = parseFloat(r.lat);
+    const lon = parseFloat(r.lon);
+    const latlng = [lat, lon];
+    routeCoordinates.push(latlng);
+
+    let markerIcon;
+    const checkLinear = (typeof isLinear === 'function') ? isLinear(r.type) : false;
+
+    if (checkLinear || (r.trend && r.plunge && !r.strike)) {
+      markerIcon = getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType);
+    } else {
+      markerIcon = getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding');
+    }
+
+    const marker = L.marker(latlng, { icon: markerIcon });
+    const safeEscape = (typeof escapeHTML === 'function') ? escapeHTML : (s => s || '');
+
+    const popupHtml = `
+      <div style="font-family: system-ui, -apple-system, sans-serif; font-size: 13px; line-height: 1.4; max-width: 240px;">
+        <div style="font-weight: bold; font-size: 14px; color: #2c3e50; border-bottom: 1px solid #dcdfe6; padding-bottom: 4px; margin-bottom: 6px;">
+          📍 Station: ${safeEscape(r.locNo || 'N/A')}
+        </div>
+        <div style="margin-bottom: 4px;"><b>Attitude:</b> ${safeEscape(r.formatted || r.type || 'N/A')}</div>
+        ${r.unit ? `<div style="margin-bottom: 4px;"><b>Formation/Unit:</b> ${safeEscape(r.unit)}</div>` : ''}
+        ${r.lith ? `<div style="margin-bottom: 4px;"><b>Lithology:</b> ${safeEscape(r.lith)}</div>` : ''}
+        ${r.sample ? `<div style="margin-bottom: 4px;"><b>Sample ID:</b> <span style="background: #e1f5fe; color: #0288d1; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${safeEscape(r.sample)}</span></div>` : ''}
+        ${r.remarks ? `<div style="margin-top: 6px; font-style: italic; background: #f8f9fa; padding: 6px; border-radius: 4px; font-size: 12px; border: 1px solid #e9ecef;">${safeEscape(r.remarks)}</div>` : ''}
+        <div style="margin-top: 8px; font-size: 11px; color: #7f8c8d; border-top: 1px dashed #eee; padding-top: 4px;">
+          Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)} ${r.alt ? '| Alt: ' + safeEscape(r.alt) + 'm' : ''}
+        </div>
+      </div>
+    `;
+
+    marker.bindPopup(popupHtml);
+    mapDataGroup.addLayer(marker);
+  });
+
+  // Draw dashed line connecting stations in sequential field-traversal order
+  if (routeCoordinates.length > 1) {
+    const routeLine = L.polyline(routeCoordinates, {
+      color: '#e74c3c',
+      weight: 2,
+      dashArray: '5, 7',
+      opacity: 0.65
+    });
+    mapDataGroup.addLayer(routeLine);
+  }
+}
+
+function toggleMapRecord(id, isChecked) {
+  if (typeof records === 'undefined') return;
+  const record = records.find(r => r.id === id);
+  if (record) {
+    record.showOnMap = isChecked;
+    if (typeof persist === 'function') persist();
+    updateMapDisplay();
+  }
+}
+
+function toggleAllMapRecords(isChecked) {
   if (typeof records === 'undefined') return;
   const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
   records.forEach(r => {
@@ -1690,17 +1867,40 @@ function toggleSelectAllMap(isChecked) {
   updateMapDisplay();
 }
 
-function updateMapDisplay() {
-  if (typeof records === 'undefined') return;
-  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
-  const visibleMapRecords = records.filter(r => 
-    (r.projectId || 'PROJ-001') === currentProj && 
-    r.lat && r.lon && 
-    r.showOnMap !== false
-  );
-
-  renderSpatialMapWith(visibleMapRecords);
+// Alias for HTML triggers pointing to toggleSelectAllMap
+function toggleSelectAllMap(isChecked) {
+  toggleAllMapRecords(isChecked);
 }
+
+function renderSpatialMapWithGeofence(e) {
+  if (e && e.preventDefault) e.preventDefault();
+
+  if (typeof mapInstance === 'undefined' || !mapInstance) {
+    alert("Map instance not found. Please open the spatial map modal first.");
+    return;
+  }
+
+  const minLat = parseFloat(document.getElementById('gfMinLat')?.value);
+  const maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
+  const minLon = parseFloat(document.getElementById('gfMinLon')?.value);
+  const maxLon = parseFloat(document.getElementById('gfMaxLon')?.value);
+
+  if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
+    alert("Please enter valid numeric values for all 4 coordinates.");
+    return;
+  }
+
+  if (minLat >= maxLat || minLon >= maxLon) {
+    alert("Min Lat/Lon must be strictly smaller than Max Lat/Lon!");
+    return;
+  }
+
+  updateMapDisplay();
+}
+
+// ------------------------------------------
+// 3. LOCATION & SAMPLE COUNTER UTILITIES
+// ------------------------------------------
 
 function handleLocModeChange() {
   const modeEl = document.getElementById('locCountMode');
@@ -1804,31 +2004,9 @@ function setSampleCounter() {
   alert(`Sample tracking updated! The next saved entry will use sequence number: ${parsedNum}`);
 }
 
-function renderSpatialMapWithGeofence(e) {
-  if (e && e.preventDefault) e.preventDefault();
-
-  if (typeof mapInstance === 'undefined' || !mapInstance) {
-    alert("Map instance not found. Please open the spatial map modal first.");
-    return;
-  }
-
-  const minLat = parseFloat(document.getElementById('gfMinLat')?.value);
-  const maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
-  const minLon = parseFloat(document.getElementById('gfMinLon')?.value);
-  const maxLon = parseFloat(document.getElementById('gfMaxLon')?.value);
-
-  if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
-    alert("Please enter valid numeric values for all 4 coordinates.");
-    return;
-  }
-
-  if (minLat >= maxLat || minLon >= maxLon) {
-    alert("Min Lat/Lon must be strictly smaller than Max Lat/Lon!");
-    return;
-  }
-
-  updateMapDisplay();
-}
+// ------------------------------------------
+// 4. EVENT LISTENERS & SERVICE WORKER
+// ------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
   const dateEl = document.getElementById('date');
