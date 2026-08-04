@@ -138,7 +138,7 @@ function calculateWeightedAverage(samples) {
 // ==========================================
 
 /**
- * Adds the Vector/Dot toggle checkbox directly into the top-right map controls overlay
+ * Adds the Station Display Dropdown Control to top-right map overlay
  */
 function initVectorToggleControl(mapInstance) {
   if (!mapInstance || mapInstance._vectorControlAdded) return;
@@ -149,12 +149,18 @@ function initVectorToggleControl(mapInstance) {
       const container = L.DomUtil.create('div', 'leaflet-control-layers leaflet-control');
       container.style.padding = '8px 10px';
       container.style.marginTop = '6px';
+      container.style.background = '#ffffff';
+      container.style.borderRadius = '4px';
 
       container.innerHTML = `
-        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; font-weight:600; color:#333; margin:0;">
-          <input type="checkbox" id="showVectors" checked onchange="updateMapDisplay()" style="cursor:pointer;">
-          Structural Vectors (Strike/Dip)
-        </label>
+        <div style="display:flex; flex-direction:column; gap:4px; font-family:system-ui, -apple-system, sans-serif; font-size:12px; font-weight:600; color:#333;">
+          <label for="displayModeSelect" style="margin:0;">Station Display:</label>
+          <select id="displayModeSelect" onchange="updateMapDisplay()" style="cursor:pointer; padding:3px 6px; border-radius:4px; border:1px solid #ccc; font-size:12px; outline:none;">
+            <option value="vector" selected>Vector Icons + Dip/Plunge</option>
+            <option value="dot">Medium Station Dots</option>
+            <option value="both">Both (Dots + Vectors)</option>
+          </select>
+        </div>
       `;
 
       L.DomEvent.disableClickPropagation(container);
@@ -167,26 +173,85 @@ function initVectorToggleControl(mapInstance) {
 }
 
 /**
- * Color mapping for structural measurement dots when vectors are toggled off
+ * Assigns strict color codes based on structural feature generation
  */
 function getStructureColor(type) {
-  const structType = type || '';
-  if (structType.includes('Foliation') || structType.includes('S1') || structType.includes('S2')) {
-    return '#e67e22'; // Orange
-  } else if (structType.includes('Joint')) {
-    return '#27ae60'; // Green
-  } else if (structType.includes('Fault') || structType.includes('Shear')) {
-    return '#c0392b'; // Red
-  } else if (structType.includes('Bedding') || structType.includes('S0')) {
-    return '#2980b9'; // Blue
-  } else if (structType.includes('Lineation') || structType.includes('Fold')) {
-    return '#8e44ad'; // Purple
-  }
-  return '#2c3e50'; // Slate default
+  const code = (type || '').toString().trim().toUpperCase();
+
+  // Red for S1 / L1
+  if (code.includes('S1') || code.includes('L1')) {
+    return '#FF0000';
+  } 
+  // Green for S2 / L2
+  else if (code.includes('S2') || code.includes('L2')) {
+    return '#008000';
+  } 
+  // Blue for S3 / L3
+  else if (code.includes('S3') || code.includes('L3')) {
+    return '#0000FF';
+  } 
+
+  // Black default for all other planar, linear, cleavage, or foliation features
+  return '#000000';
 }
 
 /**
- * Main map renderer: renders either vector symbols or circle dots based on checkbox status
+ * Checks if a feature type represents a linear measurement (Lineation / Fold axis)
+ */
+function isLinearFeature(type) {
+  const t = (type || '').toString().toUpperCase();
+  return t.startsWith('L') || t.includes('LINEATION') || t.includes('FOLD');
+}
+
+/**
+ * Constructs a rotated SVG icon with horizontal numerical dip/plunge label
+ */
+function getStructuralSvgIcon(record) {
+  const type = record.type || record.linType || 'Bedding';
+  const color = getStructureColor(type);
+  const isLinear = isLinearFeature(type);
+
+  // Rotation and angle values
+  const rotation = isLinear ? (record.trend || record.linTrend || 0) : (record.strike || 0);
+  const angleValue = isLinear ? (record.plunge ?? record.linPlunge) : (record.dip);
+  const labelText = (angleValue !== undefined && angleValue !== null && angleValue !== '') ? `${angleValue}°` : '';
+
+  // SVG Symbol Paths: Arrow for Linear, Strike Line + Dip Tick for Planar
+  const svgPath = isLinear
+    ? `<path d="M12 20 L12 4 M7 9 L12 4 L17 9" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
+    : `<path d="M3 12 L21 12 M12 12 L12 19" stroke="${color}" stroke-width="2.5" stroke-linecap="round" fill="none"/>`;
+
+  const html = `
+    <div style="display: flex; align-items: center; width: 52px; height: 24px; position: relative;">
+      <!-- Rotated Symbol -->
+      <svg width="24" height="24" viewBox="0 0 24 24" style="transform: rotate(${rotation}deg); transform-origin: 12px 12px; flex-shrink: 0;">
+        ${svgPath}
+      </svg>
+      <!-- Horizontal Dip/Plunge Numerical Label -->
+      <span style="
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        font-weight: bold;
+        color: ${color};
+        margin-left: 2px;
+        text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
+        pointer-events: none;
+        user-select: none;
+        white-space: nowrap;
+      ">${labelText}</span>
+    </div>
+  `;
+
+  return L.divIcon({
+    className: 'structural-labeled-icon',
+    html: html,
+    iconSize: [52, 24],
+    iconAnchor: [12, 12]
+  });
+}
+
+/**
+ * Main map renderer: supports Vector, Station Dot, and Combined Display Modes
  */
 function updateMapDisplay() {
   if (!map || !mapDataGroup) return;
@@ -205,8 +270,8 @@ function updateMapDisplay() {
 
   if (visibleRecords.length === 0) return;
 
-  const vectorToggleEl = document.getElementById('showVectors');
-  const showVectors = vectorToggleEl ? vectorToggleEl.checked : true;
+  const displaySelectEl = document.getElementById('displayModeSelect');
+  const displayMode = displaySelectEl ? displaySelectEl.value : 'vector'; // Options: 'vector', 'dot', 'both'
 
   const routeCoordinates = [];
 
@@ -216,40 +281,35 @@ function updateMapDisplay() {
     const latlng = [lat, lon];
     routeCoordinates.push(latlng);
 
+    const color = getStructureColor(r.type);
     let marker;
 
-    if (showVectors) {
-      // 1. Draw SVG Structural Vector Symbols
-      let markerIcon;
-      const checkLinear = (typeof isLinear === 'function') ? isLinear(r.type) : false;
-
-      if (checkLinear || (r.trend && r.plunge && !r.strike)) {
-        markerIcon = (typeof getLinearSvgIcon === 'function') 
-          ? getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType)
-          : null;
-      } else {
-        markerIcon = (typeof getPlanarSvgIcon === 'function')
-          ? getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding')
-          : null;
-      }
-
-      if (markerIcon) {
-        marker = L.marker(latlng, { icon: markerIcon });
-      } else {
-        // Standard fallback marker if SVG helpers aren't loaded
-        marker = L.marker(latlng);
-      }
-    } else {
-      // 2. Draw Simple Color-Coded Dots
-      const dotColor = getStructureColor(r.type);
+    // Mode 1: Medium Station Dots
+    if (displayMode === 'dot') {
       marker = L.circleMarker(latlng, {
         radius: 6,
-        fillColor: dotColor,
+        fillColor: color,
         color: '#ffffff',
         weight: 1.5,
         opacity: 1,
         fillOpacity: 0.9
       });
+    } 
+    // Mode 2: Vector Structural Icons with Numerical Angle Labels
+    else if (displayMode === 'vector') {
+      marker = L.marker(latlng, { icon: getStructuralSvgIcon(r) });
+    } 
+    // Mode 3: Both (Station Dots with Vector Icons overlay)
+    else if (displayMode === 'both') {
+      const dotMarker = L.circleMarker(latlng, {
+        radius: 5,
+        fillColor: color,
+        color: '#ffffff',
+        weight: 1,
+        fillOpacity: 1
+      });
+      const vectorMarker = L.marker(latlng, { icon: getStructuralSvgIcon(r) });
+      marker = L.layerGroup([dotMarker, vectorMarker]);
     }
 
     const safeEscape = (typeof escapeHTML === 'function') ? escapeHTML : (s => s || '');
