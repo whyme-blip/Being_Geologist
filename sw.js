@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geologger-app-v2'; // <--- Updated to v2 to trigger Android cache update
+const CACHE_NAME = 'geologger-app-v3'; // Bumped to v3 to trigger immediate cache update for app.js
 const TILE_CACHE_NAME = 'geologger-osm-tiles-v1';
 
 // Static assets required for the app to function offline
@@ -6,11 +6,11 @@ const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './app.js',                                                       // Application logic & HighPrecisionGPS engine
-  './icon-192.png',                                                // App home screen icon (192px)
-  './icon-512.png',                                                // App home screen icon (512px)
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',             // Map styling
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',              // Map engine
+  './app.js',                                         // Application logic & HighPrecisionGPS engine
+  './icon-192.png',                                  // App home screen icon (192px)
+  './icon-512.png',                                  // App home screen icon (512px)
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', // Map styling
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',  // Map engine
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',   // Default map pin icon
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'  // Map pin shadow
 ];
@@ -26,7 +26,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting(); // Forces active status immediately on install
 });
 
-// Activate Event: Clean up outdated caches (v1 cache will be automatically deleted)
+// Activate Event: Clean up outdated caches (v2 and older caches will be automatically deleted)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {

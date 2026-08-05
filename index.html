@@ -55,7 +55,8 @@
     text-align: center;
   }
 /* Fix Leaflet DivIcon default square artifact */
-.custom-div-icon {
+.custom-div-icon,
+.structural-labeled-icon {
   background: transparent !important;
   border: none !important;
 }
@@ -297,10 +298,23 @@
 </header>
 
 <div class="wrap">
-  <div class="card">
-    <!-- SECTION 1: SPATIAL CONTEXT -->
-    <div class="section-title">📍 1. Spatial Context & Location</div>
-    <div class="grid-layout">
+  <!-- PROJECT SELECTION HEADER -->
+<div class="card" style="margin-bottom: 15px; padding: 12px; background: #eef2f5; border-left: 5px solid var(--primary);">
+  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+    <label for="projectIdSelect" style="font-weight: bold; min-width: 120px;">📁 Project ID:</label>
+    <select id="projectIdSelect" onchange="switchProject()" style="flex: 1; min-width: 160px; padding: 6px; font-weight: bold;">
+      <!-- Options populated dynamically -->
+    </select>
+    <button type="button" onclick="createNewProject()" class="btn-ok" style="padding: 6px 14px; width: auto; margin: 0;">
+      + New Project
+    </button>
+  </div>
+</div>
+  <!-- SECTION 1: SPATIAL CONTEXT & LOCATION -->
+  <details class="section-card" open>
+    <summary class="section-title">📍 1. Spatial Context & Location</summary>
+    <div class="section-content">
+      <div class="grid-layout">
       <div class="form-group"><label>Date</label><input id="date" type="date"></div>
       <div class="form-group">
         <label>Location ID Tracker</label>
@@ -334,9 +348,13 @@
       </div>
       <div class="form-group"><label>Unit / Formation</label><input id="unit" placeholder="Deoban/Jaunsar/Jutogh"></div>
     </div>
+  </div>
+</details>
 
     <!-- SECTION 2: GEOLOGICAL DATA -->
-    <div class="section-title">⚒️ 2. Lithology & Structural Measurements</div>
+    <details class="section-card" open>
+    <summary class="section-title">⚒️ 2. Lithology & Structural Measurements</summary>
+    <div class="section-content">
     <div class="grid-layout">
       <div class="form-group"><label>Lithology</label><input id="lith" placeholder="Quartzite / phyllite / dolomite"></div>
       <div class="form-group"><label>Mineralization</label><input id="mineralization" placeholder="Pyrite, Chalcopyrite"></div>
@@ -476,20 +494,26 @@
     </div>
   </div>
 
-  <div class="compact-row" style="margin-top: 10px;">
-    <div class="form-group">
-      <label>Calculated Trend (°)</label>
-      <input id="linTrend" readonly placeholder="Auto" style="font-weight: bold; color: var(--accent);">
+   <div class="compact-row" style="margin-top: 10px;">
+     <div class="form-group">
+       <label>Calculated Trend (°)</label>
+       <input id="linTrend" readonly placeholder="Auto" style="font-weight: bold; color: var(--accent);">
+     </div>
+     <div class="form-group">
+            <label>Calculated Plunge (°)</label>
+            <input id="linPlunge" readonly placeholder="Auto" style="font-weight: bold; color: var(--accent);">
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="form-group">
-      <label>Calculated Plunge (°)</label>
-      <input id="linPlunge" readonly placeholder="Auto" style="font-weight: bold; color: var(--accent);">
-    </div>
-  </div>
-</div>
+  </details>  
 
-    <!-- SECTION 3: MEDIA AND SAMPLES -->
-    <div class="section-title">📦 3. Media & Sample Management</div>
+   <!-- SECTION 3: MEDIA AND SAMPLES -->
+<details class="section-card" open>
+  <summary class="section-title">📦 3. Media & Sample Management</summary>
+  <div class="section-content">
+    
+    <!-- Photo & Sample Grid -->
     <div class="grid-layout">
       <div class="form-group">
         <label>Photo Attachment Reference</label>
@@ -506,30 +530,30 @@
           <strong>Collect Sample?</strong>
         </label>
         <select id="sampleType" disabled>
-  <optgroup label="Exploration">
-    <option>Bed Rock Sample</option>
-    <option>Petrochemical Sample</option>
-    <option>Petrological Sample</option>
-    <option>Chip Sample</option>
-    <option>Channel Sample</option>
-    <option>Pit Sample</option>
-    <option>Trench Sample</option>
-    <option>Stream Sediment Sample</option>
-    <option>Heavy Mineral Concentrate (HMC)</option>
-    <option>Bulk Sample</option>
-  </optgroup>
-  <optgroup label="Rare Samples">
-    <option>Water Sample</option>
-    <option>Core Sample</option>
-    <option>Geochronology</option>
-  </optgroup>
-  <optgroup label="Specialized Arrays">
-    <option>Oriented Sample</option>
-    <option>Hand Specimen</option>
-    <option>Museum Sample</option>
-  </optgroup>
-  <option>Other</option>
-</select>
+          <optgroup label="Exploration">
+            <option>Bed Rock Sample</option>
+            <option>Petrochemical Sample</option>
+            <option>Petrological Sample</option>
+            <option>Chip Sample</option>
+            <option>Channel Sample</option>
+            <option>Pit Sample</option>
+            <option>Trench Sample</option>
+            <option>Stream Sediment Sample</option>
+            <option>Heavy Mineral Concentrate (HMC)</option>
+            <option>Bulk Sample</option>
+          </optgroup>
+          <optgroup label="Rare Samples">
+            <option>Water Sample</option>
+            <option>Core Sample</option>
+            <option>Geochronology</option>
+          </optgroup>
+          <optgroup label="Specialized Arrays">
+            <option>Oriented Sample</option>
+            <option>Hand Specimen</option>
+            <option>Museum Sample</option>
+          </optgroup>
+          <option>Other</option>
+        </select>
       </div>
 
       <div class="form-group">
@@ -542,6 +566,7 @@
       </div>
     </div>
 
+    <!-- Field Remarks & Voice Note Section -->
     <div class="form-group" style="margin-top: 10px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
         <label>Field Remarks & Synthesis</label>
@@ -550,57 +575,177 @@
       <textarea id="remarks" placeholder="Enter microstructural observations, kinematic markers, or general outcrop annotations..."></textarea>
     </div>
 
+    <!-- Live Record Preview Box -->
     <div id="preview" class="preview-box">
       <span class="fmt-preview">Awaiting input orientation...</span>
     </div>
 
+    <!-- Action Buttons -->
     <div class="action-row">
       <button onclick="getGPS()" class="btn-sec">📡 Sync GPS</button>
       <button onclick="saveEntry()" class="btn-ok">💾 Save Record</button>
       <button onclick="clearForm()" class="btn-sec">🔄 Reset Fields</button>
     </div>
-  </div>
 
+  </div>
+</details>
   <!-- SAVED LOG DATA VIEWER BOX -->
   <div class="card">
-    <div class="section-title" style="border-bottom:none; margin-bottom:0; display:flex; justify-content:space-between; align-items:center;">
-      <span>📂 Local Repository Logs</span>
-      <span id="count" class="pill">0</span>
+    <!-- Always visible map button outside collapsible fold -->
+    <div style="margin-bottom: 14px;">
+      <button onclick="openSpatialMap()" style="background: #27ae60; color: white; width: 100%; padding: 10px; font-size: 0.95rem; font-weight: bold;">🗺️ View Field Map & Route</button>
     </div>
-    
-    <div class="action-row" style="margin-bottom: 16px;">
-  <button onclick="exportCSV()">📊 Download CSV</button>
-  <button onclick="exportKML()" style="background: #8e44ad; color: white;">🌍 KML (Google Earth)</button>
-  <button onclick="exportGeoJSON()" class="btn-ok">🗺️ GIS GeoJSON Stream</button>
-  <button onclick="openSpatialMap()" style="background: #27ae60; color: white;">🗺️ View Field Map & Route</button>
-  <button onclick="deleteAll()" class="btn-danger">🗑️ Delete All Records</button>
-</div>
-    <div id="list"></div>
-  </div>
-</div>
 
+    <!-- Collapsible data section -->
+    <details open>
+      <summary class="section-title" style="cursor: pointer; user-select: none; border-bottom: none; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center;">
+        <span>📂 Data Collected</span>
+        <span id="count" class="pill">0</span>
+      </summary>
+
+      <div class="action-row" style="margin-top: 14px; margin-bottom: 16px;">
+        <button onclick="exportCSV()">📊 Download CSV</button>
+        <button onclick="exportKML()" style="background: #8e44ad; color: white;">🌍 KML (Google Earth)</button>
+        <button onclick="exportGeoJSON()" class="btn-ok">🗺️ GIS GeoJSON Stream</button>
+        <button onclick="deleteAll()" class="btn-danger">🗑️ Delete All Records</button>
+      </div>
+      <!-- MAP VISIBILITY CONTROLS -->
+<div style="display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; border: 1px solid #e2e8f0;">
+  <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+    <input type="checkbox" id="selectAllMap" onchange="toggleSelectAllMap(this.checked)" checked> 
+    Show All on Map
+  </label>
+  <span style="font-size: 11px; color: #6c757d;">Check/uncheck to filter map pins</span>
+</div>
+      <div id="list"></div>
+    </details>
+  </div>
+  
 <script>
-let records = JSON.parse(localStorage.getItem('field_geo_records')||'[]');
-document.getElementById('date').valueAsDate = new Date();
+// ==========================================
+// 1. GLOBAL STATE INITIALIZATION
+// ==========================================
+let activeProjectId = localStorage.getItem('activeProjectId') || 'PROJ-001';
+let projects = [];
+
+try {
+  projects = JSON.parse(localStorage.getItem('projectList')) || ['PROJ-001'];
+} catch (e) {
+  projects = ['PROJ-001'];
+}
+
+if (!projects.includes(activeProjectId)) {
+  projects.push(activeProjectId);
+  localStorage.setItem('projectList', JSON.stringify(projects));
+}
+
+let records = [];
+try {
+  records = JSON.parse(localStorage.getItem('field_geo_records')) || [];
+} catch (e) {
+  records = [];
+}
+
+let currentOverlayUrl = null;
 
 const ids = [
   'date', 'locPrefix', 'locNo', 'loc', 'lat', 'lon', 'alt', 'accuracy', 'lith', 
   'mineralization', 'alteration', 'unit', 'type', 'customStructure', 'strike', 'dip', 
   'dipdir', 'trend', 'plunge', 'rake', 'sense', 'movementDir', 'photo', 'sampleType', 
   'samplePrefix', 'sample', 'remarks',
-  // --- New Lineation Fields ---
   'linType', 'linRake', 'pitchFrom', 'linTrend', 'linPlunge'
 ];
 
-ids.forEach(id => {
-  const el = document.getElementById(id);
-  if(el) el.addEventListener('input', updatePreview);
-});
+// ==========================================
+// 2. HELPER UTILITIES
+// ==========================================
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
- // Toggle the Associated Lineation Panel
+function val(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+function pad3(n) { 
+  if (n === '' || n === null || isNaN(n)) return '000'; 
+  let x = ((Number(n) % 360) + 360) % 360; 
+  return String(Math.round(x)).padStart(3, '0'); 
+}
+
+function getQuadrant(deg) {
+  const sectors = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return sectors[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+}
+
+function isLinear(type) {
+  return [
+    'L1 Mineral Lineation','L1 Lineation', 'L2 Lineation', 'L3 Lineation', 
+    'Chatter marks', 'L3 Crenulation Lineation', 'L2 Crenulation Lineation', 
+    'Stretching Lineation', 'L2-1 Intersection Lineation', 'L1-0 Intersection Lineation', 
+    'L2 Mineral Lineation', 'L3 Mineral Lineation', 'L1 Slickenline', 
+    'Fold Axis Lineation', 'Intersection Lineation'
+  ].includes(type);
+}
+
+function persist() {
+  localStorage.setItem('field_geo_records', JSON.stringify(records));
+}
+
+// ==========================================
+// 3. PROJECT MANAGEMENT
+// ==========================================
+function renderProjectDropdown() {
+  const select = document.getElementById('projectIdSelect');
+  if (!select) return;
+  
+  select.innerHTML = projects.map(p => 
+    `<option value="${p}" ${p === activeProjectId ? 'selected' : ''}>${p}</option>`
+  ).join('');
+}
+
+function switchProject() {
+  const select = document.getElementById('projectIdSelect');
+  if (!select) return;
+  
+  activeProjectId = select.value;
+  localStorage.setItem('activeProjectId', activeProjectId);
+  render();
+  if (typeof updatePreview === 'function') updatePreview();
+}
+
+function createNewProject() {
+  const newId = prompt("Enter New Project ID (e.g. JAUNSAR-2026):");
+  if (newId && newId.trim()) {
+    const cleanId = newId.trim().toUpperCase().replace(/\s+/g, '-');
+    
+    if (!projects.includes(cleanId)) {
+      projects.push(cleanId);
+      localStorage.setItem('projectList', JSON.stringify(projects));
+    }
+    
+    activeProjectId = cleanId;
+    localStorage.setItem('activeProjectId', activeProjectId);
+    
+    renderProjectDropdown();
+    render();
+  }
+}
+
+// ==========================================
+// 4. CALCULATION & FORM PREVIEW
+// ==========================================
 function toggleLineationSection() {
   const panel = document.getElementById('associatedLineationDiv');
   const btn = document.getElementById('toggleLineationBtn');
+  if (!panel || !btn) return;
+
   const isHidden = panel.classList.contains('hidden');
   
   if (isHidden) {
@@ -611,24 +756,24 @@ function toggleLineationSection() {
   } else {
     panel.classList.add('hidden');
     btn.innerHTML = '➕ Add Associated Lineation (Pitch / Rake)';
-    // Clear values if hidden
     ['linType', 'linRake', 'linTrend', 'linPlunge'].forEach(id => {
-      document.getElementById(id).value = '';
+      const el = document.getElementById(id);
+      if (el) el.value = '';
     });
     updatePreview();
   }
 }
 
-// Dynamically update the 'Pitch Measured From' dropdown options with real strike angles
 function updatePitchFromOptions() {
   const strikeVal = parseFloat(val('strike'));
   const pitchSelect = document.getElementById('pitchFrom');
+  if (!pitchSelect) return;
   
   if (!isNaN(strikeVal)) {
     const strikeDeg = pad3(strikeVal);
     const oppDeg = pad3((strikeVal + 180) % 360);
-    
     const currentVal = pitchSelect.value;
+    
     pitchSelect.innerHTML = `
       <option value="strike">${strikeDeg}° (Strike End)</option>
       <option value="opposite">${oppDeg}° (Opposite End)</option>
@@ -642,7 +787,6 @@ function updatePitchFromOptions() {
   }
 }
 
-// Core Math Function: Pitch/Rake -> Trend & Plunge
 function calculateLineationFromPitch() {
   const strike = parseFloat(val('strike'));
   const dip = parseFloat(val('dip'));
@@ -652,6 +796,8 @@ function calculateLineationFromPitch() {
   const trendInput = document.getElementById('linTrend');
   const plungeInput = document.getElementById('linPlunge');
 
+  if (!trendInput || !plungeInput) return;
+
   if (isNaN(strike) || isNaN(dip) || isNaN(rake) || rake < 0 || rake > 90) {
     trendInput.value = '';
     plungeInput.value = '';
@@ -659,27 +805,18 @@ function calculateLineationFromPitch() {
     return;
   }
 
-  // Convert to radians
   const radDip = (dip * Math.PI) / 180;
   const radRake = (rake * Math.PI) / 180;
 
-  // 1. Plunge: sin(plunge) = sin(dip) * sin(rake)
   const radPlunge = Math.asin(Math.sin(radDip) * Math.sin(radRake));
   const plungeDeg = Math.round((radPlunge * 180) / Math.PI);
 
-  // 2. Horizontal apparent angle (beta) from strike line towards dip direction
   const radBeta = Math.atan2(Math.tan(radRake) * Math.cos(radDip), 1);
   const betaDeg = (radBeta * 180) / Math.PI;
 
-  // 3. Trend calculation depending on Reference End
-  let trendDeg = 0;
-  if (pitchFrom === 'opposite') {
-    // Measured from opposite strike end (S + 180°)
-    trendDeg = (strike + 180 - betaDeg + 360) % 360;
-  } else {
-    // Measured from strike end (S)
-    trendDeg = (strike + betaDeg + 360) % 360;
-  }
+  let trendDeg = (pitchFrom === 'opposite') 
+    ? (strike + 180 - betaDeg + 360) % 360 
+    : (strike + betaDeg + 360) % 360;
 
   trendDeg = Math.round(trendDeg);
 
@@ -687,89 +824,82 @@ function calculateLineationFromPitch() {
   plungeInput.value = String(plungeDeg).padStart(2, '0') + '°';
 
   updatePreview();
-} 
-  
-function getQuadrant(deg) {
-  const sectors = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-  return sectors[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
 }
 
-function isLinear(type) {
-  return ['L1 Mineral Lineation', 'L2 Mineral Lineation', 'L3 Mineral Lineation', 'L1 Slickenline', 'Fold Axis', 'Intersection Lineation'].includes(type);
-}
-
-function pad3(n){ 
-  if(n===''||n===null||isNaN(n)) return '000'; 
-  let x=((Number(n)%360)+360)%360; 
-  return String(Math.round(x)).padStart(3,'0'); 
-}
-
-function fmt(){
+function fmt() {
   let t = val('type');
   if (t === 'Other' && val('customStructure')) t = val('customStructure');
   
   const se = val('sense'), rk = val('rake'), md = val('movementDir');
   let dataStr = '';
 
-  if(isLinear(val('type'))) {
+  if (isLinear(val('type'))) {
     const tr = val('trend') ? pad3(val('trend')) + '°' : '---°';
     const pl = val('plunge') ? val('plunge') + '°' : '--°';
     dataStr = `${pl} → ${tr}`;
   } else {
     const st = val('strike') ? pad3(val('strike')) : '000';
     const dp = val('dip') ? val('dip') + '°' : '--°';
-    const dd = val('strike') ? getQuadrant((parseInt(val('strike')) + 90) % 360) : '';
+    const dd = val('strike') ? getQuadrant((parseInt(val('strike'), 10) + 90) % 360) : '';
     dataStr = `${st}/${dp} ${dd}`.trim();
   }
 
   let s = `${t}: ${dataStr}`;
   
-  // Append associated lineation if recorded
   if (val('linType') && val('linTrend') && val('linPlunge')) {
     s += ` | ${val('linType')}: ${val('linPlunge')} → ${val('linTrend')} (Pitch ${val('linRake')}°)`;
   }
 
-  if(rk) s += `, rake ${rk}°`; 
-  if(se) s += `, ${se} sense`;
-  if(md) s += ` (${md})`;
+  if (rk) s += `, rake ${rk}°`; 
+  if (se) s += `, ${se} sense`;
+  if (md) s += ` (${md})`;
   return s;
 }
 
-function val(id){
-  const el = document.getElementById(id);
-  return el ? el.value.trim() : '';
-}
-
-function validate(){
-  let msg=[]; 
-  if(!isLinear(val('type'))) {
-    const st=Number(val('strike')), dp=Number(val('dip'));
-    if(val('strike') && (st<0||st>360)) msg.push('Strike must be 0–360°');
-    if(val('dip') && (dp<0||dp>90)) msg.push('Dip must be 0–90°');
+function validate() {
+  let msg = []; 
+  if (!isLinear(val('type'))) {
+    const st = Number(val('strike')), dp = Number(val('dip'));
+    if (val('strike') && (st < 0 || st > 360)) msg.push('Strike must be 0–360°');
+    if (val('dip') && (dp < 0 || dp > 90)) msg.push('Dip must be 0–90°');
   } else {
-    const tr=Number(val('trend')), pl=Number(val('plunge'));
-    if(val('trend') && (tr<0||tr>360)) msg.push('Trend must be 0–360°');
-    if(val('plunge') && (pl<0||pl>90)) msg.push('Plunge must be 0–90°');
+    const tr = Number(val('trend')), pl = Number(val('plunge'));
+    if (val('trend') && (tr < 0 || tr > 360)) msg.push('Trend must be 0–360°');
+    if (val('plunge') && (pl < 0 || pl > 90)) msg.push('Plunge must be 0–90°');
   }
-  const rk=Number(val('rake'));
-  if(val('rake') && (rk<0||rk>90)) msg.push('Rake must be 0–90°');
+  const rk = Number(val('rake'));
+  if (val('rake') && (rk < 0 || rk > 90)) msg.push('Rake must be 0–90°');
   return msg;
 }
 
-function updatePreview(){ 
-  const v=validate(); 
-  document.getElementById('preview').innerHTML='<span class="fmt-preview">'+fmt()+'</span>'+ (v.length?'<br><span style="color:#c0392b">'+v.join('<br>')+'</span>':''); 
+function updatePreview() { 
+  const v = validate(); 
+  const el = document.getElementById('preview');
+  if (el) {
+    el.innerHTML = '<span class="fmt-preview">' + fmt() + '</span>' + 
+      (v.length ? '<br><span style="color:#c0392b">' + v.join('<br>') + '</span>' : ''); 
+  }
 }
 
-function saveEntry(){
+// ==========================================
+// 5. DATA ACTIONS & RENDER
+// ==========================================
+function saveEntry() {
   try {
     const v = validate();
-    if(v.length){ alert(v.join('\n')); return; }
+    if (v.length) { alert(v.join('\n')); return; }
 
-    const r = { id: Date.now(), formatted: fmt() };
+    const r = { 
+      id: Date.now(), 
+      projectId: activeProjectId, 
+      formatted: fmt() 
+    };
+    
     ids.forEach(id => r[id] = val(id));
 
-    const hasSample = document.getElementById('takeSample').checked;
+    const sampleCheckbox = document.getElementById('takeSample');
+    const hasSample = sampleCheckbox ? sampleCheckbox.checked : false;
+    
     if (!hasSample) {
       r['sample'] = '';
       r['sampleType'] = '';
@@ -782,328 +912,407 @@ function saveEntry(){
       localStorage.setItem('sampleCounter', sCounter + 1);
     }
 
-    const locMode = document.getElementById('locCountMode').value;
+    const locModeEl = document.getElementById('locCountMode');
+    const locMode = locModeEl ? locModeEl.value : 'continue';
     let lCounter = parseInt(localStorage.getItem('locationCounter') || '1', 10);
     
     if (locMode === 'reset') {
-        lCounter = 1;
-        document.getElementById('locCountMode').value = 'continue';
-        document.getElementById('locNo').readOnly = true;
+      lCounter = 1;
+      if (locModeEl) locModeEl.value = 'continue';
+      const locNoEl = document.getElementById('locNo');
+      if (locNoEl) locNoEl.readOnly = true;
     } else if (locMode === 'manual') {
-        let manualStr = String(document.getElementById('locNo').value);
-        let matches = manualStr.match(/\d+$/);
-        let manualNum = matches ? parseInt(matches[0], 10) : NaN;
-        
-        lCounter = isNaN(manualNum) ? lCounter + 1 : manualNum + 1; 
-        document.getElementById('locCountMode').value = 'continue';
-        document.getElementById('locNo').readOnly = true;
+      let manualStr = String(val('locNo'));
+      let matches = manualStr.match(/\d+$/);
+      let manualNum = matches ? parseInt(matches[0], 10) : NaN;
+      
+      lCounter = isNaN(manualNum) ? lCounter + 1 : manualNum + 1; 
+      if (locModeEl) locModeEl.value = 'continue';
+      const locNoEl = document.getElementById('locNo');
+      if (locNoEl) locNoEl.readOnly = true;
     } else {
-        lCounter = lCounter + 1;
+      lCounter = lCounter + 1;
     }
     localStorage.setItem('locationCounter', lCounter);
 
     persist();
     clearForm(false);
-    updateLocationID();
+    
+    if (typeof updateLocationID === 'function') updateLocationID();
     render();
     alert('Record saved successfully!');
-    getGPS(); 
-  } catch(err) {
+    if (typeof getGPS === 'function') getGPS(); 
+  } catch (err) {
     alert('Save Engine Blocked: ' + err.message);
   }
 }
-  
-function clearForm(resetDate=true){
+
+function clearForm(resetDate = true) {
   const baseProtected = ['date', 'sample', 'samplePrefix', 'locNo', 'locPrefix', 'type'];
   const saveProtected = [...baseProtected, 'loc', 'lith', 'unit', 'lat', 'lon', 'alt', 'accuracy', 'mineralization', 'alteration'];
   
   ids.forEach(id => {
     const currentProtected = resetDate ? baseProtected : saveProtected;
-    if(!currentProtected.includes(id)){
-       const el = document.getElementById(id);
-       if(el) el.value = '';
+    if (!currentProtected.includes(id)) {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
     }
   });
 
-  if (document.getElementById('takeSample')) {
-    document.getElementById('takeSample').checked = false;
-    toggleSampleState();
+  const takeSampleEl = document.getElementById('takeSample');
+  if (takeSampleEl) {
+    takeSampleEl.checked = false;
+    if (typeof toggleSampleState === 'function') toggleSampleState();
   }
 
-  // --- Reset & Collapse Associated Lineation Panel ---
   const lineationDiv = document.getElementById('associatedLineationDiv');
   const lineationBtn = document.getElementById('toggleLineationBtn');
-  if (lineationDiv) {
-    lineationDiv.classList.add('hidden');
-  }
-  if (lineationBtn) {
-    lineationBtn.innerHTML = '➕ Add Associated Lineation (Pitch / Rake)';
-  }
+  if (lineationDiv) lineationDiv.classList.add('hidden');
+  if (lineationBtn) lineationBtn.innerHTML = '➕ Add Associated Lineation (Pitch / Rake)';
 
-  if(resetDate && document.getElementById('date')){
-    document.getElementById('date').valueAsDate = new Date();
+  const dateEl = document.getElementById('date');
+  if (resetDate && dateEl) {
+    dateEl.valueAsDate = new Date();
   }
   updatePreview();
 }
 
-function persist(){localStorage.setItem('field_geo_records',JSON.stringify(records))}
+function render() {
+  const currentProj = activeProjectId || 'PROJ-001';
+  const projectRecords = records.filter(r => (r.projectId || 'PROJ-001') === currentProj);
 
-function render(){
-  document.getElementById('count').textContent=records.length;
-  document.getElementById('list').innerHTML=records.map((r,i)=>`
-    <div class="entry">
-      <div class="fmt-output">${escapeHTML(r.formatted)}</div>
-      <div style="font-size: 13px;">Loc: <b>${escapeHTML(r.locNo)}</b> (${escapeHTML(r.loc || 'No Desc')}) ${r.unit?' | '+escapeHTML(r.unit):''} ${r.lith?' | '+escapeHTML(r.lith):''}</div>
-      <div class="meta-text">${r.date} | Lat ${r.lat||'-'}, Long ${r.lon||'-'} | Photo ${r.photo||'-'} | Sample ${r.sample||'None'}</div>
-      ${r.remarks ? `<div style="font-style:italic; color:#566573; margin-top:6px; font-size:13px; background:#f2f4f4; padding:6px; border-radius:6px;">${escapeHTML(r.remarks)}</div>` : ''}
-      <button class="btn-danger" onclick="del(${r.id})" style="width:auto; padding:4px 10px; font-size:11px; margin-top:8px; border-radius:6px;">Delete Record</button>
-    </div>
-  `).join('');
-}
+  const countEl = document.getElementById('count');
+  if (countEl) countEl.textContent = projectRecords.length;
 
-function del(id){records=records.filter(r=>r.id!==id);persist();render()}
-function deleteAll(){if(confirm('Delete all saved field records?')){records=[];persist();render()}}
-
-function getGPS(){
-  const latField=document.getElementById('lat'), lonField=document.getElementById('lon');
-  const accField=document.getElementById('accuracy');
-  const altField=document.getElementById('alt');
-  
-  if(!navigator.geolocation){ 
-     alert('GPS Engine Error: Geolocation APIs are disabled or unsupported by your current container/browser browser config.');
-     if(latField) latField.value = 'Unsupported';
-     return; 
+  const locCountEl = document.getElementById('locCount');
+  if (locCountEl) {
+    const uniqueLocations = new Set(projectRecords.map(r => r.locNo).filter(Boolean));
+    locCountEl.textContent = uniqueLocations.size;
   }
-  
-  if(latField) latField.value='Fetching...'; 
-  if(lonField) lonField.value='Fetching...';
-  if(accField) accField.value='...';
 
-  navigator.geolocation.getCurrentPosition(function(p){
-     if(latField) latField.value=p.coords.latitude.toFixed(6);
-     if(lonField) lonField.value=p.coords.longitude.toFixed(6);
-     if(accField) accField.value = Math.round(p.coords.accuracy) + 'm';
-     if(altField) altField.value = p.coords.altitude ? p.coords.altitude.toFixed(1) : 'N/A';
-     updatePreview();
-  }, function(e){
-     if(e.code === 3) { 
-       navigator.geolocation.getCurrentPosition(function(p2){
-         if(latField) latField.value=p2.coords.latitude.toFixed(6);
-         if(lonField) lonField.value=p2.coords.longitude.toFixed(6);
-         if(accField) accField.value = Math.round(p2.coords.accuracy) + 'm';
-         updatePreview();
-       }, function(e2){
-         handleGeoError(e2);
-       }, {enableHighAccuracy: false, timeout: 12000});
-     } else {
-       handleGeoError(e);
-     }
-  },{enableHighAccuracy:true,timeout:7000,maximumAge:0});
+  const sampleCountEl = document.getElementById('sampleCount');
+  if (sampleCountEl) {
+    const sampleRecords = projectRecords.filter(r => r.sample && r.sample !== 'None' && r.sample.trim() !== '');
+    sampleCountEl.textContent = sampleRecords.length;
+  }
+
+  const masterCheck = document.getElementById('selectAllMap');
+  if (masterCheck && projectRecords.length > 0) {
+    masterCheck.checked = projectRecords.every(r => r.showOnMap !== false);
+  }
+
+  const listEl = document.getElementById('list');
+  if (listEl) {
+    listEl.innerHTML = projectRecords.map((r) => `
+      <div class="entry">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div class="fmt-output" style="margin-bottom: 0;">${escapeHTML(r.formatted || '')}</div>
+          <label style="font-size: 12px; font-weight: bold; cursor: pointer; background: #eef2f5; padding: 3px 8px; border-radius: 4px; display: flex; align-items: center; gap: 5px; border: 1px solid #dcdfe6;">
+            <input type="checkbox" onchange="if(typeof toggleMapRecord === 'function') toggleMapRecord(${r.id}, this.checked)" ${r.showOnMap !== false ? 'checked' : ''}>
+            📍 Map
+          </label>
+        </div>
+        <div style="font-size: 13px;">Loc: <b>${escapeHTML(r.locNo || '')}</b> (${escapeHTML(r.loc || 'No Desc')}) ${r.unit ? ' | ' + escapeHTML(r.unit) : ''} ${r.lith ? ' | ' + escapeHTML(r.lith) : ''}</div>
+        <div class="meta-text">${escapeHTML(r.date || '')} | Lat ${escapeHTML(r.lat || '-')} Long ${escapeHTML(r.lon || '-')} | Photo ${escapeHTML(r.photo || '-')} | Sample ${escapeHTML(r.sample || 'None')}</div>
+        ${r.remarks ? `<div style="font-style:italic; color:#566573; margin-top:6px; font-size:13px; background:#f2f4f4; padding:6px; border-radius:6px;">${escapeHTML(r.remarks)}</div>` : ''}
+        <button class="btn-danger" onclick="if(typeof del === 'function') del(${r.id})" style="width:auto; padding:4px 10px; font-size:11px; margin-top:8px; border-radius:6px;">Delete Record</button>
+      </div>
+    `).join('');
+  }
+
+  if (typeof updateMapDisplay === 'function') {
+    updateMapDisplay();
+  }
+}
   
-  function handleGeoError(err) {
-     if(latField) latField.value=''; 
-     if(lonField) lonField.value='';
-     if(accField) accField.value='Error';
-     
-     let descriptiveMsg = '';
-     if(err.code === 1) descriptiveMsg = "Permission Denied. Please enable site location sharing clearances.";
-     else if(err.code === 2) descriptiveMsg = "Position Unavailable (Weak Satellite Sync/Underground Outcrop).";
-     else if(err.code === 3) descriptiveMsg = "GPS Timeout Engine Fault.";
-     else descriptiveMsg = err.message;
-     
-     console.error("GPS System Failure: " + descriptiveMsg);
-     
-     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-       alert('GPS Blocked: Mobile browsers require an HTTPS secure connection profiles to deploy spatial arrays. Please host using secure credentials or test locally via localhost.\n\nStatus: ' + descriptiveMsg);
-     } else {
-       alert('GPS Stream Status: ' + descriptiveMsg);
-     }
+function del(id) {
+  if (confirm('Are you sure you want to delete this specific record? This action cannot be undone.')) {
+    records = records.filter(r => r.id !== id);
+    persist();
+    render();
   }
 }
 
-function exportKML(){
-  // Filter out any records that don't have valid GPS coordinates
-  const validRecords = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)));
-  
-  if (validRecords.length === 0) {
-    alert('No records with valid GPS coordinates to export.');
+function deleteAll() {
+  if (confirm('Delete all saved field records?')) {
+    records = [];
+    persist();
+    render();
+  }
+}
+
+function getGPS() {
+  const latField = document.getElementById('lat');
+  const lonField = document.getElementById('lon');
+  const accField = document.getElementById('accuracy');
+  const altField = document.getElementById('alt');
+
+  if (!navigator.geolocation) {
+    alert('GPS Engine Error: Geolocation APIs are disabled or unsupported by your current container/browser configuration.');
+    if (latField) latField.value = 'Unsupported';
     return;
   }
 
-  // Build the KML header
+  if (latField) latField.value = 'Fetching...';
+  if (lonField) lonField.value = 'Fetching...';
+  if (accField) accField.value = '...';
+
+  navigator.geolocation.getCurrentPosition(
+    function (p) {
+      if (latField) latField.value = p.coords.latitude.toFixed(6);
+      if (lonField) lonField.value = p.coords.longitude.toFixed(6);
+      if (accField) accField.value = Math.round(p.coords.accuracy) + 'm';
+      if (altField) altField.value = p.coords.altitude ? p.coords.altitude.toFixed(1) : 'N/A';
+      updatePreview();
+    },
+    function (e) {
+      if (e.code === 3) {
+        navigator.geolocation.getCurrentPosition(
+          function (p2) {
+            if (latField) latField.value = p2.coords.latitude.toFixed(6);
+            if (lonField) lonField.value = p2.coords.longitude.toFixed(6);
+            if (accField) accField.value = Math.round(p2.coords.accuracy) + 'm';
+            updatePreview();
+          },
+          function (e2) {
+            handleGeoError(e2);
+          },
+          { enableHighAccuracy: false, timeout: 12000 }
+        );
+      } else {
+        handleGeoError(e);
+      }
+    },
+    { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
+  );
+
+  function handleGeoError(err) {
+    if (latField) latField.value = '';
+    if (lonField) lonField.value = '';
+    if (accField) accField.value = 'Error';
+
+    let descriptiveMsg = '';
+    if (err.code === 1) descriptiveMsg = "Permission Denied. Please enable site location sharing clearances.";
+    else if (err.code === 2) descriptiveMsg = "Position Unavailable (Weak Satellite Sync/Underground Outcrop).";
+    else if (err.code === 3) descriptiveMsg = "GPS Timeout Engine Fault.";
+    else descriptiveMsg = err.message;
+
+    console.error("GPS System Failure: " + descriptiveMsg);
+
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      alert('GPS Blocked: Mobile browsers require an HTTPS secure connection profile to deploy spatial arrays. Please host using secure credentials or test locally via localhost.\n\nStatus: ' + descriptiveMsg);
+    } else {
+      alert('GPS Stream Status: ' + descriptiveMsg);
+    }
+  }
+}
+
+function exportKML() {
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
+
+  const validRecords = records.filter(
+    r => (r.projectId || 'PROJ-001') === currentProj &&
+         r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
+  );
+
+  if (validRecords.length === 0) {
+    alert(`No records with valid GPS coordinates to export for project: ${currentProj}`);
+    return;
+  }
+
   let kml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   kml += '<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n';
-  kml += '  <name>GeoLogger Structural Data</name>\n';
+  kml += `  <name>GeoLogger Structural Data - ${escapeHTML(currentProj)}</name>\n`;
 
-  // Loop through records and create KML Placemarks
   validRecords.forEach(r => {
     const lat = parseFloat(r.lat);
     const lon = parseFloat(r.lon);
-    // Use altitude if available, otherwise default to 0
     const alt = r.alt && !isNaN(parseFloat(r.alt)) ? parseFloat(r.alt) : 0;
-    
-    // Create the pop-up balloon description using CDATA to format it nicely in Google Earth
+
     let desc = '<![CDATA[';
-    desc += `<b>Structure:</b> ${escapeHTML(r.formatted)}<br>`;
-    if(r.lith) desc += `<b>Lithology:</b> ${escapeHTML(r.lith)}<br>`;
-    if(r.unit) desc += `<b>Unit:</b> ${escapeHTML(r.unit)}<br>`;
-    if(r.sample) desc += `<b>Sample:</b> ${escapeHTML(r.sample)}<br>`;
-    if(r.remarks) desc += `<br><b>Remarks:</b> ${escapeHTML(r.remarks)}`;
+    desc += `<b>Project ID:</b> ${escapeHTML(r.projectId || currentProj)}<br>`;
+    if (r.formatted) desc += `<b>Structure:</b> ${escapeHTML(r.formatted)}<br>`;
+    if (r.type) desc += `<b>Type:</b> ${escapeHTML(r.type)}<br>`;
+    if (r.strike || r.dip) desc += `<b>Attitude (S/D/DD):</b> ${r.strike || '-'}/${r.dip || '-'}/${r.dipdir || '-'}<br>`;
+    if (r.trend || r.plunge) desc += `<b>Lineation (T/P):</b> ${r.trend || '-'}/${r.plunge || '-'}<br>`;
+    if (r.lith) desc += `<b>Lithology:</b> ${escapeHTML(r.lith)}<br>`;
+    if (r.unit) desc += `<b>Unit:</b> ${escapeHTML(r.unit)}<br>`;
+    if (r.sample) desc += `<b>Sample:</b> ${escapeHTML(r.sample)}<br>`;
+    if (r.remarks) desc += `<br><b>Remarks:</b> ${escapeHTML(r.remarks)}`;
     desc += ']]>';
 
     kml += '  <Placemark>\n';
-    kml += `    <name>${escapeHTML(r.locNo)}</name>\n`;
+    kml += `    <name>${escapeHTML(r.locNo || 'Point')}</name>\n`;
     kml += `    <description>${desc}</description>\n`;
     kml += '    <Point>\n';
-    // KML strictly requires Longitude, Latitude, Altitude order
     kml += `      <coordinates>${lon},${lat},${alt}</coordinates>\n`;
     kml += '    </Point>\n';
     kml += '  </Placemark>\n';
   });
 
   kml += '</Document>\n</kml>';
-  
-  // Use your existing download helper function
-  download('structural_records.kml', kml, 'application/vnd.google-earth.kml+xml');
+
+  download(`structural_records_${currentProj}.kml`, kml, 'application/vnd.google-earth.kml+xml');
 }
 
-function exportCSV(){
-  const cols=[
-    'date','locNo','loc','lat','lon','unit','type','strike','dip','dipdir',
-    'trend','plunge','linType','linRake','pitchFrom','linTrend','linPlunge',
-    'lith','remarks','photo','sample'
+function exportCSV() {
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
+
+  const projectRecords = records.filter(r => (r.projectId || 'PROJ-001') === currentProj);
+
+  if (projectRecords.length === 0) {
+    alert(`No records to export for project: ${currentProj}`);
+    return;
+  }
+
+  const cols = [
+    'projectId', 'date', 'locNo', 'loc', 'lat', 'lon', 'alt', 'unit', 'type',
+    'strike', 'dip', 'dipdir', 'trend', 'plunge', 'linType',
+    'linRake', 'pitchFrom', 'linTrend', 'linPlunge', 'lith',
+    'remarks', 'photo', 'sample', 'formatted'
   ];
-  const csv=[cols.join(',')].concat(records.map(r=>cols.map(c=>'"'+String(r[c]||'').replaceAll('"','""')+'"').join(','))).join('\n');
-  download('structural_records.csv',csv,'text/csv');
+
+  const csv = [cols.join(',')]
+    .concat(
+      projectRecords.map(r =>
+        cols.map(c => {
+          const val = c === 'projectId' ? (r.projectId || currentProj) : (r[c] ?? '');
+          return '"' + String(val).replaceAll('"', '""') + '"';
+        }).join(',')
+      )
+    )
+    .join('\n');
+
+  download(`structural_records_${currentProj}.csv`, csv, 'text/csv');
 }
 
-function exportGeoJSON(){
-  const features = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat))).map(r => {
-    let latVal = parseFloat(r.lat);
-    let lonVal = parseFloat(r.lon);
+function exportGeoJSON() {
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
+
+  const validRecords = records.filter(
+    r => (r.projectId || 'PROJ-001') === currentProj &&
+         r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
+  );
+
+  if (validRecords.length === 0) {
+    alert(`No records with valid GPS coordinates to export for project: ${currentProj}`);
+    return;
+  }
+
+  const features = validRecords.map(r => {
+    const latVal = parseFloat(r.lat);
+    const lonVal = parseFloat(r.lon);
+    const altVal = r.alt && !isNaN(parseFloat(r.alt)) ? parseFloat(r.alt) : 0;
+
     return {
       type: "Feature",
-      geometry: { type: "Point", coordinates: [lonVal, latVal] },
+      geometry: {
+        type: "Point",
+        coordinates: [lonVal, latVal, altVal]
+      },
       properties: {
-        location_id: r.locNo,
-        formation: r.unit,
-        structure_type: r.type,
-        strike: r.strike ? parseInt(r.strike) : null,
-        dip: r.dip ? parseInt(r.dip) : null,
-        trend: r.trend ? parseInt(r.trend) : null,
-        plunge: r.plunge ? parseInt(r.plunge) : null,
-        lithology: r.lith,
-        remarks: r.remarks,
-        sample: r.sample,
-        formatted_label: r.formatted
+        project_id: r.projectId || currentProj,
+        date: r.date || null,
+        location_id: r.locNo || null,
+        location_name: r.loc || null,
+        formation: r.unit || null,
+        structure_type: r.type || null,
+        strike: r.strike !== undefined && r.strike !== "" ? parseInt(r.strike, 10) : null,
+        dip: r.dip !== undefined && r.dip !== "" ? parseInt(r.dip, 10) : null,
+        dip_direction: r.dipdir !== undefined && r.dipdir !== "" ? parseInt(r.dipdir, 10) : null,
+        trend: r.trend !== undefined && r.trend !== "" ? parseInt(r.trend, 10) : null,
+        plunge: r.plunge !== undefined && r.plunge !== "" ? parseInt(r.plunge, 10) : null,
+        lineation_type: r.linType || null,
+        lineation_rake: r.linRake !== undefined && r.linRake !== "" ? parseInt(r.linRake, 10) : null,
+        pitch_from: r.pitchFrom || null,
+        lineation_trend: r.linTrend !== undefined && r.linTrend !== "" ? parseInt(r.linTrend, 10) : null,
+        lineation_plunge: r.linPlunge !== undefined && r.linPlunge !== "" ? parseInt(r.linPlunge, 10) : null,
+        lithology: r.lith || null,
+        remarks: r.remarks || null,
+        photo: r.photo || null,
+        sample: r.sample || null,
+        formatted_label: r.formatted || null
       }
     };
   });
-  const geojson = { type: "FeatureCollection", features: features };
-  download('structural_mapping_layer.geojson', JSON.stringify(geojson,null,2), 'application/geo+json');
+
+  const geojson = {
+    type: "FeatureCollection",
+    features: features
+  };
+
+  download(`structural_records_${currentProj}.geojson`, JSON.stringify(geojson, null, 2), 'application/geo+json');
 }
 
-function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
-function escapeHTML(s){return String(s||'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
-function closeModal() { document.getElementById('analysisModal').classList.remove('active'); }
-function runStructuralSynthesis() { alert('Eigensolver calculations require multiple planar datasets.'); } 
+function download(name, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = name;
+  a.click();
+}
 
-document.getElementById('type').addEventListener('change', function() {
-    document.getElementById('customStructureDiv').classList.toggle('hidden', this.value !== 'Other');
-    if(isLinear(this.value)) {
-        document.getElementById('planarFields').classList.add('hidden');
-        document.getElementById('linearFields').classList.remove('hidden');
-    } else {
-        document.getElementById('planarFields').classList.remove('hidden');
-        document.getElementById('linearFields').classList.add('hidden');
-    }
-    updatePreview();
-});
+function closeModal() {
+  const modal = document.getElementById('analysisModal');
+  if (modal) modal.classList.remove('active');
+}
 
-document.getElementById('strike').addEventListener('input', function() {
-    let strike = parseInt(this.value);
-    if (!isNaN(strike)) {
-        let dipdir = (strike + 90) % 360;
-        document.getElementById('dipdir').value = dipdir.toString().padStart(3, '0') + '° (' + getQuadrant(dipdir) + ')';
-    } else {
-        document.getElementById('dipdir').value = '';
-    }
-  // Update lineation calculations if lineation section is open
-    updatePitchFromOptions();
-    calculateLineationFromPitch();
-});
-
-document.getElementById('dip').addEventListener('input', function() {
-    calculateLineationFromPitch();
-});
-
-document.getElementById('photoInput').addEventListener('change', function(e) {
-    if (e.target.files && e.target.files[0]) {
-        document.getElementById('photo').value = "IMG-" + Date.now().toString().slice(-4);
-        updatePreview();
-    }
-});
-
-function startVoiceNote(){
-  const SpeechRecognition = window.SynthesisSpeechRecognition || window.webkitSpeechRecognition;
-  if(!SpeechRecognition){ alert("Voice parsing unsupported."); return; }
+function startVoiceNote() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { alert("Voice parsing unsupported."); return; }
   const recognition = new SpeechRecognition();
   recognition.lang = "en-US";
-  recognition.onresult = function(event){
-      document.getElementById("remarks").value += " " + event.results[0][0].transcript;
-      updatePreview();
+  recognition.onresult = function (event) {
+    const remarksEl = document.getElementById("remarks");
+    if (remarksEl) remarksEl.value += " " + event.results[0][0].transcript;
+    updatePreview();
   };
   recognition.start();
 }
 
+// ==========================================
+// 6. MAP & OVERLAY UTILITIES
+// ==========================================
 let mapInstance = null;
-let mapDataGroup = null;      // For station markers, traverse line, and 
-let osmTileLayer = null;      // OpenStreetMap Base Layer
-let customOverlayLayer = null; // Uploaded custom map image overlay
-let layerControl = null;      // Leaflet Layer Switcher Control
+let mapDataGroup = null;
+let osmTileLayer = null;
+let layerControl = null;
+let kmlMapOverlayLayer = null;
 
 function openSpatialMap() {
   const modal = document.getElementById('mapModal');
-  modal.style.display = 'block';
+  if (modal) modal.style.display = 'block';
 
   setTimeout(() => {
     const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
 
-    // Don't block map opening if there are no points, just default to a general coordinate
     const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
     const firstLon = validPoints.length > 0 ? parseFloat(validPoints[0].lon) : 78.0;
 
     if (!mapInstance) {
       mapInstance = L.map('map').setView([firstLat, firstLon], 13);
-      
-      // Initialize Standard OpenStreetMap Layer
+
       osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap contributors'
       }).addTo(mapInstance);
 
-      // Dedicated layer group for survey data (markers, lines, )
       mapDataGroup = L.layerGroup().addTo(mapInstance);
 
-      // Initialize Leaflet Layer Control widget
       layerControl = L.control.layers(
         { "OpenStreetMap (Standard)": osmTileLayer },
         { "Survey Stations & Route": mapDataGroup },
         { position: 'topright' }
       ).addTo(mapInstance);
 
-      // --- LIVE "BLUE DOT" LOCATION LOGIC ---
       let liveMarker = null;
       let accuracyCircle = null;
 
-      mapInstance.on('locationfound', function(e) {
+      mapInstance.on('locationfound', function (e) {
         const radius = e.accuracy / 2;
-        
-        // Remove old markers if updating
+
         if (liveMarker) mapInstance.removeLayer(liveMarker);
         if (accuracyCircle) mapInstance.removeLayer(accuracyCircle);
 
-        // Add accuracy radius circle
         accuracyCircle = L.circle(e.latlng, {
           radius: radius,
           color: "#136AEC",
@@ -1112,7 +1321,6 @@ function openSpatialMap() {
           weight: 1
         }).addTo(mapInstance);
 
-        // Add the blue dot
         liveMarker = L.circleMarker(e.latlng, {
           radius: 7,
           fillColor: "#2A93EE",
@@ -1123,7 +1331,7 @@ function openSpatialMap() {
         }).addTo(mapInstance).bindPopup("<b>You are here</b>");
       });
 
-      mapInstance.on('locationerror', function(e) {
+      mapInstance.on('locationerror', function (e) {
         console.warn("Live location not available for blue dot: " + e.message);
       });
 
@@ -1131,71 +1339,262 @@ function openSpatialMap() {
       mapInstance.invalidateSize();
     }
 
-    // Trigger the location request every time the map is opened
-    mapInstance.locate({setView: false, enableHighAccuracy: true});
-
-    renderSpatialMapWith();
+    mapInstance.locate({ setView: false, enableHighAccuracy: true });
+    if (typeof updateMapDisplay === 'function') {
+      updateMapDisplay();
+    }
   }, 100);
 }
 
-// Function to handle loading and georeferencing user's custom map image
+function kmlToGeoJson(xmlDoc) {
+  const features = [];
+  const placemarks = xmlDoc.getElementsByTagName("Placemark");
+
+  for (let i = 0; i < placemarks.length; i++) {
+    const pm = placemarks[i];
+    const name = pm.getElementsByTagName("name")[0]?.textContent || `KML Feature ${i + 1}`;
+    const desc = pm.getElementsByTagName("description")[0]?.textContent || "";
+
+    const point = pm.getElementsByTagName("Point")[0];
+    if (point) {
+      const coords = point.getElementsByTagName("coordinates")[0]?.textContent.trim().split(',');
+      if (coords && coords.length >= 2) {
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [parseFloat(coords[0]), parseFloat(coords[1])] },
+          properties: { name, desc }
+        });
+      }
+    }
+
+    const line = pm.getElementsByTagName("LineString")[0];
+    if (line) {
+      const coordsText = line.getElementsByTagName("coordinates")[0]?.textContent.trim();
+      if (coordsText) {
+        const lineCoords = coordsText.split(/\s+/).map(p => {
+          const parts = p.split(',');
+          return [parseFloat(parts[0]), parseFloat(parts[1])];
+        }).filter(c => !isNaN(c[0]) && !isNaN(c[1]));
+
+        if (lineCoords.length > 0) {
+          features.push({
+            type: "Feature",
+            geometry: { type: "LineString", coordinates: lineCoords },
+            properties: { name, desc }
+          });
+        }
+      }
+    }
+
+    const poly = pm.getElementsByTagName("Polygon")[0];
+    if (poly) {
+      const coordsText = poly.getElementsByTagName("coordinates")[0]?.textContent.trim();
+      if (coordsText) {
+        const ringCoords = coordsText.split(/\s+/).map(p => {
+          const parts = p.split(',');
+          return [parseFloat(parts[0]), parseFloat(parts[1])];
+        }).filter(c => !isNaN(c[0]) && !isNaN(c[1]));
+
+        if (ringCoords.length > 0) {
+          features.push({
+            type: "Feature",
+            geometry: { type: "Polygon", coordinates: [ringCoords] },
+            properties: { name, desc }
+          });
+        }
+      }
+    }
+  }
+  return { type: "FeatureCollection", features };
+}
+
+function applyKMLOverlay() {
+  const fileInput = document.getElementById('kmlOverlayFile');
+  const file = fileInput ? fileInput.files[0] : null;
+
+  if (!file) {
+    alert("Please select a .kml file first.");
+    return;
+  }
+  if (!mapInstance) {
+    alert("Please open the Field Map first.");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(e.target.result, "text/xml");
+      const geojson = kmlToGeoJson(xmlDoc);
+
+      if (geojson.features.length === 0) {
+        alert("No visible geometries (Points, Lines, or Polygons) found in KML.");
+        return;
+      }
+
+      removeKMLOverlay(false);
+
+      kmlMapOverlayLayer = L.geoJSON(geojson, {
+        style: { color: '#8e44ad', weight: 3, opacity: 0.85, fillOpacity: 0.25 },
+        pointToLayer: function (feature, latlng) {
+          return L.circleMarker(latlng, { radius: 6, fillColor: '#8e44ad', color: '#ffffff', weight: 2, opacity: 1, fillOpacity: 0.9 });
+        },
+        onEachFeature: function (feature, layer) {
+          if (feature.properties && feature.properties.name) {
+            layer.bindPopup(`<b>${feature.properties.name}</b><br>${feature.properties.desc || ''}`);
+          }
+        }
+      }).addTo(mapInstance);
+
+      if (layerControl) {
+        layerControl.addOverlay(kmlMapOverlayLayer, "🌍 KML Map Overlay");
+      }
+
+      if (kmlMapOverlayLayer.getBounds().isValid()) {
+        mapInstance.fitBounds(kmlMapOverlayLayer.getBounds());
+      }
+      alert("KML Map Layer overlaid successfully!");
+    } catch (err) {
+      alert("Error overlaying KML: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function removeKMLOverlay(showAlert = true) {
+  if (kmlMapOverlayLayer && mapInstance) {
+    if (layerControl) layerControl.removeLayer(kmlMapOverlayLayer);
+    mapInstance.removeLayer(kmlMapOverlayLayer);
+    kmlMapOverlayLayer = null;
+
+    const fileInput = document.getElementById('kmlOverlayFile');
+    if (fileInput) fileInput.value = '';
+
+    if (showAlert) alert("KML Map Overlay removed!");
+  } else if (showAlert) {
+    alert("No active KML overlay to remove.");
+  }
+}
+
+// ==========================================
+// 7. SAFE EVENT LISTENER INITIALIZATION
+// ==========================================
+document.addEventListener('DOMContentLoaded', function () {
+  const typeEl = document.getElementById('type');
+  if (typeEl) {
+    typeEl.addEventListener('change', function () {
+      const customDiv = document.getElementById('customStructureDiv');
+      if (customDiv) customDiv.classList.toggle('hidden', this.value !== 'Other');
+      
+      const planar = document.getElementById('planarFields');
+      const linear = document.getElementById('linearFields');
+      if (isLinear(this.value)) {
+        if (planar) planar.classList.add('hidden');
+        if (linear) linear.classList.remove('hidden');
+      } else {
+        if (planar) planar.classList.remove('hidden');
+        if (linear) linear.classList.add('hidden');
+      }
+      updatePreview();
+    });
+  }
+
+  const strikeEl = document.getElementById('strike');
+  if (strikeEl) {
+    strikeEl.addEventListener('input', function () {
+      let strike = parseInt(this.value, 10);
+      const dipdirEl = document.getElementById('dipdir');
+      if (!isNaN(strike)) {
+        let dipdir = (strike + 90) % 360;
+        if (dipdirEl) dipdirEl.value = dipdir.toString().padStart(3, '0') + '° (' + getQuadrant(dipdir) + ')';
+      } else {
+        if (dipdirEl) dipdirEl.value = '';
+      }
+      updatePitchFromOptions();
+      calculateLineationFromPitch();
+    });
+  }
+
+  const dipEl = document.getElementById('dip');
+  if (dipEl) {
+    dipEl.addEventListener('input', function () {
+      calculateLineationFromPitch();
+    });
+  }
+
+  const photoInputEl = document.getElementById('photoInput');
+  if (photoInputEl) {
+    photoInputEl.addEventListener('change', function (e) {
+      if (e.target.files && e.target.files[0]) {
+        const photoEl = document.getElementById('photo');
+        if (photoEl) photoEl.value = "IMG-" + Date.now().toString().slice(-4);
+        updatePreview();
+      }
+    });
+  }
+});
+
 function applyCustomMapOverlay() {
   const fileInput = document.getElementById('customMapFile');
-  const file = fileInput.files[0];
+  const file = fileInput ? fileInput.files[0] : null;
 
   if (!file) {
     alert('Please select an image file (JPEG/PNG) of your map first.');
     return;
   }
 
-  let minLat = parseFloat(document.getElementById('ovMinLat').value);
-  let maxLat = parseFloat(document.getElementById('ovMaxLat').value);
-  let minLon = parseFloat(document.getElementById('ovMinLon').value);
-  let maxLon = parseFloat(document.getElementById('ovMaxLon').value);
+  let minLat = parseFloat(document.getElementById('ovMinLat')?.value);
+  let maxLat = parseFloat(document.getElementById('ovMaxLat')?.value);
+  let minLon = parseFloat(document.getElementById('ovMinLon')?.value);
+  let maxLon = parseFloat(document.getElementById('ovMaxLon')?.value);
 
   if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
     alert('Please provide valid bounding coordinates (SW & NE corners) for the image overlay.');
     return;
   }
 
-  // Ensure minimums and maximums are correctly aligned
   if (minLat > maxLat) [minLat, maxLat] = [maxLat, minLat];
   if (minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
 
   const bounds = [[minLat, minLon], [maxLat, maxLon]];
-  const imageUrl = URL.createObjectURL(file);
-
-  // Remove existing custom overlay if re-uploading
+  
   removeCustomMapOverlay();
 
-  // Create Leaflet ImageOverlay
-  customOverlayLayer = L.imageOverlay(imageUrl, bounds, {
+  currentOverlayUrl = URL.createObjectURL(file);
+
+  customOverlayLayer = L.imageOverlay(currentOverlayUrl, bounds, {
     opacity: 0.85,
     interactive: true
   }).addTo(mapInstance);
 
-  // Add Custom Overlay to Leaflet Layer Switcher
-  layerControl.addOverlay(customOverlayLayer, "Custom Map Overlay");
-
-  // Auto-fit viewport to the uploaded map bounds
+  if (typeof layerControl !== 'undefined' && layerControl) {
+    layerControl.addOverlay(customOverlayLayer, "Custom Map Overlay");
+  }
   mapInstance.fitBounds(bounds);
   alert('Custom map overlay loaded successfully!');
 }
 
 function removeCustomMapOverlay() {
   if (customOverlayLayer && mapInstance) {
-    layerControl.removeLayer(customOverlayLayer);
+    if (typeof layerControl !== 'undefined' && layerControl) {
+      layerControl.removeLayer(customOverlayLayer);
+    }
     mapInstance.removeLayer(customOverlayLayer);
     customOverlayLayer = null;
   }
+  if (currentOverlayUrl) {
+    URL.revokeObjectURL(currentOverlayUrl);
+    currentOverlayUrl = null;
+  }
 }
 
-function renderSpatialMapWith() {
-  if (!mapInstance || !mapDataGroup) return;
+function renderSpatialMapWith(targetRecords = (typeof records !== 'undefined' ? records : [])) {
+  if (typeof mapInstance === 'undefined' || !mapInstance || typeof mapDataGroup === 'undefined' || !mapDataGroup) return;
 
   mapDataGroup.clearLayers();
 
-  const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
+  const validPoints = targetRecords.filter(r => r && r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
 
   let minLat = parseFloat(document.getElementById('gfMinLat')?.value);
   let maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
@@ -1206,9 +1605,9 @@ function renderSpatialMapWith() {
   if (!isNaN(minLon) && !isNaN(maxLon) && minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
 
   let boundsArray = [];
-  const has = !isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLon) && !isNaN(maxLon);
+  const hasGeofence = !isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLon) && !isNaN(maxLon);
 
-  if (has) {
+  if (hasGeofence) {
     const southWest = [minLat, minLon];
     const northEast = [maxLat, maxLon];
 
@@ -1232,7 +1631,7 @@ function renderSpatialMapWith() {
     boundsArray.push([lat, lon]);
 
     let statusBadge = '';
-    if (has) {
+    if (hasGeofence) {
       const isInside = lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
       statusBadge = isInside 
         ? '<br><span style="color: #27ae60; font-weight: bold;">✔ Inside Block Boundary</span>' 
@@ -1243,7 +1642,7 @@ function renderSpatialMapWith() {
     const customIcon = L.divIcon({ className: 'custom-div-icon', html: markerHtml, iconSize: [24, 24], iconAnchor: [12, 12] });
 
     const popupContent = `
-      <b>Loc No:</b> ${escapeHTML(r.locNo || 'Station ' + (index+1))}<br>
+      <b>Loc No:</b> ${escapeHTML(r.locNo || 'Station ' + (index + 1))}<br>
       <b>Lat/Lon:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)}<br>
       <b>Structure:</b> ${escapeHTML(r.formatted || 'N/A')}<br>
       <b>Lithology:</b> ${escapeHTML(r.lith || 'N/A')}
@@ -1259,26 +1658,301 @@ function renderSpatialMapWith() {
     L.polyline(latLngs, { color: '#e74c3c', weight: 3, dashArray: '5, 5' }).addTo(mapDataGroup);
   }
 
-  if (boundsArray.length > 0 && !customOverlayLayer) {
+  if (boundsArray.length > 0 && typeof customOverlayLayer !== 'undefined' && !customOverlayLayer) {
     mapInstance.fitBounds(L.latLngBounds(boundsArray), { padding: [40, 40] });
   }
 }
 
 function closeSpatialMap() {
-  document.getElementById('mapModal').style.display = 'none';
+  const modal = document.getElementById('mapModal');
+  if (modal) modal.style.display = 'none';
 }
+
+function toggleMapRecord(id, isChecked) {
+  if (typeof records === 'undefined') return;
+  const rec = records.find(r => r.id === id);
+  if (rec) {
+    rec.showOnMap = isChecked;
+    if (typeof persist === 'function') persist();
+    updateMapDisplay();
+  }
+}
+
+// ==========================================
+// PART 2: DYNAMIC SVG SYMBOLS, MAP & FIELD HELPERS
+// ==========================================
+
+// ------------------------------------------
+// 1. DYNAMIC SVG MARKER GENERATORS
+// ------------------------------------------
+
+/**
+ * Generates an SVG strike & dip symbol rotated according to strike angle.
+ * Dip tick points 90° clockwise in the dip direction.
+ */
+function getPlanarSvgIcon(strike, dip, type) {
+  const strikeDeg = parseFloat(strike) || 0;
+  const dipVal = dip !== undefined && dip !== '' ? dip : '';
+  const structType = type || 'Bedding';
   
+  // Color coding by structure type
+  let strokeColor = '#2c3e50'; // Default dark slate
+  if (structType.includes('Foliation') || structType.includes('S1') || structType.includes('S2')) {
+    strokeColor = '#e67e22'; // Orange
+  } else if (structType.includes('Joint')) {
+    strokeColor = '#27ae60'; // Green
+  } else if (structType.includes('Fault') || structType.includes('Shear')) {
+    strokeColor = '#c0392b'; // Red
+  } else if (structType.includes('Bedding') || structType.includes('S0')) {
+    strokeColor = '#2980b9'; // Blue
+  }
+
+  // 40x40 SVG container with center pivot at (20,20)
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+      <g transform="rotate(${strikeDeg}, 20, 20)">
+        <!-- Strike Line -->
+        <line x1="6" y1="20" x2="34" y2="20" stroke="${strokeColor}" stroke-width="3" stroke-linecap="round" />
+        <!-- Dip Tick Mark (90° clockwise to right) -->
+        <line x1="20" y1="20" x2="20" y2="28" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" />
+        <!-- Station Pivot Point -->
+        <circle cx="20" cy="20" r="2" fill="${strokeColor}" />
+      </g>
+      <!-- Dip Angle Numerical Label -->
+      <text x="24" y="14" font-size="11" font-weight="bold" fill="${strokeColor}" font-family="monospace">${dipVal}</text>
+    </svg>
+  `;
+
+  return L.divIcon({
+    html: svg,
+    className: 'geo-svg-marker',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -10]
+  });
+}
+
+/**
+ * Generates an SVG arrow symbol for linear features (Lineations, Fold Axes) 
+ * rotated according to trend azimuth.
+ */
+function getLinearSvgIcon(trend, plunge, type) {
+  const trendDeg = parseFloat(trend) || 0;
+  const plungeVal = plunge !== undefined && plunge !== '' ? plunge : '';
+  const strokeColor = '#8e44ad'; // Purple for linear features
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+      <g transform="rotate(${trendDeg}, 20, 20)">
+        <!-- Lineation Trend Vector -->
+        <line x1="20" y1="32" x2="20" y2="8" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" />
+        <!-- Arrowhead -->
+        <path d="M 15 14 L 20 6 L 25 14" fill="none" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Pivot Point -->
+        <circle cx="20" cy="20" r="2" fill="${strokeColor}" />
+      </g>
+      <!-- Plunge Angle Label -->
+      <text x="24" y="34" font-size="11" font-weight="bold" fill="${strokeColor}" font-family="monospace">${plungeVal}°</text>
+    </svg>
+  `;
+
+  return L.divIcon({
+    html: svg,
+    className: 'geo-svg-marker',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -10]
+  });
+}
+
+/**
+ * Helper to get consistent structural colors across both SVG symbols and Simple Dots.
+ */
+function getStructureColor(type) {
+  const structType = type || '';
+  if (structType.includes('Foliation') || structType.includes('S1') || structType.includes('S2')) {
+    return '#e67e22'; // Orange
+  } else if (structType.includes('Joint')) {
+    return '#27ae60'; // Green
+  } else if (structType.includes('Fault') || structType.includes('Shear')) {
+    return '#c0392b'; // Red
+  } else if (structType.includes('Bedding') || structType.includes('S0')) {
+    return '#2980b9'; // Blue
+  } else if (structType.includes('Lineation') || structType.includes('Fold')) {
+    return '#8e44ad'; // Purple
+  }
+  return '#2c3e50'; // Default Slate
+}
+
+function updateMapDisplay() {
+  if (typeof records === 'undefined') return;
+
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
+  const visibleMapRecords = records.filter(r => 
+    (r.projectId || 'PROJ-001') === currentProj && 
+    r.showOnMap !== false &&
+    r.lat && r.lon && 
+    !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
+  );
+
+  // If external map renderer exists, invoke it
+  if (typeof renderSpatialMapWith === 'function') {
+    renderSpatialMapWith(visibleMapRecords);
+  }
+
+  // Direct Leaflet Layer Rendering
+  if (typeof mapInstance === 'undefined' || !mapInstance || typeof mapDataGroup === 'undefined' || !mapDataGroup) {
+    return;
+  }
+
+  mapDataGroup.clearLayers();
+  if (visibleMapRecords.length === 0) return;
+
+  // Check UI toggle state for showing vectors vs simple dots (defaulting to vectors if checkbox doesn't exist)
+  const vectorToggleEl = document.getElementById('showVectors') || document.getElementById('toggleVectors');
+  const showVectors = vectorToggleEl ? vectorToggleEl.checked : true;
+
+  const routeCoordinates = [];
+
+  visibleMapRecords.forEach((r) => {
+    const lat = parseFloat(r.lat);
+    const lon = parseFloat(r.lon);
+    const latlng = [lat, lon];
+    routeCoordinates.push(latlng);
+
+    let marker;
+
+    if (showVectors) {
+      // 1. Full Dynamic SVG Vector Symbols
+      let markerIcon;
+      const checkLinear = (typeof isLinear === 'function') ? isLinear(r.type) : false;
+
+      if (checkLinear || (r.trend && r.plunge && !r.strike)) {
+        markerIcon = getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType);
+      } else {
+        markerIcon = getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding');
+      }
+
+      marker = L.marker(latlng, { icon: markerIcon });
+    } else {
+      // 2. Simple Color-Coded Dots (Circle Markers)
+      const dotColor = getStructureColor(r.type);
+      marker = L.circleMarker(latlng, {
+        radius: 6,
+        fillColor: dotColor,
+        color: '#ffffff',
+        weight: 1.5,
+        opacity: 1,
+        fillOpacity: 0.9
+      });
+    }
+
+    const safeEscape = (typeof escapeHTML === 'function') ? escapeHTML : (s => s || '');
+
+    const popupHtml = `
+      <div style="font-family: system-ui, -apple-system, sans-serif; font-size: 13px; line-height: 1.4; max-width: 240px;">
+        <div style="font-weight: bold; font-size: 14px; color: #2c3e50; border-bottom: 1px solid #dcdfe6; padding-bottom: 4px; margin-bottom: 6px;">
+          📍 Station: ${safeEscape(r.locNo || 'N/A')}
+        </div>
+        <div style="margin-bottom: 4px;"><b>Attitude:</b> ${safeEscape(r.formatted || r.type || 'N/A')}</div>
+        ${r.unit ? `<div style="margin-bottom: 4px;"><b>Formation/Unit:</b> ${safeEscape(r.unit)}</div>` : ''}
+        ${r.lith ? `<div style="margin-bottom: 4px;"><b>Lithology:</b> ${safeEscape(r.lith)}</div>` : ''}
+        ${r.sample ? `<div style="margin-bottom: 4px;"><b>Sample ID:</b> <span style="background: #e1f5fe; color: #0288d1; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${safeEscape(r.sample)}</span></div>` : ''}
+        ${r.remarks ? `<div style="margin-top: 6px; font-style: italic; background: #f8f9fa; padding: 6px; border-radius: 4px; font-size: 12px; border: 1px solid #e9ecef;">${safeEscape(r.remarks)}</div>` : ''}
+        <div style="margin-top: 8px; font-size: 11px; color: #7f8c8d; border-top: 1px dashed #eee; padding-top: 4px;">
+          Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)} ${r.alt ? '| Alt: ' + safeEscape(r.alt) + 'm' : ''}
+        </div>
+      </div>
+    `;
+
+    marker.bindPopup(popupHtml);
+    mapDataGroup.addLayer(marker);
+  });
+
+  // Traverse Line
+  if (routeCoordinates.length > 1) {
+    const routeLine = L.polyline(routeCoordinates, {
+      color: '#e74c3c',
+      weight: 2,
+      dashArray: '5, 7',
+      opacity: 0.65
+    });
+    mapDataGroup.addLayer(routeLine);
+  }
+}
+
+function toggleMapRecord(id, isChecked) {
+  if (typeof records === 'undefined') return;
+  const record = records.find(r => r.id === id);
+  if (record) {
+    record.showOnMap = isChecked;
+    if (typeof persist === 'function') persist();
+    updateMapDisplay();
+  }
+}
+
+function toggleAllMapRecords(isChecked) {
+  if (typeof records === 'undefined') return;
+  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
+  records.forEach(r => {
+    if ((r.projectId || 'PROJ-001') === currentProj) {
+      r.showOnMap = isChecked;
+    }
+  });
+  if (typeof persist === 'function') persist();
+  if (typeof render === 'function') render();
+  updateMapDisplay();
+}
+
+// Alias for HTML triggers pointing to toggleSelectAllMap
+function toggleSelectAllMap(isChecked) {
+  toggleAllMapRecords(isChecked);
+}
+
+function renderSpatialMapWithGeofence(e) {
+  if (e && e.preventDefault) e.preventDefault();
+
+  if (typeof mapInstance === 'undefined' || !mapInstance) {
+    alert("Map instance not found. Please open the spatial map modal first.");
+    return;
+  }
+
+  const minLat = parseFloat(document.getElementById('gfMinLat')?.value);
+  const maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
+  const minLon = parseFloat(document.getElementById('gfMinLon')?.value);
+  const maxLon = parseFloat(document.getElementById('gfMaxLon')?.value);
+
+  if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
+    alert("Please enter valid numeric values for all 4 coordinates.");
+    return;
+  }
+
+  if (minLat >= maxLat || minLon >= maxLon) {
+    alert("Min Lat/Lon must be strictly smaller than Max Lat/Lon!");
+    return;
+  }
+
+  updateMapDisplay();
+}
+
+// ------------------------------------------
+// 3. LOCATION & SAMPLE COUNTER UTILITIES
+// ------------------------------------------
+
 function handleLocModeChange() {
-  const mode = document.getElementById('locCountMode').value;
+  const modeEl = document.getElementById('locCountMode');
   const locNoInput = document.getElementById('locNo');
-  
+  if (!modeEl || !locNoInput) return;
+
+  const mode = modeEl.value;
+
   if (mode === 'manual') {
     if (confirm("Do you really want to manually enter the location number?")) {
       locNoInput.readOnly = false;
       locNoInput.focus();
       locNoInput.select();
     } else {
-      document.getElementById('locCountMode').value = 'continue';
+      modeEl.value = 'continue';
     }
   } else if (mode === 'reset') {
     if (confirm("Do you really want to reset the counter to 0?")) {
@@ -1286,20 +1960,20 @@ function handleLocModeChange() {
       localStorage.setItem('locationCounter', '0');
       updateLocationID();
     } else {
-      document.getElementById('locCountMode').value = 'continue';
+      modeEl.value = 'continue';
     }
   } else {
     locNoInput.readOnly = true;
-    
+
     if (typeof records !== 'undefined' && records.length > 0) {
       let latestRecord = records.reduce((latest, current) => {
         return (current.id > latest.id) ? current : latest;
       }, records[0]);
-      
+
       let lastLocStr = latestRecord.locNo ? String(latestRecord.locNo) : '';
       let matches = lastLocStr.match(/\d+$/);
       let lastNum = matches ? parseInt(matches[0], 10) : NaN;
-      
+
       let nextNum = isNaN(lastNum) ? 1 : lastNum + 1;
       localStorage.setItem('locationCounter', nextNum);
     } else {
@@ -1308,79 +1982,121 @@ function handleLocModeChange() {
     updateLocationID();
   }
 }
-  
-function updateLocationID(){
-    const mode = document.getElementById('locCountMode').value;
-    if (mode !== 'manual') {
-        const prefix = document.getElementById('locPrefix').value || 'JU';
-        const num = parseInt(localStorage.getItem('locationCounter') || '1', 10);
-        document.getElementById('locNo').value = prefix + '-' + String(num).padStart(3,'0');
-    }
+
+function updateLocationID() {
+  const modeEl = document.getElementById('locCountMode');
+  const locNoEl = document.getElementById('locNo');
+  if (!modeEl || !locNoEl) return;
+
+  if (modeEl.value !== 'manual') {
+    const prefix = document.getElementById('locPrefix')?.value || 'JU';
+    const num = parseInt(localStorage.getItem('locationCounter') || '1', 10);
+    locNoEl.value = prefix + '-' + String(num).padStart(3, '0');
+  }
 }
 
 function toggleSampleState() {
-  const isChecked = document.getElementById('takeSample').checked;
-  document.getElementById('sampleType').disabled = !isChecked;
-  document.getElementById('samplePrefix').disabled = !isChecked;
-  document.getElementById('sampleCounterBtn').disabled = !isChecked;
+  const takeSampleEl = document.getElementById('takeSample');
+  if (!takeSampleEl) return;
+
+  const isChecked = takeSampleEl.checked;
+  const sampleType = document.getElementById('sampleType');
+  const samplePrefix = document.getElementById('samplePrefix');
+  const sampleCounterBtn = document.getElementById('sampleCounterBtn');
+
+  if (sampleType) sampleType.disabled = !isChecked;
+  if (samplePrefix) samplePrefix.disabled = !isChecked;
+  if (sampleCounterBtn) sampleCounterBtn.disabled = !isChecked;
   updateSampleID();
 }
 
 function updateSampleID() {
-    const isChecked = document.getElementById('takeSample').checked;
-    if(document.getElementById('sample')) {
-        if (isChecked) {
-            const prefix = document.getElementById('samplePrefix').value || 'DD';
-            const num = parseInt(localStorage.getItem('sampleCounter') || '1', 10);
-            document.getElementById('sample').value = prefix + '-' + String(num).padStart(3,'0');
-        } else {
-            document.getElementById('sample').value = 'No Sample Collected';
-        }
-    }
+  const takeSampleEl = document.getElementById('takeSample');
+  const sampleInput = document.getElementById('sample');
+  if (!takeSampleEl || !sampleInput) return;
+
+  const isChecked = takeSampleEl.checked;
+  if (isChecked) {
+    const prefix = document.getElementById('samplePrefix')?.value || 'DD';
+    const num = parseInt(localStorage.getItem('sampleCounter') || '1', 10);
+    sampleInput.value = prefix + '-' + String(num).padStart(3, '0');
+  } else {
+    sampleInput.value = 'No Sample Collected';
+  }
 }
 
 function setSampleCounter() {
   const userInput = prompt("Enter the next starting sample number sequence (e.g., 2 for 002, 5 for 005):");
-  if (userInput === null) return; 
-  
+  if (userInput === null) return;
+
   const parsedNum = parseInt(userInput.replace(/^\D+/g, ''), 10);
   if (isNaN(parsedNum) || parsedNum < 0) {
     alert("Please enter a valid numeric value (0 or higher).");
     return;
   }
-  
+
   localStorage.setItem('sampleCounter', parsedNum);
   updateSampleID();
-  updatePreview();
+  if (typeof updatePreview === 'function') updatePreview();
   alert(`Sample tracking updated! The next saved entry will use sequence number: ${parsedNum}`);
 }
 
-document.getElementById('samplePrefix').addEventListener('input', function(){
-   this.value = this.value.toUpperCase(); updateSampleID();
-});
-document.getElementById('locPrefix').addEventListener('input', function(){
-   this.value = this.value.toUpperCase(); updateLocationID();
-});
+// ------------------------------------------
+// 4. EVENT LISTENERS & SERVICE WORKER
+// ------------------------------------------
 
-if (typeof records !== 'undefined' && records.length > 0) {
-  let latestRecord = records.reduce((latest, current) => {
-    return (current.id > latest.id) ? current : latest;
-  }, records[0]);
-  
-  let lastLocStr = latestRecord.locNo ? String(latestRecord.locNo) : '';
-  let matches = lastLocStr.match(/\d+$/);
-  let lastNum = matches ? parseInt(matches[0], 10) : NaN;
-  
-  localStorage.setItem('locationCounter', isNaN(lastNum) ? 1 : lastNum + 1);
-}
+document.addEventListener('DOMContentLoaded', () => {
+  const dateEl = document.getElementById('date');
+  if (dateEl && !dateEl.value) {
+    dateEl.valueAsDate = new Date();
+  }
 
-render();
-updatePreview();
-toggleSampleState();
-updateLocationID();
+  if (typeof ids !== 'undefined' && Array.isArray(ids)) {
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && typeof updatePreview === 'function') {
+        el.addEventListener('input', updatePreview);
+      }
+    });
+  }
 
-window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(getGPS, 800); 
+  const samplePrefixEl = document.getElementById('samplePrefix');
+  if (samplePrefixEl) {
+    samplePrefixEl.addEventListener('input', function () {
+      this.value = this.value.toUpperCase();
+      updateSampleID();
+    });
+  }
+
+  const locPrefixEl = document.getElementById('locPrefix');
+  if (locPrefixEl) {
+    locPrefixEl.addEventListener('input', function () {
+      this.value = this.value.toUpperCase();
+      updateLocationID();
+    });
+  }
+
+  if (typeof records !== 'undefined' && records.length > 0) {
+    let latestRecord = records.reduce((latest, current) => {
+      return (current.id > latest.id) ? current : latest;
+    }, records[0]);
+
+    let lastLocStr = latestRecord.locNo ? String(latestRecord.locNo) : '';
+    let matches = lastLocStr.match(/\d+$/);
+    let lastNum = matches ? parseInt(matches[0], 10) : NaN;
+
+    localStorage.setItem('locationCounter', isNaN(lastNum) ? 1 : lastNum + 1);
+  }
+
+  if (typeof renderProjectDropdown === 'function') renderProjectDropdown();
+  if (typeof render === 'function') render();
+  if (typeof updatePreview === 'function') updatePreview();
+  toggleSampleState();
+  updateLocationID();
+
+  if (typeof getGPS === 'function') {
+    setTimeout(getGPS, 800);
+  }
 });
 
 if ('serviceWorker' in navigator) {
@@ -1402,34 +2118,6 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.error('Service Worker registration failed:', err));
   });
 }
-
-// Dedicated Geofence Apply Trigger
-  function renderSpatialMapWithGeofence(e) {
-    if (e && e.preventDefault) e.preventDefault();
-
-    if (!mapInstance) {
-      alert("Map instance not found. Please open the spatial map modal first.");
-      return;
-    }
-
-    const minLat = parseFloat(document.getElementById('gfMinLat')?.value);
-    const maxLat = parseFloat(document.getElementById('gfMaxLat')?.value);
-    const minLon = parseFloat(document.getElementById('gfMinLon')?.value);
-    const maxLon = parseFloat(document.getElementById('gfMaxLon')?.value);
-
-    if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
-      alert("Please enter valid numeric values for all 4 coordinates.");
-      return;
-    }
-
-    if (minLat >= maxLat || minLon >= maxLon) {
-      alert("Min Lat/Lon must be strictly smaller than Max Lat/Lon!");
-      return;
-    }
-
-    // Re-render map layers with active geofence bounding box
-    renderSpatialMapWith();
-  }
 </script>
 <!-- MAP MODAL CONTAINER -->
 <div id="mapModal">
@@ -1465,7 +2153,17 @@ if ('serviceWorker' in navigator) {
       </div>
     </details>
 
-    <div id="map"></div>
+    <!-- 3. KML VECTOR OVERLAY ACCORDION PANEL -->
+    <details style="margin-top:6px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+      <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary);">🌍 KML Map Vector Overlay</summary>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+        <input type="file" id="kmlOverlayFile" accept=".kml" style="font-size:12px; width:220px;">
+        <button type="button" onclick="applyKMLOverlay()" style="background:#8e44ad; color:white; width:auto; padding:4px 10px; font-size:11px; margin:0; border:none; border-radius:4px; cursor:pointer;">Overlay KML</button>
+        <button type="button" onclick="removeKMLOverlay()" class="btn-warn" style="width:auto; padding:4px 10px; font-size:11px; margin:0;">Remove KML</button>
+      </div>
+    </details>
+    
+    <div id="map" style="margin-top:8px;"></div>
   </div>
 </div>
 <!-- Leaflet JS -->
