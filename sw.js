@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geologger-app-v4'; // Bumped to v4 to clear v3 cache
+const CACHE_NAME = 'geologger-app-v1.0.4'; // Bumping to v1.0.4 purges all older app shell caches
 const TILE_CACHE_NAME = 'geologger-osm-tiles-v1';
 
 // Static assets required for the app shell to function offline
@@ -6,7 +6,7 @@ const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './app.js',
+  './app.js?v=1.0.4',
   './icon-192.png',
   './icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
@@ -26,7 +26,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting(); // Force activation immediately
 });
 
-// Activate Event: Clean up legacy caches
+// Activate Event: Clean up legacy caches (e.g. geologger-app-v4)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -48,7 +48,6 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // 1. STRATEGY FOR MAP TILES (Cache-First -> Network Fallback)
-  // Essential for remote geological terrain with weak/intermittent cellular coverage
   if (url.hostname.includes('tile.openstreetmap.org')) {
     event.respondWith(
       caches.open(TILE_CACHE_NAME).then(async (cache) => {
@@ -64,7 +63,6 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         } catch (err) {
-          // If offline and not in cache, fail gracefully without breaking map render loop
           return new Response('', { status: 404, statusText: 'Tile Offline Unavailable' });
         }
       })
@@ -72,9 +70,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. STRATEGY FOR APP SHELL & ASSETS (Cache-First with Query Parameter Bypassing)
+  // 2. STRATEGY FOR APP SHELL & ASSETS (Cache-First, Exact Query String Matching)
   event.respondWith(
-    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+    caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
