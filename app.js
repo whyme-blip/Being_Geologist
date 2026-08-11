@@ -4,10 +4,10 @@ let mapDataGroup = null; // Holds survey stations, vectors, dots & route line
 let geofenceLayer = null;
 let customOverlayLayer = null;
 
-// Global state for station display mode ('dot', 'vector', or 'both')
-let currentDisplayMode = 'dot'; // Defaulted to 'dot' as requested
+// Master state for station display mode ('dot', 'vector', or 'both')
+let currentDisplayMode = 'dot'; // Defaulted to 'dot'
 
-// Global filter state for individual structural generations
+// Master filter state for structural generations
 let generationFilters = {
   S1: true,
   S2: true,
@@ -151,9 +151,6 @@ function calculateWeightedAverage(samples) {
 // 3. Map Controls & Structural Vector Logic
 // ==========================================
 
-/**
- * Extracts structural generation key (S1, S2, S3, L1, L2, L3, or OTHER)
- */
 function getGenerationKey(type) {
   const code = (type || '').toString().trim().toUpperCase();
   if (code.includes('S1')) return 'S1';
@@ -166,74 +163,11 @@ function getGenerationKey(type) {
 }
 
 /**
- * Triggered on Display Mode dropdown change
+ * Global handler when Display Mode select box is changed
  */
 function onDisplayModeChange(mode) {
   currentDisplayMode = mode;
   updateMapDisplay();
-}
-
-/**
- * Adds Station Display Dropdown and Generation Filter Checkboxes to top-right map overlay
- */
-function initVectorToggleControl(mapInstance) {
-  if (!mapInstance || mapInstance._vectorControlAdded) return;
-
-  const VectorControl = L.Control.extend({
-    options: { position: 'topright' },
-    onAdd: function () {
-      const container = L.DomUtil.create('div', 'leaflet-control-layers leaflet-control');
-      container.style.padding = '10px 12px';
-      container.style.marginTop = '6px';
-      container.style.background = '#ffffff';
-      container.style.borderRadius = '6px';
-      container.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
-      container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
-      container.style.fontSize = '12px';
-      container.style.color = '#2c3e50';
-      container.style.minWidth = '200px';
-
-      container.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <!-- Station Display Mode Dropdown -->
-          <label for="displayModeSelect" style="font-weight:700; color:#1f3a5f;">Station Display:</label>
-          <select id="displayModeSelect" onchange="onDisplayModeChange(this.value)" style="cursor:pointer; padding:4px 6px; border-radius:4px; border:1px solid #ccc; font-size:12px; outline:none; margin-bottom:4px;">
-            <option value="dot" ${currentDisplayMode === 'dot' ? 'selected' : ''}>Station Dots</option>
-            <option value="vector" ${currentDisplayMode === 'vector' ? 'selected' : ''}>Vector Icons + Dip/Plunge</option>
-            <option value="both" ${currentDisplayMode === 'both' ? 'selected' : ''}>Both (Dots + Vectors)</option>
-          </select>
-
-          <!-- Collapsible Generation Filter Section -->
-          <div style="border-top:1px solid #eee; padding-top:6px; margin-top:2px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none;" onclick="toggleFilterPanel()">
-              <strong style="color:#1f3a5f;">Filter Generations</strong>
-              <span id="filterToggleIcon" style="font-size:10px; color:#7f8c8d; font-weight:bold;">[ − ]</span>
-            </div>
-
-            <div id="filterCheckboxContainer" style="display:grid; grid-template-columns: 1fr 1fr; gap:4px 8px; margin-top:6px;">
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_S1" checked onchange="onGenFilterChange('S1', this.checked)"> <span style="color:#FF0000; font-weight:bold;">S1</span></label>
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_L1" checked onchange="onGenFilterChange('L1', this.checked)"> <span style="color:#FF0000; font-weight:bold;">L1</span></label>
-
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_S2" checked onchange="onGenFilterChange('S2', this.checked)"> <span style="color:#008000; font-weight:bold;">S2</span></label>
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_L2" checked onchange="onGenFilterChange('L2', this.checked)"> <span style="color:#008000; font-weight:bold;">L2</span></label>
-
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_S3" checked onchange="onGenFilterChange('S3', this.checked)"> <span style="color:#0000FF; font-weight:bold;">S3</span></label>
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_L3" checked onchange="onGenFilterChange('L3', this.checked)"> <span style="color:#0000FF; font-weight:bold;">L3</span></label>
-
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer; grid-column: span 2;"><input type="checkbox" id="filter_OTHER" checked onchange="onGenFilterChange('OTHER', this.checked)"> <span style="color:#000000; font-weight:bold;">Other Cleavage</span></label>
-            </div>
-          </div>
-        </div>
-      `;
-
-      L.DomEvent.disableClickPropagation(container);
-      L.DomEvent.disableScrollPropagation(container);
-      return container;
-    }
-  });
-
-  new VectorControl().addTo(mapInstance);
-  mapInstance._vectorControlAdded = true;
 }
 
 /**
@@ -245,8 +179,73 @@ function onGenFilterChange(genKey, isChecked) {
 }
 
 /**
- * Expands or collapses the generation filter checkbox panel
+ * Adds Display Mode Dropdown & Filters overlay to top-right of the map
  */
+function initVectorToggleControl(mapInstance) {
+  if (!mapInstance) return;
+
+  // Remove existing instance if present to avoid duplication
+  if (mapInstance._vectorControlInstance) {
+    mapInstance.removeControl(mapInstance._vectorControlInstance);
+  }
+
+  const VectorControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function () {
+      const container = L.DomUtil.create('div', 'leaflet-control-layers leaflet-control');
+      container.style.padding = '10px 12px';
+      container.style.marginTop = '6px';
+      container.style.background = '#ffffff';
+      container.style.borderRadius = '6px';
+      container.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+      container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+      container.style.fontSize = '12px';
+      container.style.color = '#2c3e50';
+      container.style.minWidth = '210px';
+      container.style.zIndex = '1000';
+
+      container.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label for="displayModeSelect" style="font-weight:700; color:#1f3a5f;">Station Display:</label>
+          <select id="displayModeSelect" onchange="onDisplayModeChange(this.value)" style="cursor:pointer; padding:5px 8px; border-radius:4px; border:1px solid #0288d1; font-weight:bold; font-size:12px; outline:none; background:#f4f9fc;">
+            <option value="dot" ${currentDisplayMode === 'dot' ? 'selected' : ''}>Station Dots</option>
+            <option value="vector" ${currentDisplayMode === 'vector' ? 'selected' : ''}>Vector Icons + Dip/Plunge</option>
+            <option value="both" ${currentDisplayMode === 'both' ? 'selected' : ''}>Both (Dots + Vectors)</option>
+          </select>
+
+          <div style="border-top:1px solid #eee; padding-top:6px; margin-top:2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none;" onclick="toggleFilterPanel()">
+              <strong style="color:#1f3a5f;">Filter Generations</strong>
+              <span id="filterToggleIcon" style="font-size:10px; color:#7f8c8d; font-weight:bold;">[ − ]</span>
+            </div>
+
+            <div id="filterCheckboxContainer" style="display:grid; grid-template-columns: 1fr 1fr; gap:4px 8px; margin-top:6px;">
+              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_S1" ${generationFilters.S1 ? 'checked' : ''} onchange="onGenFilterChange('S1', this.checked)"> <span style="color:#FF0000; font-weight:bold;">S1</span></label>
+              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_L1" ${generationFilters.L1 ? 'checked' : ''} onchange="onGenFilterChange('L1', this.checked)"> <span style="color:#FF0000; font-weight:bold;">L1</span></label>
+
+              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_S2" ${generationFilters.S2 ? 'checked' : ''} onchange="onGenFilterChange('S2', this.checked)"> <span style="color:#008000; font-weight:bold;">S2</span></label>
+              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_L2" ${generationFilters.L2 ? 'checked' : ''} onchange="onGenFilterChange('L2', this.checked)"> <span style="color:#008000; font-weight:bold;">L2</span></label>
+
+              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_S3" ${generationFilters.S3 ? 'checked' : ''} onchange="onGenFilterChange('S3', this.checked)"> <span style="color:#0000FF; font-weight:bold;">S3</span></label>
+              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_L3" ${generationFilters.L3 ? 'checked' : ''} onchange="onGenFilterChange('L3', this.checked)"> <span style="color:#0000FF; font-weight:bold;">L3</span></label>
+
+              <label style="display:flex; align-items:center; gap:4px; cursor:pointer; grid-column: span 2;"><input type="checkbox" id="filter_OTHER" ${generationFilters.OTHER ? 'checked' : ''} onchange="onGenFilterChange('OTHER', this.checked)"> <span style="color:#000000; font-weight:bold;">Other Cleavage</span></label>
+            </div>
+          </div>
+        </div>
+      `;
+
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.disableScrollPropagation(container);
+      return container;
+    }
+  });
+
+  const controlInstance = new VectorControl();
+  controlInstance.addTo(mapInstance);
+  mapInstance._vectorControlInstance = controlInstance;
+}
+
 function toggleFilterPanel() {
   const container = document.getElementById('filterCheckboxContainer');
   const icon = document.getElementById('filterToggleIcon');
@@ -262,10 +261,14 @@ function toggleFilterPanel() {
 }
 
 /**
- * Adds an expandable Structural Color Legend to the bottom-right of the map
+ * Adds Structural Color Legend to the bottom-right of the map
  */
 function initLegendControl(mapInstance) {
-  if (!mapInstance || mapInstance._legendControlAdded) return;
+  if (!mapInstance) return;
+
+  if (mapInstance._legendControlInstance) {
+    mapInstance.removeControl(mapInstance._legendControlInstance);
+  }
 
   const LegendControl = L.Control.extend({
     options: { position: 'bottomright' },
@@ -274,7 +277,7 @@ function initLegendControl(mapInstance) {
       container.style.padding = '8px 12px';
       container.style.background = '#ffffff';
       container.style.borderRadius = '6px';
-      container.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+      container.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
       container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
       container.style.fontSize = '12px';
       container.style.color = '#2c3e50';
@@ -314,13 +317,11 @@ function initLegendControl(mapInstance) {
     }
   });
 
-  new LegendControl().addTo(mapInstance);
-  mapInstance._legendControlAdded = true;
+  const legendInstance = new LegendControl();
+  legendInstance.addTo(mapInstance);
+  mapInstance._legendControlInstance = legendInstance;
 }
 
-/**
- * Toggles the expanded/collapsed state of the Legend box
- */
 function toggleLegendVisibility() {
   const content = document.getElementById('legendContent');
   const icon = document.getElementById('legendToggleIcon');
@@ -335,62 +336,37 @@ function toggleLegendVisibility() {
   }
 }
 
-/**
- * Assigns strict color codes based on structural feature generation
- */
 function getStructureColor(type) {
   const code = (type || '').toString().trim().toUpperCase();
-
-  // Red for S1 / L1
-  if (code.includes('S1') || code.includes('L1')) {
-    return '#FF0000';
-  } 
-  // Green for S2 / L2
-  else if (code.includes('S2') || code.includes('L2')) {
-    return '#008000';
-  } 
-  // Blue for S3 / L3
-  else if (code.includes('S3') || code.includes('L3')) {
-    return '#0000FF';
-  } 
-
-  // Black default for all other planar, linear, cleavage, or foliation features
+  if (code.includes('S1') || code.includes('L1')) return '#FF0000';
+  if (code.includes('S2') || code.includes('L2')) return '#008000';
+  if (code.includes('S3') || code.includes('L3')) return '#0000FF';
   return '#000000';
 }
 
-/**
- * Checks if a feature type represents a linear measurement (Lineation / Fold axis)
- */
 function isLinearFeature(type) {
   const t = (type || '').toString().toUpperCase();
   return t.startsWith('L') || t.includes('LINEATION') || t.includes('FOLD');
 }
 
-/**
- * Constructs a rotated SVG icon with horizontal numerical dip/plunge label
- */
 function getStructuralSvgIcon(record) {
   const type = record.type || record.linType || 'Bedding';
   const color = getStructureColor(type);
   const isLinear = isLinearFeature(type);
 
-  // Rotation and angle values
   const rotation = isLinear ? (record.trend || record.linTrend || 0) : (record.strike || 0);
   const angleValue = isLinear ? (record.plunge ?? record.linPlunge) : (record.dip);
   const labelText = (angleValue !== undefined && angleValue !== null && angleValue !== '') ? `${angleValue}°` : '';
 
-  // SVG Symbol Paths: Arrow for Linear, Strike Line + Dip Tick for Planar
   const svgPath = isLinear
     ? `<path d="M12 20 L12 4 M7 9 L12 4 L17 9" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
     : `<path d="M3 12 L21 12 M12 12 L12 19" stroke="${color}" stroke-width="2.5" stroke-linecap="round" fill="none"/>`;
 
   const html = `
     <div style="display: flex; align-items: center; width: 52px; height: 24px; position: relative;">
-      <!-- Rotated Symbol -->
       <svg width="24" height="24" viewBox="0 0 24 24" style="transform: rotate(${rotation}deg); transform-origin: 12px 12px; flex-shrink: 0;">
         ${svgPath}
       </svg>
-      <!-- Horizontal Dip/Plunge Numerical Label -->
       <span style="
         font-family: Arial, sans-serif;
         font-size: 11px;
@@ -414,7 +390,7 @@ function getStructuralSvgIcon(record) {
 }
 
 /**
- * Main map renderer: supports Vector, Station Dot, Combined Display Modes & Generation Filters
+ * Main map renderer using currentDisplayMode as master truth
  */
 function updateMapDisplay() {
   if (!map || !mapDataGroup) return;
@@ -425,13 +401,11 @@ function updateMapDisplay() {
 
   const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
   
-  // Filter records by project, map visibility, valid coordinates, AND generation checkbox states
   const visibleRecords = records.filter(r => {
     const isProjectValid = (r.projectId || 'PROJ-001') === currentProj;
     const isMapEnabled = r.showOnMap !== false;
     const hasValidCoords = r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon));
 
-    // Check if generation type is currently active in filters
     const genKey = getGenerationKey(r.type || r.linType);
     const isGenActive = generationFilters[genKey] !== false;
 
@@ -440,9 +414,14 @@ function updateMapDisplay() {
 
   if (visibleRecords.length === 0) return;
 
-  // Use global currentDisplayMode as single source of truth
+  // Master source of truth: currentDisplayMode variable directly
+  const displayMode = currentDisplayMode;
+
+  // Sync DOM select box if it exists
   const displaySelectEl = document.getElementById('displayModeSelect');
-  const displayMode = displaySelectEl ? displaySelectEl.value : currentDisplayMode;
+  if (displaySelectEl && displaySelectEl.value !== displayMode) {
+    displaySelectEl.value = displayMode;
+  }
 
   const routeCoordinates = [];
 
@@ -455,28 +434,28 @@ function updateMapDisplay() {
     const color = getStructureColor(r.type || r.linType);
     let marker;
 
-    // Mode 1: Medium Station Dots
+    // Mode 1: Station Dots
     if (displayMode === 'dot') {
       marker = L.circleMarker(latlng, {
+        radius: 7,
+        fillColor: color,
+        color: '#ffffff',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.95
+      });
+    } 
+    // Mode 2: Vector Symbols
+    else if (displayMode === 'vector') {
+      marker = L.marker(latlng, { icon: getStructuralSvgIcon(r) });
+    } 
+    // Mode 3: Both (Dots + Vectors)
+    else if (displayMode === 'both') {
+      const dotMarker = L.circleMarker(latlng, {
         radius: 6,
         fillColor: color,
         color: '#ffffff',
         weight: 1.5,
-        opacity: 1,
-        fillOpacity: 0.9
-      });
-    } 
-    // Mode 2: Vector Structural Icons with Numerical Angle Labels
-    else if (displayMode === 'vector') {
-      marker = L.marker(latlng, { icon: getStructuralSvgIcon(r) });
-    } 
-    // Mode 3: Both (Station Dots with Vector Icons overlay)
-    else if (displayMode === 'both') {
-      const dotMarker = L.circleMarker(latlng, {
-        radius: 5,
-        fillColor: color,
-        color: '#ffffff',
-        weight: 1,
         fillOpacity: 1
       });
       const vectorMarker = L.marker(latlng, { icon: getStructuralSvgIcon(r) });
@@ -505,7 +484,7 @@ function updateMapDisplay() {
     mapDataGroup.addLayer(marker);
   });
 
-  // Traverse Line between stations
+  // Traverse Line
   if (routeCoordinates.length > 1) {
     const routeLine = L.polyline(routeCoordinates, {
       color: '#e74c3c',
@@ -609,9 +588,11 @@ function openSpatialMap() {
     }).addTo(map);
 
     mapDataGroup = L.layerGroup().addTo(map);
-    initVectorToggleControl(map);
-    initLegendControl(map);
   }
+
+  // Always re-bind map controls to ensure visibility inside modal
+  initVectorToggleControl(map);
+  initLegendControl(map);
 
   setTimeout(() => {
     if (map) map.invalidateSize();
@@ -625,7 +606,7 @@ function closeSpatialMap() {
 }
 
 // ==========================================
-// 5. App Initialization & Service Worker Registration
+// 5. App Initialization & GPS Tracking
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator) {
@@ -634,7 +615,6 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch((err) => console.error('[PWA] Service Worker Error:', err));
   }
 
-  // Auto-initialize map instance if #map container exists on page load
   const mapElement = document.getElementById('map');
   if (mapElement && !map) {
     map = L.map('map').setView([0, 0], 2);
