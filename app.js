@@ -286,20 +286,24 @@ function openSpatialMap() {
     const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
     const firstLon = validPoints.length > 0 ? parseFloat(validPoints[0].lon) : 78.0;
 
+    // Ensure vectorSymbolsLayer exists
+    if (!vectorSymbolsLayer) {
+      vectorSymbolsLayer = L.layerGroup();
+    }
+
     if (!mapInstance) {
       mapInstance = L.map('map').setView([firstLat, firstLon], 13);
 
-      // Base Tile Layer
       osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap contributors'
       }).addTo(mapInstance);
 
-      // Feature Layer Groups
       mapDataGroup = L.layerGroup().addTo(mapInstance);
-      vectorSymbolsLayer = L.layerGroup().addTo(mapInstance); // Active by default (checked)
+      
+      // Add vector proxy layer to map by default (checked)
+      vectorSymbolsLayer.addTo(mapInstance);
 
-      // Initialize Native Leaflet Layer Control Index
       const baseMaps = {
         "OpenStreetMap (Standard)": osmTileLayer
       };
@@ -314,24 +318,26 @@ function openSpatialMap() {
         collapsed: false 
       }).addTo(mapInstance);
 
-      // Listen for when user toggles "Display Vector Symbols" directly in Leaflet Index
+      // Listen for toggle changes inside Leaflet Index
       mapInstance.on('overlayadd', (e) => {
-        if (e.layer === vectorSymbolsLayer) {
-          updateMapDisplay();
-        }
+        if (e.layer === vectorSymbolsLayer) updateMapDisplay();
       });
 
       mapInstance.on('overlayremove', (e) => {
-        if (e.layer === vectorSymbolsLayer) {
-          updateMapDisplay();
-        }
+        if (e.layer === vectorSymbolsLayer) updateMapDisplay();
       });
 
     } else {
       mapInstance.invalidateSize();
+      
+      // If mapInstance already existed, force add the vector symbol layer to control if missing
+      if (layerControl && vectorSymbolsLayer) {
+        layerControl.removeLayer(vectorSymbolsLayer);
+        layerControl.addOverlay(vectorSymbolsLayer, "📐 Display Vector Symbols");
+      }
     }
 
-    // Re-register dynamic KML / Custom overlays if re-opening modal
+    // Re-register dynamic KML / Custom overlays if re-opening
     if (kmlMapOverlayLayer && layerControl) {
       layerControl.removeLayer(kmlMapOverlayLayer);
       layerControl.addOverlay(kmlMapOverlayLayer, "🌍 KML Map Overlay");
