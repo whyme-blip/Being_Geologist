@@ -11,6 +11,7 @@ let layerControl = null;
 let kmlMapOverlayLayer = null;
 let customOverlayLayer = null;
 let currentOverlayUrl = null;
+let vectorSymbolsLayer = null;
 
 const ids = ['locNo', 'strike', 'dip', 'type', 'trend', 'plunge', 'lith', 'unit', 'remarks'];
 
@@ -288,74 +289,56 @@ function openSpatialMap() {
     if (!mapInstance) {
       mapInstance = L.map('map').setView([firstLat, firstLon], 13);
 
+      // Base Tile Layer
       osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap contributors'
       }).addTo(mapInstance);
 
+      // Feature Layer Groups
       mapDataGroup = L.layerGroup().addTo(mapInstance);
+      vectorSymbolsLayer = L.layerGroup().addTo(mapInstance); // Active by default (checked)
 
-      layerControl = L.control.layers(
-        { "OpenStreetMap (Standard)": osmTileLayer },
-        { "Survey Stations & Route": mapDataGroup },
-        { position: 'topright' }
-      ).addTo(mapInstance);
-
-      // ADD "Display Data Symbols" CONTROL PANEL TO LEAFLET TOP-RIGHT STACK
-      const dataSymbolControl = L.control({ position: 'topright' });
-      dataSymbolControl.onAdd = function () {
-        const div = L.DomUtil.create('div', 'leaflet-control-layers leaflet-control-layers-expanded');
-        div.style.padding = '6px 10px';
-        div.style.marginTop = '4px';
-        div.style.fontSize = '12px';
-        div.style.background = '#ffffff';
-        div.style.boxShadow = '0 1px 5px rgba(0,0,0,0.4)';
-        div.style.borderRadius = '5px';
-
-        div.innerHTML = `
-          <label style="cursor:pointer; display:flex; align-items:center; gap:6px; margin:0; font-size:12px; font-weight:600; color:#2c3e50;">
-            <input type="checkbox" id="toggleVectors" checked onchange="updateMapDisplay()" style="cursor:pointer; width:15px; height:15px;">
-            Display Data Symbols
-          </label>
-        `;
-
-        L.DomEvent.disableClickPropagation(div);
-        return div;
+      // Initialize Native Leaflet Layer Control Index
+      const baseMaps = {
+        "OpenStreetMap (Standard)": osmTileLayer
       };
-      dataSymbolControl.addTo(mapInstance);
 
-      let liveMarker = null;
-      let accuracyCircle = null;
+      const overlayMaps = {
+        "Survey Stations & Route": mapDataGroup,
+        "📐 Display Vector Symbols": vectorSymbolsLayer
+      };
 
-      mapInstance.on('locationfound', function (e) {
-        const radius = e.accuracy / 2;
-        if (liveMarker) mapInstance.removeLayer(liveMarker);
-        if (accuracyCircle) mapInstance.removeLayer(accuracyCircle);
+      layerControl = L.control.layers(baseMaps, overlayMaps, { 
+        position: 'topright', 
+        collapsed: false 
+      }).addTo(mapInstance);
 
-        accuracyCircle = L.circle(e.latlng, {
-          radius: radius,
-          color: "#136AEC",
-          fillColor: "#136AEC",
-          fillOpacity: 0.15,
-          weight: 1
-        }).addTo(mapInstance);
-
-        liveMarker = L.circleMarker(e.latlng, {
-          radius: 7,
-          fillColor: "#2A93EE",
-          color: "#ffffff",
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 1
-        }).addTo(mapInstance).bindPopup("<b>You are here</b>");
+      // Listen for when user toggles "Display Vector Symbols" directly in Leaflet Index
+      mapInstance.on('overlayadd', (e) => {
+        if (e.layer === vectorSymbolsLayer) {
+          updateMapDisplay();
+        }
       });
 
-      mapInstance.on('locationerror', function (e) {
-        console.warn("Live location unavailable: " + e.message);
+      mapInstance.on('overlayremove', (e) => {
+        if (e.layer === vectorSymbolsLayer) {
+          updateMapDisplay();
+        }
       });
 
     } else {
       mapInstance.invalidateSize();
+    }
+
+    // Re-register dynamic KML / Custom overlays if re-opening modal
+    if (kmlMapOverlayLayer && layerControl) {
+      layerControl.removeLayer(kmlMapOverlayLayer);
+      layerControl.addOverlay(kmlMapOverlayLayer, "🌍 KML Map Overlay");
+    }
+    if (customOverlayLayer && layerControl) {
+      layerControl.removeLayer(customOverlayLayer);
+      layerControl.addOverlay(customOverlayLayer, "🗺️ Custom Map Image");
     }
 
     mapInstance.locate({ setView: false, enableHighAccuracy: true });
@@ -381,8 +364,8 @@ function updateMapDisplay() {
   mapDataGroup.clearLayers();
   if (visibleMapRecords.length === 0) return;
 
-  const vectorToggleEl = document.getElementById('showVectors') || document.getElementById('toggleVectors');
-  const showVectors = vectorToggleEl ? vectorToggleEl.checked : true;
+  // Check if "Display Vector Symbols" checkbox in Leaflet's Index is checked
+  const showVectors = mapInstance.hasLayer(vectorSymbolsLayer);
   const routeCoordinates = [];
 
   visibleMapRecords.forEach((r) => {
@@ -393,6 +376,7 @@ function updateMapDisplay() {
 
     let marker;
     if (showVectors) {
+      // Draw Strike/Dip or Trend/Plunge SVG structural symbols
       const checkLinear = isLinear(r.type);
       if (checkLinear || (r.trend && r.plunge && !r.strike)) {
         marker = L.marker(latlng, { icon: getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType) });
@@ -400,6 +384,7 @@ function updateMapDisplay() {
         marker = L.marker(latlng, { icon: getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding') });
       }
     } else {
+      // Draw simple Station Dots when unchecked
       marker = L.circleMarker(latlng, {
         radius: 6,
         fillColor: getStructureColor(r.type),
@@ -420,9 +405,6 @@ function updateMapDisplay() {
         ${r.lith ? `<div><b>Lithology:</b> ${escapeHTML(r.lith)}</div>` : ''}
         ${r.sample ? `<div style="margin-top: 4px;"><b>Sample ID:</b> <span style="background: #e1f5fe; color: #0288d1; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${escapeHTML(r.sample)}</span></div>` : ''}
         ${r.remarks ? `<div style="margin-top: 6px; font-style: italic; background: #f8f9fa; padding: 6px; border-radius: 4px; border: 1px solid #e9ecef;">${escapeHTML(r.remarks)}</div>` : ''}
-        <div style="margin-top: 8px; font-size: 11px; color: #7f8c8d; border-top: 1px dashed #eee; padding-top: 4px;">
-          Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)} ${r.alt ? '| Alt: ' + escapeHTML(r.alt) + 'm' : ''}
-        </div>
       </div>
     `;
 
