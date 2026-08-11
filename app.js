@@ -301,6 +301,29 @@ function openSpatialMap() {
         { position: 'topright' }
       ).addTo(mapInstance);
 
+      // ADD "Display Data Symbols" CONTROL PANEL TO LEAFLET TOP-RIGHT STACK
+      const dataSymbolControl = L.control({ position: 'topright' });
+      dataSymbolControl.onAdd = function () {
+        const div = L.DomUtil.create('div', 'leaflet-control-layers leaflet-control-layers-expanded');
+        div.style.padding = '6px 10px';
+        div.style.marginTop = '4px';
+        div.style.fontSize = '12px';
+        div.style.background = '#ffffff';
+        div.style.boxShadow = '0 1px 5px rgba(0,0,0,0.4)';
+        div.style.borderRadius = '5px';
+
+        div.innerHTML = `
+          <label style="cursor:pointer; display:flex; align-items:center; gap:6px; margin:0; font-size:12px; font-weight:600; color:#2c3e50;">
+            <input type="checkbox" id="toggleVectors" checked onchange="updateMapDisplay()" style="cursor:pointer; width:15px; height:15px;">
+            Display Data Symbols
+          </label>
+        `;
+
+        L.DomEvent.disableClickPropagation(div);
+        return div;
+      };
+      dataSymbolControl.addTo(mapInstance);
+
       let liveMarker = null;
       let accuracyCircle = null;
 
