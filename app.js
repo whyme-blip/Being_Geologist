@@ -1,481 +1,404 @@
-// Global Map and Layer references
-let map = null;
-let mapDataGroup = null; // Holds survey stations, vectors, dots & route line
-let geofenceLayer = null;
+// ==========================================
+// GLOBAL STATE & MAP HANDLES
+// ==========================================
+let records = JSON.parse(localStorage.getItem('structuralRecords') || '[]');
+let activeProjectId = localStorage.getItem('activeProjectId') || 'PROJ-001';
+
+let mapInstance = null;
+let mapDataGroup = null;
+let osmTileLayer = null;
+let layerControl = null;
+let kmlMapOverlayLayer = null;
 let customOverlayLayer = null;
+let currentOverlayUrl = null;
 
-// Master state for station display mode ('dot', 'vector', or 'both')
-let currentDisplayMode = 'dot'; // Defaulted to 'dot'
-
-// Master filter state for structural generations
-let generationFilters = {
-  S1: true,
-  S2: true,
-  S3: true,
-  L1: true,
-  L2: true,
-  L3: true,
-  OTHER: true
-};
+const ids = ['locNo', 'strike', 'dip', 'type', 'trend', 'plunge', 'lith', 'unit', 'remarks'];
 
 // ==========================================
-// 1. HighPrecisionGPS Class
+// 1. CORE GEOLOGICAL HELPERS
 // ==========================================
-class HighPrecisionGPS {
-  constructor(onLocationUpdate, onError) {
-    this.onLocationUpdate = onLocationUpdate;
-    this.onError = onError;
-    this.watchId = null;
-    this.wakeLock = null;
-    this.maxAcceptableAccuracyMeters = 15; 
-    this.minMovementMeters = 2.5;          
-    this.lastValidCoord = null;
-  }
+function isLinear(typeStr) {
+  const t = (typeStr || '').toLowerCase();
+  return t.includes('lineation') || t.includes('fold') || t.includes('axis') || t.includes('striae') || t.includes('slickenside');
+}
 
-  async startTracking() {
-    await this.requestWakeLock();
-    const geoOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 };
+function getQuadrant(azimuth) {
+  const az = (parseFloat(azimuth) % 360 + 360) % 360;
+  if (isNaN(az)) return '';
+  if (az >= 337.5 || az < 22.5) return 'N';
+  if (az >= 22.5 && az < 67.5) return 'NE';
+  if (az >= 67.5 && az < 112.5) return 'E';
+  if (az >= 112.5 && az < 157.5) return 'SE';
+  if (az >= 157.5 && az < 202.5) return 'S';
+  if (az >= 202.5 && az < 247.5) return 'SW';
+  if (az >= 247.5 && az < 292.5) return 'W';
+  if (az >= 292.5 && az < 337.5) return 'NW';
+  return '';
+}
 
-    if ('geolocation' in navigator) {
-      this.watchId = navigator.geolocation.watchPosition(
-        (pos) => this.processPosition(pos),
-        (err) => { if (this.onError) this.onError(err); },
-        geoOptions
-      );
-    }
-  }
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
-  stopTracking() {
-    if (this.watchId !== null) {
-      navigator.geolocation.clearWatch(this.watchId);
-      this.watchId = null;
-    }
-    this.releaseWakeLock();
-  }
-
-  processPosition(position) {
-    const { latitude, longitude, accuracy, altitude } = position.coords;
-
-    if (accuracy > this.maxAcceptableAccuracyMeters) return;
-
-    if (this.lastValidCoord) {
-      const dist = this.haversineDistance(
-        this.lastValidCoord.lat, this.lastValidCoord.lon,
-        latitude, longitude
-      );
-      if (dist < this.minMovementMeters) return;
-    }
-
-    this.lastValidCoord = { lat: latitude, lon: longitude };
-
-    if (this.onLocationUpdate) {
-      this.onLocationUpdate({ lat: latitude, lng: longitude, accuracy, altitude });
-    }
-  }
-
-  haversineDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371000;
-    const dLat = (lat1 - lat2) * Math.PI / 180;
-    const dLon = (lon1 - lon2) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  }
-
-  async requestWakeLock() {
-    if ('wakeLock' in navigator) {
-      try { this.wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
-    }
-  }
-
-  releaseWakeLock() {
-    if (this.wakeLock) { this.wakeLock.release().then(() => { this.wakeLock = null; }); }
-  }
+function val(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
 }
 
 // ==========================================
-// 2. Multi-Sample Spot Location Averaging
+// 2. STRUCTURAL PREVIEW & CALCULATION UTILITIES
 // ==========================================
-async function getHighPrecisionSpotLocation(samplesCount = 5, intervalMs = 1000) {
-  return new Promise((resolve) => {
-    const samples = [];
-    const geoOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 4000 };
-    let count = 0;
+function updatePreview() {
+  const previewEl = document.getElementById('preview');
+  if (!previewEl) return;
 
-    const timer = setInterval(() => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          samples.push({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-            altitude: pos.coords.altitude
-          });
-          count++;
-          if (count >= samplesCount) {
-            clearInterval(timer);
-            resolve(calculateWeightedAverage(samples));
-          }
-        },
-        (err) => console.warn('[GPS Sample] Failed sample fix:', err),
-        geoOptions
-      );
-    }, intervalMs);
-  });
-}
-
-function calculateWeightedAverage(samples) {
-  let totalWeight = 0;
-  let weightedLat = 0;
-  let weightedLng = 0;
-  let bestAccuracy = Infinity;
-
-  samples.forEach((s) => {
-    const weight = 1 / Math.pow(s.accuracy, 2);
-    weightedLat += s.lat * weight;
-    weightedLng += s.lng * weight;
-    totalWeight += weight;
-    if (s.accuracy < bestAccuracy) bestAccuracy = s.accuracy;
-  });
-
-  return {
-    lat: weightedLat / totalWeight,
-    lng: weightedLng / totalWeight,
-    confidenceMarginMeters: bestAccuracy,
-    sampleCount: samples.length
-  };
-}
-
-// ==========================================
-// 3. Map Controls & Structural Vector Logic
-// ==========================================
-
-function getGenerationKey(type) {
-  const code = (type || '').toString().trim().toUpperCase();
-  if (code.includes('S1')) return 'S1';
-  if (code.includes('S2')) return 'S2';
-  if (code.includes('S3')) return 'S3';
-  if (code.includes('L1')) return 'L1';
-  if (code.includes('L2')) return 'L2';
-  if (code.includes('L3')) return 'L3';
-  return 'OTHER';
-}
-
-/**
- * Global handler when Display Mode select box is changed
- */
-function onDisplayModeChange(mode) {
-  currentDisplayMode = mode;
-  updateMapDisplay();
-}
-
-/**
- * Handles individual generation checkbox changes and triggers map redraw
- */
-function onGenFilterChange(genKey, isChecked) {
-  generationFilters[genKey] = isChecked;
-  updateMapDisplay();
-}
-
-/**
- * Adds Display Mode Dropdown & Filters overlay to top-right of the map
- */
-function initVectorToggleControl(mapInstance) {
-  if (!mapInstance) return;
-
-  // Remove existing instance if present to avoid duplication
-  if (mapInstance._vectorControlInstance) {
-    mapInstance.removeControl(mapInstance._vectorControlInstance);
-  }
-
-  const VectorControl = L.Control.extend({
-    options: { position: 'topright' },
-    onAdd: function () {
-      const container = L.DomUtil.create('div', 'leaflet-control-layers leaflet-control');
-      container.style.padding = '10px 12px';
-      container.style.marginTop = '6px';
-      container.style.background = '#ffffff';
-      container.style.borderRadius = '6px';
-      container.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
-      container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
-      container.style.fontSize = '12px';
-      container.style.color = '#2c3e50';
-      container.style.minWidth = '210px';
-      container.style.zIndex = '1000';
-
-      container.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <label for="displayModeSelect" style="font-weight:700; color:#1f3a5f;">Station Display:</label>
-          <select id="displayModeSelect" onchange="onDisplayModeChange(this.value)" style="cursor:pointer; padding:5px 8px; border-radius:4px; border:1px solid #0288d1; font-weight:bold; font-size:12px; outline:none; background:#f4f9fc;">
-            <option value="dot" ${currentDisplayMode === 'dot' ? 'selected' : ''}>Station Dots</option>
-            <option value="vector" ${currentDisplayMode === 'vector' ? 'selected' : ''}>Vector Icons + Dip/Plunge</option>
-            <option value="both" ${currentDisplayMode === 'both' ? 'selected' : ''}>Both (Dots + Vectors)</option>
-          </select>
-
-          <div style="border-top:1px solid #eee; padding-top:6px; margin-top:2px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none;" onclick="toggleFilterPanel()">
-              <strong style="color:#1f3a5f;">Filter Generations</strong>
-              <span id="filterToggleIcon" style="font-size:10px; color:#7f8c8d; font-weight:bold;">[ − ]</span>
-            </div>
-
-            <div id="filterCheckboxContainer" style="display:grid; grid-template-columns: 1fr 1fr; gap:4px 8px; margin-top:6px;">
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_S1" ${generationFilters.S1 ? 'checked' : ''} onchange="onGenFilterChange('S1', this.checked)"> <span style="color:#FF0000; font-weight:bold;">S1</span></label>
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_L1" ${generationFilters.L1 ? 'checked' : ''} onchange="onGenFilterChange('L1', this.checked)"> <span style="color:#FF0000; font-weight:bold;">L1</span></label>
-
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_S2" ${generationFilters.S2 ? 'checked' : ''} onchange="onGenFilterChange('S2', this.checked)"> <span style="color:#008000; font-weight:bold;">S2</span></label>
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_L2" ${generationFilters.L2 ? 'checked' : ''} onchange="onGenFilterChange('L2', this.checked)"> <span style="color:#008000; font-weight:bold;">L2</span></label>
-
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_S3" ${generationFilters.S3 ? 'checked' : ''} onchange="onGenFilterChange('S3', this.checked)"> <span style="color:#0000FF; font-weight:bold;">S3</span></label>
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="filter_L3" ${generationFilters.L3 ? 'checked' : ''} onchange="onGenFilterChange('L3', this.checked)"> <span style="color:#0000FF; font-weight:bold;">L3</span></label>
-
-              <label style="display:flex; align-items:center; gap:4px; cursor:pointer; grid-column: span 2;"><input type="checkbox" id="filter_OTHER" ${generationFilters.OTHER ? 'checked' : ''} onchange="onGenFilterChange('OTHER', this.checked)"> <span style="color:#000000; font-weight:bold;">Other Cleavage</span></label>
-            </div>
-          </div>
-        </div>
-      `;
-
-      L.DomEvent.disableClickPropagation(container);
-      L.DomEvent.disableScrollPropagation(container);
-      return container;
-    }
-  });
-
-  const controlInstance = new VectorControl();
-  controlInstance.addTo(mapInstance);
-  mapInstance._vectorControlInstance = controlInstance;
-}
-
-function toggleFilterPanel() {
-  const container = document.getElementById('filterCheckboxContainer');
-  const icon = document.getElementById('filterToggleIcon');
-  if (container) {
-    if (container.style.display === 'none') {
-      container.style.display = 'grid';
-      if (icon) icon.textContent = '[ − ]';
+  const structType = val('type');
+  if (isLinear(structType)) {
+    const trend = val('trend');
+    const plunge = val('plunge');
+    previewEl.value = (trend && plunge) ? `${plunge}° → ${trend.padStart(3, '0')}° (${getQuadrant(trend)})` : '';
+  } else {
+    const strike = val('strike');
+    const dip = val('dip');
+    if (strike && dip) {
+      const dd = (parseInt(strike, 10) + 90) % 360;
+      previewEl.value = `${strike.padStart(3, '0')}°/${dip.padStart(2, '0')}° (Dip Dir: ${dd.toString().padStart(3, '0')}° ${getQuadrant(dd)})`;
     } else {
-      container.style.display = 'none';
-      if (icon) icon.textContent = '[ + ]';
+      previewEl.value = '';
     }
   }
 }
 
-/**
- * Adds Structural Color Legend to the bottom-right of the map
- */
-function initLegendControl(mapInstance) {
-  if (!mapInstance) return;
-
-  if (mapInstance._legendControlInstance) {
-    mapInstance.removeControl(mapInstance._legendControlInstance);
-  }
-
-  const LegendControl = L.Control.extend({
-    options: { position: 'bottomright' },
-    onAdd: function () {
-      const container = L.DomUtil.create('div', 'leaflet-control-layers leaflet-control');
-      container.style.padding = '8px 12px';
-      container.style.background = '#ffffff';
-      container.style.borderRadius = '6px';
-      container.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
-      container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
-      container.style.fontSize = '12px';
-      container.style.color = '#2c3e50';
-      container.style.minWidth = '160px';
-
-      container.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none;" onclick="toggleLegendVisibility()">
-          <strong style="font-size:12px; color:#1f3a5f;">🗺️ Structural Legend</strong>
-          <span id="legendToggleIcon" style="font-size:11px; color:#7f8c8d; font-weight:bold; margin-left:8px;">[ − ]</span>
-        </div>
-        <div id="legendContent" style="margin-top:8px; display:block;">
-          <div style="font-weight:700; font-size:10px; text-transform:uppercase; color:#7f8c8d; margin-bottom:6px; border-bottom:1px solid #eee; padding-bottom:3px;">
-            Generations (Planar & Linear)
-          </div>
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
-            <span style="display:inline-block; width:12px; height:12px; background:#FF0000; border-radius:50%; border:1px solid rgba(0,0,0,0.15);"></span>
-            <span><strong>S1 / L1</strong> (Red)</span>
-          </div>
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
-            <span style="display:inline-block; width:12px; height:12px; background:#008000; border-radius:50%; border:1px solid rgba(0,0,0,0.15);"></span>
-            <span><strong>S2 / L2</strong> (Green)</span>
-          </div>
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
-            <span style="display:inline-block; width:12px; height:12px; background:#0000FF; border-radius:50%; border:1px solid rgba(0,0,0,0.15);"></span>
-            <span><strong>S3 / L3</strong> (Blue)</span>
-          </div>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="display:inline-block; width:12px; height:12px; background:#000000; border-radius:50%; border:1px solid rgba(0,0,0,0.15);"></span>
-            <span><strong>Other</strong> Cleavage/Foliation</span>
-          </div>
-        </div>
-      `;
-
-      L.DomEvent.disableClickPropagation(container);
-      L.DomEvent.disableScrollPropagation(container);
-      return container;
-    }
-  });
-
-  const legendInstance = new LegendControl();
-  legendInstance.addTo(mapInstance);
-  mapInstance._legendControlInstance = legendInstance;
+function updatePitchFromOptions() {
+  // Optional helper to adjust pitch calculations relative to strike inputs
 }
 
-function toggleLegendVisibility() {
-  const content = document.getElementById('legendContent');
-  const icon = document.getElementById('legendToggleIcon');
-  if (content) {
-    if (content.style.display === 'none') {
-      content.style.display = 'block';
-      if (icon) icon.textContent = '[ − ]';
+function calculateLineationFromPitch() {
+  const strike = parseFloat(val('strike'));
+  const dip = parseFloat(val('dip'));
+  const rake = parseFloat(val('pitchRake'));
+  const pitchFrom = val('pitchFrom'); // 'strike' or 'opposite'
+
+  if (isNaN(strike) || isNaN(dip) || isNaN(rake)) return;
+
+  const dipRad = (dip * Math.PI) / 180;
+  const rakeRad = (rake * Math.PI) / 180;
+
+  // True plunge calculation: sin(plunge) = sin(dip) * sin(rake)
+  const sinPlunge = Math.sin(dipRad) * Math.sin(rakeRad);
+  const plungeDeg = Math.round((Math.asin(sinPlunge) * 180) / Math.PI);
+
+  // Apparent angle along strike plane: cos(beta) = cos(rake) / cos(plunge)
+  const cosPlunge = Math.cos((plungeDeg * Math.PI) / 180);
+  const betaDeg = cosPlunge !== 0 ? (Math.acos(Math.cos(rakeRad) / cosPlunge) * 180) / Math.PI : 0;
+
+  let trendDeg = (pitchFrom === 'opposite')
+    ? (strike + 180 - betaDeg + 360) % 360
+    : (strike + betaDeg + 360) % 360;
+
+  trendDeg = Math.round(trendDeg);
+
+  const trendEl = document.getElementById('trend');
+  const plungeEl = document.getElementById('plunge');
+  if (trendEl) trendEl.value = trendDeg.toString().padStart(3, '0');
+  if (plungeEl) plungeEl.value = plungeDeg.toString().padStart(2, '0');
+
+  updatePreview();
+}
+
+// ==========================================
+// 3. COUNTER & LOCATION IDENTIFIER UTILITIES
+// ==========================================
+function handleLocModeChange() {
+  const modeEl = document.getElementById('locCountMode');
+  const locNoInput = document.getElementById('locNo');
+  if (!modeEl || !locNoInput) return;
+
+  const mode = modeEl.value;
+
+  if (mode === 'manual') {
+    if (confirm("Do you really want to manually enter the location number?")) {
+      locNoInput.readOnly = false;
+      locNoInput.focus();
+      locNoInput.select();
     } else {
-      content.style.display = 'none';
-      if (icon) icon.textContent = '[ + ]';
+      modeEl.value = 'continue';
     }
+  } else if (mode === 'reset') {
+    if (confirm("Do you really want to reset the counter to 0?")) {
+      locNoInput.readOnly = true;
+      localStorage.setItem('locationCounter', '0');
+      updateLocationID();
+    } else {
+      modeEl.value = 'continue';
+    }
+  } else {
+    locNoInput.readOnly = true;
+    if (records.length > 0) {
+      const latestRecord = records.reduce((latest, current) => (current.id > latest.id ? current : latest), records[0]);
+      const lastLocStr = latestRecord.locNo ? String(latestRecord.locNo) : '';
+      const matches = lastLocStr.match(/\d+$/);
+      const lastNum = matches ? parseInt(matches[0], 10) : NaN;
+      localStorage.setItem('locationCounter', isNaN(lastNum) ? 1 : lastNum + 1);
+    } else {
+      localStorage.setItem('locationCounter', '1');
+    }
+    updateLocationID();
   }
 }
 
-function getStructureColor(type) {
-  const code = (type || '').toString().trim().toUpperCase();
-  if (code.includes('S1') || code.includes('L1')) return '#FF0000';
-  if (code.includes('S2') || code.includes('L2')) return '#008000';
-  if (code.includes('S3') || code.includes('L3')) return '#0000FF';
-  return '#000000';
+function updateLocationID() {
+  const modeEl = document.getElementById('locCountMode');
+  const locNoEl = document.getElementById('locNo');
+  if (!modeEl || !locNoEl) return;
+
+  if (modeEl.value !== 'manual') {
+    const prefix = document.getElementById('locPrefix')?.value || 'JU';
+    const num = parseInt(localStorage.getItem('locationCounter') || '1', 10);
+    locNoEl.value = prefix + '-' + String(num).padStart(3, '0');
+  }
 }
 
-function isLinearFeature(type) {
-  const t = (type || '').toString().toUpperCase();
-  return t.startsWith('L') || t.includes('LINEATION') || t.includes('FOLD');
+function toggleSampleState() {
+  const takeSampleEl = document.getElementById('takeSample');
+  if (!takeSampleEl) return;
+
+  const isChecked = takeSampleEl.checked;
+  const sampleType = document.getElementById('sampleType');
+  const samplePrefix = document.getElementById('samplePrefix');
+  const sampleCounterBtn = document.getElementById('sampleCounterBtn');
+
+  if (sampleType) sampleType.disabled = !isChecked;
+  if (samplePrefix) samplePrefix.disabled = !isChecked;
+  if (sampleCounterBtn) sampleCounterBtn.disabled = !isChecked;
+  updateSampleID();
 }
 
-function getStructuralSvgIcon(record) {
-  const type = record.type || record.linType || 'Bedding';
-  const color = getStructureColor(type);
-  const isLinear = isLinearFeature(type);
+function updateSampleID() {
+  const takeSampleEl = document.getElementById('takeSample');
+  const sampleInput = document.getElementById('sample');
+  if (!takeSampleEl || !sampleInput) return;
 
-  const rotation = isLinear ? (record.trend || record.linTrend || 0) : (record.strike || 0);
-  const angleValue = isLinear ? (record.plunge ?? record.linPlunge) : (record.dip);
-  const labelText = (angleValue !== undefined && angleValue !== null && angleValue !== '') ? `${angleValue}°` : '';
+  if (takeSampleEl.checked) {
+    const prefix = document.getElementById('samplePrefix')?.value || 'DD';
+    const num = parseInt(localStorage.getItem('sampleCounter') || '1', 10);
+    sampleInput.value = prefix + '-' + String(num).padStart(3, '0');
+  } else {
+    sampleInput.value = 'No Sample Collected';
+  }
+}
 
-  const svgPath = isLinear
-    ? `<path d="M12 20 L12 4 M7 9 L12 4 L17 9" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
-    : `<path d="M3 12 L21 12 M12 12 L12 19" stroke="${color}" stroke-width="2.5" stroke-linecap="round" fill="none"/>`;
+function setSampleCounter() {
+  const userInput = prompt("Enter the next starting sample number sequence (e.g., 2 for 002, 5 for 005):");
+  if (userInput === null) return;
 
-  const html = `
-    <div style="display: flex; align-items: center; width: 52px; height: 24px; position: relative;">
-      <svg width="24" height="24" viewBox="0 0 24 24" style="transform: rotate(${rotation}deg); transform-origin: 12px 12px; flex-shrink: 0;">
-        ${svgPath}
-      </svg>
-      <span style="
-        font-family: Arial, sans-serif;
-        font-size: 11px;
-        font-weight: bold;
-        color: ${color};
-        margin-left: 2px;
-        text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
-        pointer-events: none;
-        user-select: none;
-        white-space: nowrap;
-      ">${labelText}</span>
-    </div>
+  const parsedNum = parseInt(userInput.replace(/^\D+/g, ''), 10);
+  if (isNaN(parsedNum) || parsedNum < 0) {
+    alert("Please enter a valid numeric value (0 or higher).");
+    return;
+  }
+
+  localStorage.setItem('sampleCounter', parsedNum);
+  updateSampleID();
+  updatePreview();
+  alert(`Sample tracking updated! The next saved entry will use sequence number: ${parsedNum}`);
+}
+
+// ==========================================
+// 4. DYNAMIC SVG SYMBOL GENERATORS FOR LEAFLET
+// ==========================================
+function getPlanarSvgIcon(strike, dip, type) {
+  const strikeDeg = parseFloat(strike) || 0;
+  const dipVal = (dip !== undefined && dip !== '') ? dip : '';
+  const structColor = getStructureColor(type);
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+      <g transform="rotate(${strikeDeg}, 20, 20)">
+        <line x1="6" y1="20" x2="34" y2="20" stroke="${structColor}" stroke-width="3" stroke-linecap="round" />
+        <line x1="20" y1="20" x2="20" y2="28" stroke="${structColor}" stroke-width="2.5" stroke-linecap="round" />
+        <circle cx="20" cy="20" r="2" fill="${structColor}" />
+      </g>
+      <text x="24" y="14" font-size="11" font-weight="bold" fill="${structColor}" font-family="monospace">${dipVal}</text>
+    </svg>
   `;
 
   return L.divIcon({
-    className: 'structural-labeled-icon',
-    html: html,
-    iconSize: [52, 24],
-    iconAnchor: [12, 12]
+    html: svg,
+    className: 'geo-svg-marker',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -10]
   });
 }
 
-/**
- * Main map renderer using currentDisplayMode as master truth
- */
+function getLinearSvgIcon(trend, plunge, type) {
+  const trendDeg = parseFloat(trend) || 0;
+  const plungeVal = (plunge !== undefined && plunge !== '') ? plunge : '';
+  const strokeColor = getStructureColor(type || 'Lineation');
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+      <g transform="rotate(${trendDeg}, 20, 20)">
+        <line x1="20" y1="32" x2="20" y2="8" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" />
+        <path d="M 15 14 L 20 6 L 25 14" fill="none" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="20" cy="20" r="2" fill="${strokeColor}" />
+      </g>
+      <text x="24" y="34" font-size="11" font-weight="bold" fill="${strokeColor}" font-family="monospace">${plungeVal}°</text>
+    </svg>
+  `;
+
+  return L.divIcon({
+    html: svg,
+    className: 'geo-svg-marker',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -10]
+  });
+}
+
+function getStructureColor(type) {
+  const structType = type || '';
+  if (structType.includes('Foliation') || structType.includes('S1') || structType.includes('S2')) return '#e67e22'; // Orange
+  if (structType.includes('Joint')) return '#27ae60'; // Green
+  if (structType.includes('Fault') || structType.includes('Shear')) return '#c0392b'; // Red
+  if (structType.includes('Bedding') || structType.includes('S0')) return '#2980b9'; // Blue
+  if (structType.includes('Lineation') || structType.includes('Fold')) return '#8e44ad'; // Purple
+  return '#2c3e50'; // Slate
+}
+
+// ==========================================
+// 5. SPATIAL MAP & OVERLAY UTILITIES
+// ==========================================
+function openSpatialMap() {
+  const modal = document.getElementById('mapModal');
+  if (modal) modal.style.display = 'block';
+
+  setTimeout(() => {
+    const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
+    const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
+    const firstLon = validPoints.length > 0 ? parseFloat(validPoints[0].lon) : 78.0;
+
+    if (!mapInstance) {
+      mapInstance = L.map('map').setView([firstLat, firstLon], 13);
+
+      osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(mapInstance);
+
+      mapDataGroup = L.layerGroup().addTo(mapInstance);
+
+      layerControl = L.control.layers(
+        { "OpenStreetMap (Standard)": osmTileLayer },
+        { "Survey Stations & Route": mapDataGroup },
+        { position: 'topright' }
+      ).addTo(mapInstance);
+
+      let liveMarker = null;
+      let accuracyCircle = null;
+
+      mapInstance.on('locationfound', function (e) {
+        const radius = e.accuracy / 2;
+        if (liveMarker) mapInstance.removeLayer(liveMarker);
+        if (accuracyCircle) mapInstance.removeLayer(accuracyCircle);
+
+        accuracyCircle = L.circle(e.latlng, {
+          radius: radius,
+          color: "#136AEC",
+          fillColor: "#136AEC",
+          fillOpacity: 0.15,
+          weight: 1
+        }).addTo(mapInstance);
+
+        liveMarker = L.circleMarker(e.latlng, {
+          radius: 7,
+          fillColor: "#2A93EE",
+          color: "#ffffff",
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 1
+        }).addTo(mapInstance).bindPopup("<b>You are here</b>");
+      });
+
+      mapInstance.on('locationerror', function (e) {
+        console.warn("Live location unavailable: " + e.message);
+      });
+
+    } else {
+      mapInstance.invalidateSize();
+    }
+
+    mapInstance.locate({ setView: false, enableHighAccuracy: true });
+    updateMapDisplay();
+  }, 100);
+}
+
+function closeSpatialMap() {
+  const modal = document.getElementById('mapModal');
+  if (modal) modal.style.display = 'none';
+}
+
 function updateMapDisplay() {
-  if (!map || !mapDataGroup) return;
+  if (!mapInstance || !mapDataGroup) return;
+
+  const visibleMapRecords = records.filter(r =>
+    (r.projectId || 'PROJ-001') === activeProjectId &&
+    r.showOnMap !== false &&
+    r.lat && r.lon &&
+    !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
+  );
 
   mapDataGroup.clearLayers();
+  if (visibleMapRecords.length === 0) return;
 
-  if (typeof records === 'undefined' || !Array.isArray(records)) return;
-
-  const currentProj = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'PROJ-001';
-  
-  const visibleRecords = records.filter(r => {
-    const isProjectValid = (r.projectId || 'PROJ-001') === currentProj;
-    const isMapEnabled = r.showOnMap !== false;
-    const hasValidCoords = r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon));
-
-    const genKey = getGenerationKey(r.type || r.linType);
-    const isGenActive = generationFilters[genKey] !== false;
-
-    return isProjectValid && isMapEnabled && hasValidCoords && isGenActive;
-  });
-
-  if (visibleRecords.length === 0) return;
-
-  // Master source of truth: currentDisplayMode variable directly
-  const displayMode = currentDisplayMode;
-
-  // Sync DOM select box if it exists
-  const displaySelectEl = document.getElementById('displayModeSelect');
-  if (displaySelectEl && displaySelectEl.value !== displayMode) {
-    displaySelectEl.value = displayMode;
-  }
-
+  const vectorToggleEl = document.getElementById('showVectors') || document.getElementById('toggleVectors');
+  const showVectors = vectorToggleEl ? vectorToggleEl.checked : true;
   const routeCoordinates = [];
 
-  visibleRecords.forEach((r) => {
+  visibleMapRecords.forEach((r) => {
     const lat = parseFloat(r.lat);
     const lon = parseFloat(r.lon);
     const latlng = [lat, lon];
     routeCoordinates.push(latlng);
 
-    const color = getStructureColor(r.type || r.linType);
     let marker;
-
-    // Mode 1: Station Dots
-    if (displayMode === 'dot') {
+    if (showVectors) {
+      const checkLinear = isLinear(r.type);
+      if (checkLinear || (r.trend && r.plunge && !r.strike)) {
+        marker = L.marker(latlng, { icon: getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType) });
+      } else {
+        marker = L.marker(latlng, { icon: getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding') });
+      }
+    } else {
       marker = L.circleMarker(latlng, {
-        radius: 7,
-        fillColor: color,
-        color: '#ffffff',
-        weight: 2,
-        opacity: 1,
-        fillOpacity: 0.95
-      });
-    } 
-    // Mode 2: Vector Symbols
-    else if (displayMode === 'vector') {
-      marker = L.marker(latlng, { icon: getStructuralSvgIcon(r) });
-    } 
-    // Mode 3: Both (Dots + Vectors)
-    else if (displayMode === 'both') {
-      const dotMarker = L.circleMarker(latlng, {
         radius: 6,
-        fillColor: color,
+        fillColor: getStructureColor(r.type),
         color: '#ffffff',
         weight: 1.5,
-        fillOpacity: 1
+        opacity: 1,
+        fillOpacity: 0.9
       });
-      const vectorMarker = L.marker(latlng, { icon: getStructuralSvgIcon(r) });
-      marker = L.layerGroup([dotMarker, vectorMarker]);
     }
 
-    const safeEscape = (typeof escapeHTML === 'function') ? escapeHTML : (s => s || '');
-
     const popupHtml = `
-      <div style="font-family: system-ui, -apple-system, sans-serif; font-size: 13px; line-height: 1.4; max-width: 240px;">
+      <div style="font-family: system-ui, sans-serif; font-size: 13px; line-height: 1.4; max-width: 240px;">
         <div style="font-weight: bold; font-size: 14px; color: #2c3e50; border-bottom: 1px solid #dcdfe6; padding-bottom: 4px; margin-bottom: 6px;">
-          📍 Station: ${safeEscape(r.locNo || 'N/A')}
+          📍 Station: ${escapeHTML(r.locNo || 'N/A')}
         </div>
-        <div style="margin-bottom: 4px;"><b>Attitude:</b> ${safeEscape(r.formatted || r.type || r.linType || 'N/A')}</div>
-        ${r.unit ? `<div style="margin-bottom: 4px;"><b>Formation/Unit:</b> ${safeEscape(r.unit)}</div>` : ''}
-        ${r.lith ? `<div style="margin-bottom: 4px;"><b>Lithology:</b> ${safeEscape(r.lith)}</div>` : ''}
-        ${r.sample ? `<div style="margin-bottom: 4px;"><b>Sample ID:</b> <span style="background: #e1f5fe; color: #0288d1; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${safeEscape(r.sample)}</span></div>` : ''}
-        ${r.remarks ? `<div style="margin-top: 6px; font-style: italic; background: #f8f9fa; padding: 6px; border-radius: 4px; font-size: 12px; border: 1px solid #e9ecef;">${safeEscape(r.remarks)}</div>` : ''}
+        <div><b>Attitude:</b> ${escapeHTML(r.formatted || r.type || 'N/A')}</div>
+        ${r.unit ? `<div><b>Formation/Unit:</b> ${escapeHTML(r.unit)}</div>` : ''}
+        ${r.lith ? `<div><b>Lithology:</b> ${escapeHTML(r.lith)}</div>` : ''}
+        ${r.sample ? `<div style="margin-top: 4px;"><b>Sample ID:</b> <span style="background: #e1f5fe; color: #0288d1; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${escapeHTML(r.sample)}</span></div>` : ''}
+        ${r.remarks ? `<div style="margin-top: 6px; font-style: italic; background: #f8f9fa; padding: 6px; border-radius: 4px; border: 1px solid #e9ecef;">${escapeHTML(r.remarks)}</div>` : ''}
         <div style="margin-top: 8px; font-size: 11px; color: #7f8c8d; border-top: 1px dashed #eee; padding-top: 4px;">
-          Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)} ${r.alt ? '| Alt: ' + safeEscape(r.alt) + 'm' : ''}
+          Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)} ${r.alt ? '| Alt: ' + escapeHTML(r.alt) + 'm' : ''}
         </div>
       </div>
     `;
@@ -484,7 +407,6 @@ function updateMapDisplay() {
     mapDataGroup.addLayer(marker);
   });
 
-  // Traverse Line
   if (routeCoordinates.length > 1) {
     const routeLine = L.polyline(routeCoordinates, {
       color: '#e74c3c',
@@ -496,15 +418,184 @@ function updateMapDisplay() {
   }
 }
 
-// ==========================================
-// 4. Spatial Map Modal & Overlays
-// ==========================================
+function kmlToGeoJson(xmlDoc) {
+  const features = [];
+  const placemarks = xmlDoc.getElementsByTagName("Placemark");
 
-function renderSpatialMapWithGeofence(event) {
-  if (event) event.preventDefault();
+  for (let i = 0; i < placemarks.length; i++) {
+    const pm = placemarks[i];
+    const name = pm.getElementsByTagName("name")[0]?.textContent || `KML Feature ${i + 1}`;
+    const desc = pm.getElementsByTagName("description")[0]?.textContent || "";
 
-  if (!map) {
-    openSpatialMap();
+    const point = pm.getElementsByTagName("Point")[0];
+    if (point) {
+      const coords = point.getElementsByTagName("coordinates")[0]?.textContent.trim().split(',');
+      if (coords && coords.length >= 2) {
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [parseFloat(coords[0]), parseFloat(coords[1])] },
+          properties: { name, desc }
+        });
+      }
+    }
+
+    const line = pm.getElementsByTagName("LineString")[0];
+    if (line) {
+      const coordsText = line.getElementsByTagName("coordinates")[0]?.textContent.trim();
+      if (coordsText) {
+        const lineCoords = coordsText.split(/\s+/).map(p => {
+          const parts = p.split(',');
+          return [parseFloat(parts[0]), parseFloat(parts[1])];
+        }).filter(c => !isNaN(c[0]) && !isNaN(c[1]));
+
+        if (lineCoords.length > 0) {
+          features.push({
+            type: "Feature",
+            geometry: { type: "LineString", coordinates: lineCoords },
+            properties: { name, desc }
+          });
+        }
+      }
+    }
+
+    const poly = pm.getElementsByTagName("Polygon")[0];
+    if (poly) {
+      const coordsText = poly.getElementsByTagName("coordinates")[0]?.textContent.trim();
+      if (coordsText) {
+        const ringCoords = coordsText.split(/\s+/).map(p => {
+          const parts = p.split(',');
+          return [parseFloat(parts[0]), parseFloat(parts[1])];
+        }).filter(c => !isNaN(c[0]) && !isNaN(c[1]));
+
+        if (ringCoords.length > 0) {
+          features.push({
+            type: "Feature",
+            geometry: { type: "Polygon", coordinates: [ringCoords] },
+            properties: { name, desc }
+          });
+        }
+      }
+    }
+  }
+  return { type: "FeatureCollection", features };
+}
+
+function applyKMLOverlay() {
+  const fileInput = document.getElementById('kmlOverlayFile');
+  const file = fileInput ? fileInput.files[0] : null;
+
+  if (!file) {
+    alert("Please select a .kml file first.");
+    return;
+  }
+  if (!mapInstance) {
+    alert("Please open the Field Map first.");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(e.target.result, "text/xml");
+      const geojson = kmlToGeoJson(xmlDoc);
+
+      if (geojson.features.length === 0) {
+        alert("No visible geometries found in KML.");
+        return;
+      }
+
+      removeKMLOverlay(false);
+
+      kmlMapOverlayLayer = L.geoJSON(geojson, {
+        style: { color: '#8e44ad', weight: 3, opacity: 0.85, fillOpacity: 0.25 },
+        pointToLayer: function (feature, latlng) {
+          return L.circleMarker(latlng, { radius: 6, fillColor: '#8e44ad', color: '#ffffff', weight: 2, opacity: 1, fillOpacity: 0.9 });
+        },
+        onEachFeature: function (feature, layer) {
+          if (feature.properties && feature.properties.name) {
+            layer.bindPopup(`<b>${feature.properties.name}</b><br>${feature.properties.desc || ''}`);
+          }
+        }
+      }).addTo(mapInstance);
+
+      if (layerControl) layerControl.addOverlay(kmlMapOverlayLayer, "🌍 KML Map Overlay");
+      if (kmlMapOverlayLayer.getBounds().isValid()) mapInstance.fitBounds(kmlMapOverlayLayer.getBounds());
+
+      alert("KML Map Layer overlaid successfully!");
+    } catch (err) {
+      alert("Error overlaying KML: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function removeKMLOverlay(showAlert = true) {
+  if (kmlMapOverlayLayer && mapInstance) {
+    if (layerControl) layerControl.removeLayer(kmlMapOverlayLayer);
+    mapInstance.removeLayer(kmlMapOverlayLayer);
+    kmlMapOverlayLayer = null;
+
+    const fileInput = document.getElementById('kmlOverlayFile');
+    if (fileInput) fileInput.value = '';
+
+    if (showAlert) alert("KML Map Overlay removed!");
+  } else if (showAlert) {
+    alert("No active KML overlay to remove.");
+  }
+}
+
+function applyCustomMapOverlay() {
+  const fileInput = document.getElementById('customMapFile');
+  const file = fileInput ? fileInput.files[0] : null;
+
+  if (!file) {
+    alert('Please select an image file (JPEG/PNG) of your map first.');
+    return;
+  }
+
+  let minLat = parseFloat(document.getElementById('ovMinLat')?.value);
+  let maxLat = parseFloat(document.getElementById('ovMaxLat')?.value);
+  let minLon = parseFloat(document.getElementById('ovMinLon')?.value);
+  let maxLon = parseFloat(document.getElementById('ovMaxLon')?.value);
+
+  if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
+    alert('Please provide valid bounding coordinates (SW & NE corners) for the image overlay.');
+    return;
+  }
+
+  if (minLat > maxLat) [minLat, maxLat] = [maxLat, minLat];
+  if (minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
+
+  const bounds = [[minLat, minLon], [maxLat, maxLon]];
+  removeCustomMapOverlay();
+
+  currentOverlayUrl = URL.createObjectURL(file);
+  customOverlayLayer = L.imageOverlay(currentOverlayUrl, bounds, { opacity: 0.85, interactive: true }).addTo(mapInstance);
+
+  if (layerControl) layerControl.addOverlay(customOverlayLayer, "Custom Map Overlay");
+  mapInstance.fitBounds(bounds);
+  alert('Custom map overlay loaded successfully!');
+}
+
+function removeCustomMapOverlay() {
+  if (customOverlayLayer && mapInstance) {
+    if (layerControl) layerControl.removeLayer(customOverlayLayer);
+    mapInstance.removeLayer(customOverlayLayer);
+    customOverlayLayer = null;
+  }
+  if (currentOverlayUrl) {
+    URL.revokeObjectURL(currentOverlayUrl);
+    currentOverlayUrl = null;
+  }
+}
+
+function renderSpatialMapWithGeofence(e) {
+  if (e && e.preventDefault) e.preventDefault();
+
+  if (!mapInstance) {
+    alert("Map instance not found. Please open the spatial map modal first.");
+    return;
   }
 
   const minLat = parseFloat(document.getElementById('gfMinLat')?.value);
@@ -513,142 +604,125 @@ function renderSpatialMapWithGeofence(event) {
   const maxLon = parseFloat(document.getElementById('gfMaxLon')?.value);
 
   if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
-    alert("Please enter valid numeric coordinates for all 4 Geofence inputs.");
+    alert("Please enter valid numeric values for all 4 coordinates.");
     return;
   }
 
-  if (geofenceLayer && map) {
-    map.removeLayer(geofenceLayer);
-  }
-
-  const bounds = [[minLat, minLon], [maxLat, maxLon]];
-
-  geofenceLayer = L.rectangle(bounds, {
-    color: '#e63946',
-    weight: 2,
-    fillOpacity: 0.15
-  }).addTo(map);
-
-  map.fitBounds(bounds);
-}
-
-function applyCustomMapOverlay() {
-  if (!map) {
-    openSpatialMap();
-  }
-
-  const fileInput = document.getElementById('customMapFile');
-  if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-    alert("Please select an image file (PNG/JPG) first.");
+  if (minLat >= maxLat || minLon >= maxLon) {
+    alert("Min Lat/Lon must be strictly smaller than Max Lat/Lon!");
     return;
   }
 
-  const minLat = parseFloat(document.getElementById('ovMinLat')?.value);
-  const maxLat = parseFloat(document.getElementById('ovMaxLat')?.value);
-  const minLon = parseFloat(document.getElementById('ovMinLon')?.value);
-  const maxLon = parseFloat(document.getElementById('ovMaxLon')?.value);
-
-  if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
-    alert("Please enter valid SW/NE coordinates (Min Lat, Max Lat, Min Lon, Max Lon) for image georeferencing.");
-    return;
-  }
-
-  const file = fileInput.files[0];
-  const imageUrl = URL.createObjectURL(file);
-  const bounds = [[minLat, minLon], [maxLat, maxLon]];
-
-  if (customOverlayLayer && map) {
-    map.removeLayer(customOverlayLayer);
-  }
-
-  customOverlayLayer = L.imageOverlay(imageUrl, bounds, {
-    opacity: 0.8,
-    interactive: true
-  }).addTo(map);
-
-  map.fitBounds(bounds);
+  updateMapDisplay();
 }
 
-function removeCustomMapOverlay() {
-  if (customOverlayLayer && map) {
-    map.removeLayer(customOverlayLayer);
-    customOverlayLayer = null;
-  }
-}
-
-function openSpatialMap() {
-  const modal = document.getElementById('mapModal');
-  if (modal) modal.style.display = 'block';
-
-  if (!map) {
-    map = L.map('map').setView([0, 0], 2);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
-
-    mapDataGroup = L.layerGroup().addTo(map);
-  }
-
-  // Always re-bind map controls to ensure visibility inside modal
-  initVectorToggleControl(map);
-  initLegendControl(map);
-
-  setTimeout(() => {
-    if (map) map.invalidateSize();
+function toggleMapRecord(id, isChecked) {
+  const rec = records.find(r => r.id === id);
+  if (rec) {
+    rec.showOnMap = isChecked;
+    localStorage.setItem('structuralRecords', JSON.stringify(records));
     updateMapDisplay();
-  }, 200);
+  }
 }
 
-function closeSpatialMap() {
-  const modal = document.getElementById('mapModal');
-  if (modal) modal.style.display = 'none';
+function toggleAllMapRecords(isChecked) {
+  records.forEach(r => {
+    if ((r.projectId || 'PROJ-001') === activeProjectId) r.showOnMap = isChecked;
+  });
+  localStorage.setItem('structuralRecords', JSON.stringify(records));
+  updateMapDisplay();
+}
+
+function toggleSelectAllMap(isChecked) {
+  toggleAllMapRecords(isChecked);
 }
 
 // ==========================================
-// 5. App Initialization & GPS Tracking
+// 6. DOM EVENT LISTENERS & SW REGISTRATION
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
-      .then(() => console.log('[PWA] Service Worker Registered'))
-      .catch((err) => console.error('[PWA] Service Worker Error:', err));
-  }
+  const dateEl = document.getElementById('date');
+  if (dateEl && !dateEl.value) dateEl.valueAsDate = new Date();
 
-  const mapElement = document.getElementById('map');
-  if (mapElement && !map) {
-    map = L.map('map').setView([0, 0], 2);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
+  // Attach live preview updates across field inputs
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updatePreview);
+  });
 
-    mapDataGroup = L.layerGroup().addTo(map);
-    initVectorToggleControl(map);
-    initLegendControl(map);
-  }
+  const typeEl = document.getElementById('type');
+  if (typeEl) {
+    typeEl.addEventListener('change', function () {
+      const customDiv = document.getElementById('customStructureDiv');
+      if (customDiv) customDiv.classList.toggle('hidden', this.value !== 'Other');
 
-  let userMarker = null;
-  let accuracyCircle = null;
-
-  const gpsTracker = new HighPrecisionGPS(
-    (coords) => {
-      const { lat, lng, accuracy } = coords;
-
-      if (map) {
-        if (!userMarker) {
-          userMarker = L.marker([lat, lng]).addTo(map);
-          accuracyCircle = L.circle([lat, lng], { radius: accuracy, color: '#1f3a5f', fillOpacity: 0.15 }).addTo(map);
-          map.setView([lat, lng], 17);
-        } else {
-          userMarker.setLatLng([lat, lng]);
-          accuracyCircle.setLatLng([lat, lng]);
-          accuracyCircle.setRadius(accuracy);
-        }
+      const planar = document.getElementById('planarFields');
+      const linear = document.getElementById('linearFields');
+      if (isLinear(this.value)) {
+        if (planar) planar.classList.add('hidden');
+        if (linear) linear.classList.remove('hidden');
+      } else {
+        if (planar) planar.classList.remove('hidden');
+        if (linear) linear.classList.add('hidden');
       }
-    },
-    (err) => console.error('GPS Error:', err.message)
-  );
+      updatePreview();
+    });
+  }
 
-  gpsTracker.startTracking();
+  const strikeEl = document.getElementById('strike');
+  if (strikeEl) {
+    strikeEl.addEventListener('input', function () {
+      const strike = parseInt(this.value, 10);
+      const dipdirEl = document.getElementById('dipdir');
+      if (!isNaN(strike)) {
+        const dipdir = (strike + 90) % 360;
+        if (dipdirEl) dipdirEl.value = dipdir.toString().padStart(3, '0') + '° (' + getQuadrant(dipdir) + ')';
+      } else {
+        if (dipdirEl) dipdirEl.value = '';
+      }
+      calculateLineationFromPitch();
+    });
+  }
+
+  const dipEl = document.getElementById('dip');
+  if (dipEl) dipEl.addEventListener('input', calculateLineationFromPitch);
+
+  const samplePrefixEl = document.getElementById('samplePrefix');
+  if (samplePrefixEl) {
+    samplePrefixEl.addEventListener('input', function () {
+      this.value = this.value.toUpperCase();
+      updateSampleID();
+    });
+  }
+
+  const locPrefixEl = document.getElementById('locPrefix');
+  if (locPrefixEl) {
+    locPrefixEl.addEventListener('input', function () {
+      this.value = this.value.toUpperCase();
+      updateLocationID();
+    });
+  }
+
+  toggleSampleState();
+  updateLocationID();
+  updatePreview();
 });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => {
+        reg.onupdatefound = () => {
+          const installingWorker = reg.installing;
+          installingWorker.onstatechange = () => {
+            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              if (confirm('New structural updates available! Reload app to apply?')) {
+                window.location.reload();
+              }
+            }
+          };
+        };
+      })
+      .catch(err => console.error('Service Worker registration failed:', err));
+  });
+}
