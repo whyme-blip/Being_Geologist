@@ -1,21 +1,21 @@
-const CACHE_NAME = 'geologger-app-v3'; // Bumped to v3 to trigger immediate cache update for app.js
+const CACHE_NAME = 'geologger-app-v4'; // Bumped to v4 to clear v3 cache
 const TILE_CACHE_NAME = 'geologger-osm-tiles-v1';
 
-// Static assets required for the app to function offline
+// Static assets required for the app shell to function offline
 const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './app.js',                                         // Application logic & HighPrecisionGPS engine
-  './icon-192.png',                                  // App home screen icon (192px)
-  './icon-512.png',                                  // App home screen icon (512px)
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', // Map styling
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',  // Map engine
-  'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',   // Default map pin icon
-  'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'  // Map pin shadow
+  './app.js',
+  './icon-192.png',
+  './icon-512.png',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
 ];
 
-// Install Event: Cache app shell and Leaflet dependencies
+// Install Event: Pre-cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -23,57 +23,62 @@ self.addEventListener('install', (event) => {
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  self.skipWaiting(); // Forces active status immediately on install
+  self.skipWaiting(); // Force activation immediately
 });
 
-// Activate Event: Clean up outdated caches (v2 and older caches will be automatically deleted)
+// Activate Event: Clean up legacy caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME && key !== TILE_CACHE_NAME) {
-            console.log('[SW] Removing old cache layer:', key);
+            console.log('[SW] Deleting old cache:', key);
             return caches.delete(key);
           }
         })
       );
     })
   );
-  self.clients.claim(); // Takes control of open tabs immediately
+  self.clients.claim(); // Immediately control all open client windows
 });
 
-// Fetch Event: Network-first for map tiles, Cache-first for core app files
+// Fetch Event: Cache management for App Shell & Map Tiles
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Strategy for OpenStreetMap Tiles: Network-first, fallback to offline tile cache
+  // 1. STRATEGY FOR MAP TILES (Cache-First -> Network Fallback)
+  // Essential for remote geological terrain with weak/intermittent cellular coverage
   if (url.hostname.includes('tile.openstreetmap.org')) {
     event.respondWith(
       caches.open(TILE_CACHE_NAME).then(async (cache) => {
+        const cachedTile = await cache.match(event.request);
+        if (cachedTile) {
+          return cachedTile; // Return cached tile instantly
+        }
+
         try {
-          const response = await fetch(event.request);
-          if (response.ok) {
-            cache.put(event.request, response.clone());
+          const networkResponse = await fetch(event.request);
+          if (networkResponse && networkResponse.ok) {
+            cache.put(event.request, networkResponse.clone());
           }
-          return response;
+          return networkResponse;
         } catch (err) {
-          // If offline, retrieve cached map tile if available
-          const cachedTile = await cache.match(event.request);
-          if (cachedTile) return cachedTile;
-          throw err;
+          // If offline and not in cache, fail gracefully without breaking map render loop
+          return new Response('', { status: 404, statusText: 'Tile Offline Unavailable' });
         }
       })
     );
     return;
   }
 
-  // Strategy for App Shell & CDN resources: Cache-first, then Network
+  // 2. STRATEGY FOR APP SHELL & ASSETS (Cache-First with Query Parameter Bypassing)
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
+
       return fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
           const responseToCache = networkResponse.clone();
