@@ -4,6 +4,9 @@ let mapDataGroup = null; // Holds survey stations, vectors, dots & route line
 let geofenceLayer = null;
 let customOverlayLayer = null;
 
+// Global state for station display mode ('dot', 'vector', or 'both')
+let currentDisplayMode = 'dot'; // Defaulted to 'dot' as requested
+
 // Global filter state for individual structural generations
 let generationFilters = {
   S1: true,
@@ -163,6 +166,14 @@ function getGenerationKey(type) {
 }
 
 /**
+ * Triggered on Display Mode dropdown change
+ */
+function onDisplayModeChange(mode) {
+  currentDisplayMode = mode;
+  updateMapDisplay();
+}
+
+/**
  * Adds Station Display Dropdown and Generation Filter Checkboxes to top-right map overlay
  */
 function initVectorToggleControl(mapInstance) {
@@ -186,10 +197,10 @@ function initVectorToggleControl(mapInstance) {
         <div style="display:flex; flex-direction:column; gap:6px;">
           <!-- Station Display Mode Dropdown -->
           <label for="displayModeSelect" style="font-weight:700; color:#1f3a5f;">Station Display:</label>
-          <select id="displayModeSelect" onchange="updateMapDisplay()" style="cursor:pointer; padding:4px 6px; border-radius:4px; border:1px solid #ccc; font-size:12px; outline:none; margin-bottom:4px;">
-            <option value="vector" selected>Vector Icons + Dip/Plunge</option>
-            <option value="dot">Medium Station Dots</option>
-            <option value="both">Both (Dots + Vectors)</option>
+          <select id="displayModeSelect" onchange="onDisplayModeChange(this.value)" style="cursor:pointer; padding:4px 6px; border-radius:4px; border:1px solid #ccc; font-size:12px; outline:none; margin-bottom:4px;">
+            <option value="dot" ${currentDisplayMode === 'dot' ? 'selected' : ''}>Station Dots</option>
+            <option value="vector" ${currentDisplayMode === 'vector' ? 'selected' : ''}>Vector Icons + Dip/Plunge</option>
+            <option value="both" ${currentDisplayMode === 'both' ? 'selected' : ''}>Both (Dots + Vectors)</option>
           </select>
 
           <!-- Collapsible Generation Filter Section -->
@@ -429,8 +440,9 @@ function updateMapDisplay() {
 
   if (visibleRecords.length === 0) return;
 
+  // Use global currentDisplayMode as single source of truth
   const displaySelectEl = document.getElementById('displayModeSelect');
-  const displayMode = displaySelectEl ? displaySelectEl.value : 'vector'; // Options: 'vector', 'dot', 'both'
+  const displayMode = displaySelectEl ? displaySelectEl.value : currentDisplayMode;
 
   const routeCoordinates = [];
 
