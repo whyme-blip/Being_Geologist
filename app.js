@@ -391,7 +391,6 @@ function updateMapDisplay() {
         marker = L.marker(latlng, { icon: getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding') });
       }
     } else {
-      // Standard Station Dot when checkbox is unchecked
       marker = L.circleMarker(latlng, {
         radius: 6,
         fillColor: getStructureColor(r.type),
@@ -664,12 +663,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', updatePreview);
   });
-
-  // Attach vector toggle event listener
-  const vectorToggleEl = getVectorToggleElement();
-  if (vectorToggleEl) {
-    vectorToggleEl.addEventListener('change', updateMapDisplay);
-  }
 
   const typeEl = document.getElementById('type');
   if (typeEl) {
