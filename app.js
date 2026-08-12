@@ -306,9 +306,11 @@ function openSpatialMap() {
       mapDataGroup.addTo(mapInstance);
       vectorSymbolsLayer.addTo(mapInstance); // Active/Checked by default
 
-      // Listen for toggle events in the Leaflet Layer Control
+      // Listen for toggle events in top-right Leaflet Layer Control & sync with top bar checkbox
       mapInstance.on('overlayadd overlayremove', (e) => {
         if (e.layer === vectorSymbolsLayer) {
+          const chk = document.getElementById('toggleVectorSymbols');
+          if (chk) chk.checked = mapInstance.hasLayer(vectorSymbolsLayer);
           updateMapDisplay();
         }
       });
@@ -316,7 +318,21 @@ function openSpatialMap() {
       mapInstance.invalidateSize();
     }
 
-    // 4. Clear existing Layer Control panel to prevent duplicate controls
+    // 4. Bind Top Bar Checkbox Listener dynamically and sync state
+    const toggleBox = document.getElementById('toggleVectorSymbols');
+    if (toggleBox) {
+      toggleBox.checked = mapInstance.hasLayer(vectorSymbolsLayer);
+      toggleBox.onchange = function () {
+        if (this.checked) {
+          if (!mapInstance.hasLayer(vectorSymbolsLayer)) mapInstance.addLayer(vectorSymbolsLayer);
+        } else {
+          if (mapInstance.hasLayer(vectorSymbolsLayer)) mapInstance.removeLayer(vectorSymbolsLayer);
+        }
+        updateMapDisplay();
+      };
+    }
+
+    // 5. Clear existing Layer Control panel to prevent duplicate controls
     if (layerControl && mapInstance) {
       try {
         mapInstance.removeControl(layerControl);
@@ -325,7 +341,7 @@ function openSpatialMap() {
       }
     }
 
-    // 5. Define Layer Options
+    // 6. Define Layer Options
     const baseMaps = {
       "OpenStreetMap (Standard)": osmTileLayer
     };
@@ -342,7 +358,7 @@ function openSpatialMap() {
       overlayMaps["🗺️ Custom Map Image"] = customOverlayLayer;
     }
 
-    // 6. Assign directly to the global `layerControl` variable
+    // 7. Assign directly to the global layerControl variable
     layerControl = L.control.layers(baseMaps, overlayMaps, { 
       position: 'topright', 
       collapsed: false 
@@ -352,6 +368,7 @@ function openSpatialMap() {
     updateMapDisplay();
   }, 100);
 }
+
 function closeSpatialMap() {
   const modal = document.getElementById('mapModal');
   if (modal) modal.style.display = 'none';
@@ -360,14 +377,14 @@ function closeSpatialMap() {
 function updateMapDisplay() {
   if (!mapInstance || !mapDataGroup) return;
 
-  // 1. Clear existing station markers from map
+  // Clear existing station markers from map
   mapDataGroup.clearLayers();
 
-  // 2. Read state of the UI checkbox
-  const vectorCheckbox = document.getElementById('toggleVectorSymbols');
-  const showVectors = vectorCheckbox ? vectorCheckbox.checked : true;
+  // Read toggle state (Checks HTML Checkbox first, then Leaflet Layer state)
+  const toggleBox = document.getElementById('toggleVectorSymbols');
+  const showVectors = toggleBox ? toggleBox.checked : (mapInstance && vectorSymbolsLayer ? mapInstance.hasLayer(vectorSymbolsLayer) : true);
 
-  // 3. Filter active records with valid coordinates
+  // Filter records active for current project
   const visibleMapRecords = records.filter(r =>
     (r.projectId || 'PROJ-001') === activeProjectId &&
     r.showOnMap !== false &&
@@ -388,7 +405,7 @@ function updateMapDisplay() {
     let marker;
 
     if (showVectors) {
-      // 📐 VECTOR SYMBOL MODE (Strike/Dip or Trend/Plunge)
+      // 📐 VECTOR SYMBOL MODE (Strike/Dip / Trend/Plunge)
       const checkLinear = (typeof isLinear === 'function') ? isLinear(r.type) : false;
       if (checkLinear || (r.trend && r.plunge && !r.strike)) {
         marker = L.marker(latlng, { 
@@ -400,35 +417,31 @@ function updateMapDisplay() {
         });
       }
     } else {
-      // 🔴 STATION DOT MODE (Simple Circle Marker)
-      const dotColor = (typeof getStructureColor === 'function') ? getStructureColor(r.type) : '#e74c3c';
+      // 🔴 SIMPLE STATION DOT MODE
+      let dotColor = '#e74c3c'; // Default station dot color
+      if (typeof getStructureColor === 'function') {
+        try { dotColor = getStructureColor(r.type); } catch (e) { /* fallback */ }
+      }
+
       marker = L.circleMarker(latlng, {
         radius: 7,
         fillColor: dotColor,
         color: '#ffffff',
         weight: 2,
         opacity: 1,
-        fillOpacity: 0.9
+        fillOpacity: 0.95
       });
     }
 
-    // Popup information
-    const popupHtml = `
-      <div style="font-family: system-ui, sans-serif; font-size: 13px; line-height: 1.4; max-width: 220px;">
-        <div style="font-weight: bold; font-size: 14px; color: #1f3a5f; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 6px;">
-          📍 Station: ${escapeHTML(r.locNo || 'N/A')}
-        </div>
-        <div><b>Attitude:</b> ${escapeHTML(r.formatted || r.type || 'N/A')}</div>
-        ${r.unit ? `<div><b>Unit:</b> ${escapeHTML(r.unit)}</div>` : ''}
-        ${r.lith ? `<div><b>Lithology:</b> ${escapeHTML(r.lith)}</div>` : ''}
-      </div>
-    `;
+    // Popup contents
+    const locName = r.locNo || r.id || 'N/A';
+    const attVal = r.formatted || r.type || 'N/A';
+    marker.bindPopup(`<b>Station ${escapeHTML(locName)}</b><br>${escapeHTML(attVal)}`);
 
-    marker.bindPopup(popupHtml);
     mapDataGroup.addLayer(marker);
   });
 
-  // 4. Draw dashed traverse route line between points
+  // Draw traverse path line
   if (routeCoordinates.length > 1) {
     const routeLine = L.polyline(routeCoordinates, {
       color: '#e74c3c',
