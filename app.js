@@ -51,6 +51,14 @@ function val(id) {
   return el ? el.value.trim() : '';
 }
 
+// Helper to get vector toggle checkbox dynamically
+function getVectorToggleElement() {
+  return document.getElementById('showVectors') ||
+         document.getElementById('toggleVectors') ||
+         document.querySelector('input[type="checkbox"][id*="ector"]') ||
+         document.querySelector('input[type="checkbox"][id*="Vector"]');
+}
+
 // ==========================================
 // 2. STRUCTURAL PREVIEW & CALCULATION UTILITIES
 // ==========================================
@@ -280,6 +288,12 @@ function openSpatialMap() {
   const modal = document.getElementById('mapModal');
   if (modal) modal.style.display = 'block';
 
+  // Attach change listener to the vector toggle checkbox when map opens
+  const vectorToggleEl = getVectorToggleElement();
+  if (vectorToggleEl) {
+    vectorToggleEl.onchange = updateMapDisplay;
+  }
+
   setTimeout(() => {
     const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
     const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
@@ -358,7 +372,7 @@ function updateMapDisplay() {
   mapDataGroup.clearLayers();
   if (visibleMapRecords.length === 0) return;
 
-  const vectorToggleEl = document.getElementById('showVectors') || document.getElementById('toggleVectors');
+  const vectorToggleEl = getVectorToggleElement();
   const showVectors = vectorToggleEl ? vectorToggleEl.checked : true;
   const routeCoordinates = [];
 
@@ -377,6 +391,7 @@ function updateMapDisplay() {
         marker = L.marker(latlng, { icon: getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding') });
       }
     } else {
+      // Standard Station Dot when checkbox is unchecked
       marker = L.circleMarker(latlng, {
         radius: 6,
         fillColor: getStructureColor(r.type),
@@ -649,6 +664,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', updatePreview);
   });
+
+  // Attach vector toggle event listener
+  const vectorToggleEl = getVectorToggleElement();
+  if (vectorToggleEl) {
+    vectorToggleEl.addEventListener('change', updateMapDisplay);
+  }
 
   const typeEl = document.getElementById('type');
   if (typeEl) {
