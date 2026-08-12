@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geologger-app-v1.0.4'; // Bumping to v1.0.4 purges all older app shell caches
+const CACHE_NAME = 'geologger-app-v1.0.5'; // 1. Bumped version to force cache purge
 const TILE_CACHE_NAME = 'geologger-osm-tiles-v1';
 
 // Static assets required for the app shell to function offline
@@ -6,7 +6,7 @@ const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './app.js?v=1.0.4',
+  './app.js?v=1.0.5',
   './icon-192.png',
   './icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
@@ -26,7 +26,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting(); // Force activation immediately
 });
 
-// Activate Event: Clean up legacy caches (e.g. geologger-app-v4)
+// Activate Event: Clean up legacy caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -53,7 +53,7 @@ self.addEventListener('fetch', (event) => {
       caches.open(TILE_CACHE_NAME).then(async (cache) => {
         const cachedTile = await cache.match(event.request);
         if (cachedTile) {
-          return cachedTile; // Return cached tile instantly
+          return cachedTile;
         }
 
         try {
@@ -70,7 +70,26 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. STRATEGY FOR APP SHELL & ASSETS (Cache-First, Exact Query String Matching)
+  // 2. STRATEGY FOR HTML & PAGE NAVIGATION (Network-First -> Cache Fallback)
+  // Ensures updates to HTML/JS reflect immediately online while working offline.
+  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request) || caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // 3. STRATEGY FOR STATIC ASSETS (Cache-First -> Network Fallback)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
