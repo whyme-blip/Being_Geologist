@@ -275,114 +275,21 @@ function getStructureColor(type) {
 }
 
 // ==========================================
-// 5. SPATIAL MAP & OVERLAY UTILITIES
-// ==========================================
-// ==========================================
 // SPATIAL MAP & LAYER CONTROL MANAGEMENT
 // ==========================================
-function openSpatialMap() {
-  const modal = document.getElementById('mapModal');
-  if (modal) modal.style.display = 'block';
+// 1. ATTACH TO WINDOW SCOPE TO GUARANTEE HTML ACCESSIBILITY
+window.updateMapDisplay = function updateMapDisplay() {
+  if (!mapInstance || !mapDataGroup) {
+    console.warn('[Map] Map instance or mapDataGroup not initialized.');
+    return;
+  }
 
-  setTimeout(() => {
-    // 1. Coordinates check
-    const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
-    const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
-    const firstLon = validPoints.length > 0 ? parseFloat(validPoints[0].lon) : 78.0;
-
-    // 2. Instantiate Layer Groups if null
-    if (!mapDataGroup) mapDataGroup = L.layerGroup();
-    if (!vectorSymbolsLayer) vectorSymbolsLayer = L.layerGroup();
-
-    // 3. Initialize Leaflet Map Instance
-    if (!mapInstance) {
-      mapInstance = L.map('map').setView([firstLat, firstLon], 13);
-
-      osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(mapInstance);
-
-      mapDataGroup.addTo(mapInstance);
-      vectorSymbolsLayer.addTo(mapInstance); // Active/Checked by default
-
-      // Listen for toggle events in top-right Leaflet Layer Control & sync with top bar checkbox
-      mapInstance.on('overlayadd overlayremove', (e) => {
-        if (e.layer === vectorSymbolsLayer) {
-          const chk = document.getElementById('toggleVectorSymbols');
-          if (chk) chk.checked = mapInstance.hasLayer(vectorSymbolsLayer);
-          updateMapDisplay();
-        }
-      });
-    } else {
-      mapInstance.invalidateSize();
-    }
-
-    // 4. Bind Top Bar Checkbox Listener dynamically and sync state
-    const toggleBox = document.getElementById('toggleVectorSymbols');
-    if (toggleBox) {
-      toggleBox.checked = mapInstance.hasLayer(vectorSymbolsLayer);
-      toggleBox.onchange = function () {
-        if (this.checked) {
-          if (!mapInstance.hasLayer(vectorSymbolsLayer)) mapInstance.addLayer(vectorSymbolsLayer);
-        } else {
-          if (mapInstance.hasLayer(vectorSymbolsLayer)) mapInstance.removeLayer(vectorSymbolsLayer);
-        }
-        updateMapDisplay();
-      };
-    }
-
-    // 5. Clear existing Layer Control panel to prevent duplicate controls
-    if (layerControl && mapInstance) {
-      try {
-        mapInstance.removeControl(layerControl);
-      } catch (err) {
-        console.warn('[Leaflet] Clearing old layer control instance');
-      }
-    }
-
-    // 6. Define Layer Options
-    const baseMaps = {
-      "OpenStreetMap (Standard)": osmTileLayer
-    };
-
-    const overlayMaps = {
-      "Survey Stations & Route": mapDataGroup,
-      "📐 Display Vector Symbols": vectorSymbolsLayer
-    };
-
-    if (kmlMapOverlayLayer) {
-      overlayMaps["🌍 KML Map Overlay"] = kmlMapOverlayLayer;
-    }
-    if (customOverlayLayer) {
-      overlayMaps["🗺️ Custom Map Image"] = customOverlayLayer;
-    }
-
-    // 7. Assign directly to the global layerControl variable
-    layerControl = L.control.layers(baseMaps, overlayMaps, { 
-      position: 'topright', 
-      collapsed: false 
-    }).addTo(mapInstance);
-
-    mapInstance.locate({ setView: false, enableHighAccuracy: true });
-    updateMapDisplay();
-  }, 100);
-}
-
-function closeSpatialMap() {
-  const modal = document.getElementById('mapModal');
-  if (modal) modal.style.display = 'none';
-}
-
-function updateMapDisplay() {
-  if (!mapInstance || !mapDataGroup) return;
-
-  // Clear existing station markers from map
+  // Clear existing station markers from mapDataGroup
   mapDataGroup.clearLayers();
 
-  // Read toggle state (Checks HTML Checkbox first, then Leaflet Layer state)
+  // Read toggle state directly from the HTML checkbox element
   const toggleBox = document.getElementById('toggleVectorSymbols');
-  const showVectors = toggleBox ? toggleBox.checked : (mapInstance && vectorSymbolsLayer ? mapInstance.hasLayer(vectorSymbolsLayer) : true);
+  const showVectors = toggleBox ? toggleBox.checked : true;
 
   // Filter records active for current project
   const visibleMapRecords = records.filter(r =>
@@ -405,26 +312,28 @@ function updateMapDisplay() {
     let marker;
 
     if (showVectors) {
-      // 📐 VECTOR SYMBOL MODE (Strike/Dip / Trend/Plunge)
+      // 📐 VECTOR SYMBOL MODE
       const checkLinear = (typeof isLinear === 'function') ? isLinear(r.type) : false;
       if (checkLinear || (r.trend && r.plunge && !r.strike)) {
-        marker = L.marker(latlng, { 
-          icon: getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType) 
-        });
+        const icon = (typeof getLinearSvgIcon === 'function') 
+          ? getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType)
+          : undefined;
+        marker = L.marker(latlng, icon ? { icon } : {});
       } else {
-        marker = L.marker(latlng, { 
-          icon: getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding') 
-        });
+        const icon = (typeof getPlanarSvgIcon === 'function')
+          ? getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding')
+          : undefined;
+        marker = L.marker(latlng, icon ? { icon } : {});
       }
     } else {
       // 🔴 SIMPLE STATION DOT MODE
-      let dotColor = '#e74c3c'; // Default station dot color
+      let dotColor = '#e74c3c';
       if (typeof getStructureColor === 'function') {
-        try { dotColor = getStructureColor(r.type); } catch (e) { /* fallback */ }
+        try { dotColor = getStructureColor(r.type); } catch (e) { /* fallback default */ }
       }
 
       marker = L.circleMarker(latlng, {
-        radius: 7,
+        radius: 8,
         fillColor: dotColor,
         color: '#ffffff',
         weight: 2,
@@ -441,7 +350,7 @@ function updateMapDisplay() {
     mapDataGroup.addLayer(marker);
   });
 
-  // Draw traverse path line
+  // Draw traverse route line
   if (routeCoordinates.length > 1) {
     const routeLine = L.polyline(routeCoordinates, {
       color: '#e74c3c',
@@ -451,6 +360,80 @@ function updateMapDisplay() {
     });
     mapDataGroup.addLayer(routeLine);
   }
+};
+
+function openSpatialMap() {
+  const modal = document.getElementById('mapModal');
+  if (modal) modal.style.display = 'block';
+
+  setTimeout(() => {
+    // 1. Center map on first valid record coordinates
+    const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
+    const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
+    const firstLon = validPoints.length > 0 ? parseFloat(validPoints[0].lon) : 78.0;
+
+    // 2. Instantiate Layer Group if null
+    if (!mapDataGroup) mapDataGroup = L.layerGroup();
+
+    // 3. Initialize Leaflet Map Instance
+    if (!mapInstance) {
+      mapInstance = L.map('map').setView([firstLat, firstLon], 13);
+
+      osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(mapInstance);
+
+      mapDataGroup.addTo(mapInstance);
+    } else {
+      mapInstance.invalidateSize();
+    }
+
+    // 4. Directly attach event listener to HTML checkbox
+    const toggleBox = document.getElementById('toggleVectorSymbols');
+    if (toggleBox) {
+      // Remove any previously bound listeners to avoid duplicates
+      toggleBox.replaceWith(toggleBox.cloneNode(true));
+      const freshToggleBox = document.getElementById('toggleVectorSymbols');
+      freshToggleBox.addEventListener('change', () => {
+        window.updateMapDisplay();
+      });
+    }
+
+    // 5. Clear old Layer Control
+    if (layerControl && mapInstance) {
+      try { mapInstance.removeControl(layerControl); } catch (err) {}
+    }
+
+    // 6. Build single Layer Control
+    const baseMaps = {
+      "OpenStreetMap (Standard)": osmTileLayer
+    };
+
+    const overlayMaps = {
+      "Survey Stations & Route": mapDataGroup
+    };
+
+    if (typeof kmlMapOverlayLayer !== 'undefined' && kmlMapOverlayLayer) {
+      overlayMaps["🌍 KML Map Overlay"] = kmlMapOverlayLayer;
+    }
+    if (typeof customOverlayLayer !== 'undefined' && customOverlayLayer) {
+      overlayMaps["🗺️ Custom Map Image"] = customOverlayLayer;
+    }
+
+    layerControl = L.control.layers(baseMaps, overlayMaps, { 
+      position: 'topright', 
+      collapsed: false 
+    }).addTo(mapInstance);
+
+    // Initial map render
+    window.updateMapDisplay();
+  }, 100);
+}
+
+function closeSpatialMap() {
+  const modal = document.getElementById('mapModal');
+  if (modal) modal.style.display = 'none';
 }
 
 function kmlToGeoJson(xmlDoc) {
