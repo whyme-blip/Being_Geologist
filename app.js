@@ -286,11 +286,11 @@ function openSpatialMap() {
     const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
     const firstLon = validPoints.length > 0 ? parseFloat(validPoints[0].lon) : 78.0;
 
-    // Ensure vectorSymbolsLayer exists
-    if (!vectorSymbolsLayer) {
-      vectorSymbolsLayer = L.layerGroup();
-    }
+    // 1. Ensure Layer Groups Exist
+    if (!mapDataGroup) mapDataGroup = L.layerGroup();
+    if (!vectorSymbolsLayer) vectorSymbolsLayer = L.layerGroup();
 
+    // 2. Initialize Map if First Time
     if (!mapInstance) {
       mapInstance = L.map('map').setView([firstLat, firstLon], 13);
 
@@ -299,53 +299,46 @@ function openSpatialMap() {
         attribution: '© OpenStreetMap contributors'
       }).addTo(mapInstance);
 
-      mapDataGroup = L.layerGroup().addTo(mapInstance);
-      
-      // Add vector proxy layer to map by default (checked)
-      vectorSymbolsLayer.addTo(mapInstance);
+      mapDataGroup.addTo(mapInstance);
+      vectorSymbolsLayer.addTo(mapInstance); // Active by default
 
-      const baseMaps = {
-        "OpenStreetMap (Standard)": osmTileLayer
-      };
-
-      const overlayMaps = {
-        "Survey Stations & Route": mapDataGroup,
-        "📐 Display Vector Symbols": vectorSymbolsLayer
-      };
-
-      layerControl = L.control.layers(baseMaps, overlayMaps, { 
-        position: 'topright', 
-        collapsed: false 
-      }).addTo(mapInstance);
-
-      // Listen for toggle changes inside Leaflet Index
-      mapInstance.on('overlayadd', (e) => {
-        if (e.layer === vectorSymbolsLayer) updateMapDisplay();
+      // Listen for checkbox toggles in Leaflet Index
+      mapInstance.on('overlayadd overlayremove', (e) => {
+        if (e.layer === vectorSymbolsLayer) {
+          updateMapDisplay();
+        }
       });
-
-      mapInstance.on('overlayremove', (e) => {
-        if (e.layer === vectorSymbolsLayer) updateMapDisplay();
-      });
-
     } else {
       mapInstance.invalidateSize();
-      
-      // If mapInstance already existed, force add the vector symbol layer to control if missing
-      if (layerControl && vectorSymbolsLayer) {
-        layerControl.removeLayer(vectorSymbolsLayer);
-        layerControl.addOverlay(vectorSymbolsLayer, "📐 Display Vector Symbols");
-      }
     }
 
-    // Re-register dynamic KML / Custom overlays if re-opening
-    if (kmlMapOverlayLayer && layerControl) {
-      layerControl.removeLayer(kmlMapOverlayLayer);
-      layerControl.addOverlay(kmlMapOverlayLayer, "🌍 KML Map Overlay");
+    // 3. FORCE REBUILD LAYER CONTROL INDEX EVERY TIME MODAL OPENS
+    if (layerControl) {
+      mapInstance.removeControl(layerControl); // Remove old 2-item control
     }
-    if (customOverlayLayer && layerControl) {
-      layerControl.removeLayer(customOverlayLayer);
-      layerControl.addOverlay(customOverlayLayer, "🗺️ Custom Map Image");
+
+    const baseMaps = {
+      "OpenStreetMap (Standard)": osmTileLayer
+    };
+
+    const overlayMaps = {
+      "Survey Stations & Route": mapDataGroup,
+      "📐 Display Vector Symbols": vectorSymbolsLayer
+    };
+
+    // Re-add dynamic overlays if loaded
+    if (kmlMapOverlayLayer) {
+      overlayMaps["🌍 KML Map Overlay"] = kmlMapOverlayLayer;
     }
+    if (customOverlayLayer) {
+      overlayMaps["🗺️ Custom Map Image"] = customOverlayLayer;
+    }
+
+    // Create fresh Layer Control with all 3+ items
+    layerControl = L.control.layers(baseMaps, overlayMaps, { 
+      position: 'topright', 
+      collapsed: false 
+    }).addTo(mapInstance);
 
     mapInstance.locate({ setView: false, enableHighAccuracy: true });
     updateMapDisplay();
