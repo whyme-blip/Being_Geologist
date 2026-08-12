@@ -278,20 +278,18 @@ function getStructureColor(type) {
 // SPATIAL MAP & LAYER CONTROL MANAGEMENT
 // ==========================================
 // 1. ATTACH TO WINDOW SCOPE TO GUARANTEE HTML ACCESSIBILITY
+// Expose function to global scope so HTML onchange can trigger it
 window.updateMapDisplay = function updateMapDisplay() {
-  if (!mapInstance || !mapDataGroup) {
-    console.warn('[Map] Map instance or mapDataGroup not initialized.');
-    return;
-  }
+  if (!mapInstance || !mapDataGroup) return;
 
-  // Clear existing station markers from mapDataGroup
+  // 1. Clear existing markers from map
   mapDataGroup.clearLayers();
 
-  // Read toggle state directly from the HTML checkbox element
+  // 2. Read toggle state directly from HTML checkbox
   const toggleBox = document.getElementById('toggleVectorSymbols');
   const showVectors = toggleBox ? toggleBox.checked : true;
 
-  // Filter records active for current project
+  // 3. Filter valid active records
   const visibleMapRecords = records.filter(r =>
     (r.projectId || 'PROJ-001') === activeProjectId &&
     r.showOnMap !== false &&
@@ -312,10 +310,10 @@ window.updateMapDisplay = function updateMapDisplay() {
     let marker;
 
     if (showVectors) {
-      // 📐 VECTOR SYMBOL MODE
+      // 📐 VECTOR SYMBOL MODE (Strike/Dip or Trend/Plunge SVG icons)
       const checkLinear = (typeof isLinear === 'function') ? isLinear(r.type) : false;
       if (checkLinear || (r.trend && r.plunge && !r.strike)) {
-        const icon = (typeof getLinearSvgIcon === 'function') 
+        const icon = (typeof getLinearSvgIcon === 'function')
           ? getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType)
           : undefined;
         marker = L.marker(latlng, icon ? { icon } : {});
@@ -326,7 +324,7 @@ window.updateMapDisplay = function updateMapDisplay() {
         marker = L.marker(latlng, icon ? { icon } : {});
       }
     } else {
-      // 🔴 SIMPLE STATION DOT MODE
+      // 🔴 SIMPLE STATION DOT MODE (Solid circle marker)
       let dotColor = '#e74c3c';
       if (typeof getStructureColor === 'function') {
         try { dotColor = getStructureColor(r.type); } catch (e) { /* fallback default */ }
@@ -342,7 +340,7 @@ window.updateMapDisplay = function updateMapDisplay() {
       });
     }
 
-    // Popup contents
+    // Bind popup info
     const locName = r.locNo || r.id || 'N/A';
     const attVal = r.formatted || r.type || 'N/A';
     marker.bindPopup(`<b>Station ${escapeHTML(locName)}</b><br>${escapeHTML(attVal)}`);
@@ -350,7 +348,7 @@ window.updateMapDisplay = function updateMapDisplay() {
     mapDataGroup.addLayer(marker);
   });
 
-  // Draw traverse route line
+  // Draw traverse path route
   if (routeCoordinates.length > 1) {
     const routeLine = L.polyline(routeCoordinates, {
       color: '#e74c3c',
@@ -361,7 +359,6 @@ window.updateMapDisplay = function updateMapDisplay() {
     mapDataGroup.addLayer(routeLine);
   }
 };
-
 function openSpatialMap() {
   const modal = document.getElementById('mapModal');
   if (modal) modal.style.display = 'block';
