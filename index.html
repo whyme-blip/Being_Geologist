@@ -1668,20 +1668,6 @@ function closeSpatialMap() {
   if (modal) modal.style.display = 'none';
 }
 
-function toggleMapRecord(id, isChecked) {
-  if (typeof records === 'undefined') return;
-  const rec = records.find(r => r.id === id);
-  if (rec) {
-    rec.showOnMap = isChecked;
-    if (typeof persist === 'function') persist();
-    updateMapDisplay();
-  }
-}
-
-// ==========================================
-// PART 2: DYNAMIC SVG SYMBOLS, MAP & FIELD HELPERS
-// ==========================================
-
 // ------------------------------------------
 // 1. DYNAMIC SVG MARKER GENERATORS
 // ------------------------------------------
@@ -2120,28 +2106,28 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <!-- MAP MODAL CONTAINER -->
-<div id="mapModal">
+<div id="mapModal" class="modal" style="display:none;">
   <div id="mapContainer">
     <div style="display:flex; justify-content:space-between; align-items:center;">
-      <h3 style="margin:0; font-size:16px; color:var(--primary);">🗺️ Spatial Traverse & Custom Map Overlay</h3>
+      <h3 style="margin:0; font-size:16px; color:var(--primary, #1f3a5f);">🗺️ Spatial Traverse & Custom Map Overlay</h3>
       <button type="button" onclick="closeSpatialMap()" class="btn-danger" style="width:auto; padding:4px 10px; font-size:12px;">✕ Close</button>
     </div>
 
     <!-- 1. GEOFENCE ACCORDION PANEL -->
-    <details style="margin-top:8px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
-      <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary);">🎯 Geofence Boundary (DD)</summary>
+    <details style="margin-top:8px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border, #ccc);">
+      <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary, #1f3a5f);">🎯 Geofence Boundary (DD)</summary>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
-        <label style="font-size:11px;">Min Lat: <input id="gfMinLat" type="number" step="any" placeholder="32" style="width:70px; padding:4px;"></label>
-        <label style="font-size:11px;">Max Lat: <input id="gfMaxLat" type="number" step="any" placeholder="33" style="width:70px; padding:4px;"></label>
-        <label style="font-size:11px;">Min Lon: <input id="gfMinLon" type="number" step="any" placeholder="74" style="width:70px; padding:4px;"></label>
-        <label style="font-size:11px;">Max Lon: <input id="gfMaxLon" type="number" step="any" placeholder="76" style="width:70px; padding:4px;"></label>
+        <label style="font-size:11px;">Min Lat: <input id="gfMinLat" type="number" step="any" placeholder="30.0" style="width:70px; padding:4px;"></label>
+        <label style="font-size:11px;">Max Lat: <input id="gfMaxLat" type="number" step="any" placeholder="31.0" style="width:70px; padding:4px;"></label>
+        <label style="font-size:11px;">Min Lon: <input id="gfMinLon" type="number" step="any" placeholder="77.0" style="width:70px; padding:4px;"></label>
+        <label style="font-size:11px;">Max Lon: <input id="gfMaxLon" type="number" step="any" placeholder="78.0" style="width:70px; padding:4px;"></label>
         <button type="button" onclick="renderSpatialMapWithGeofence(event)" style="background:#2980b9; color:white; padding:4px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">Apply Boundary</button>
       </div>
     </details>
 
     <!-- 2. CUSTOM MAP OVERLAY ACCORDION PANEL -->
-    <details style="margin-top:6px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
-      <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary);">🖼️ Upload Custom Image Overlay (PNG/JPG)</summary>
+    <details style="margin-top:6px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border, #ccc);">
+      <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary, #1f3a5f);">🖼️ Upload Custom Image Overlay (PNG/JPG)</summary>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
         <label style="font-size:11px;">Image File: <input id="customMapFile" type="file" accept="image/*" style="font-size:11px; max-width:180px;"></label>
         <label style="font-size:11px;">Min Lat (SW): <input id="ovMinLat" type="number" step="any" placeholder="30.0" style="width:65px; padding:4px;"></label>
@@ -2154,22 +2140,29 @@ if ('serviceWorker' in navigator) {
     </details>
 
     <!-- 3. KML VECTOR OVERLAY ACCORDION PANEL -->
-    <details style="margin-top:6px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
-      <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary);">🌍 KML Map Vector Overlay</summary>
+    <details style="margin-top:6px; background:#f8f9f9; padding:8px 12px; border-radius:6px; border:1px solid var(--border, #ccc);">
+      <summary style="font-weight:bold; font-size:13px; cursor:pointer; color:var(--primary, #1f3a5f);">🌍 KML Map Vector Overlay</summary>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
         <input type="file" id="kmlOverlayFile" accept=".kml" style="font-size:12px; width:220px;">
         <button type="button" onclick="applyKMLOverlay()" style="background:#8e44ad; color:white; width:auto; padding:4px 10px; font-size:11px; margin:0; border:none; border-radius:4px; cursor:pointer;">Overlay KML</button>
-        <button type="button" onclick="removeKMLOverlay()" class="btn-warn" style="width:auto; padding:4px 10px; font-size:11px; margin:0;">Remove KML</button>
+        <button type="button" onclick="removeKMLOverlay()" style="background:#f39c12; color:white; width:auto; padding:4px 10px; font-size:11px; margin:0; border:none; border-radius:4px; cursor:pointer;">Remove KML</button>
       </div>
     </details>
-    
-    <div id="map" style="margin-top:8px;"></div>
-  </div>
-</div>
-<!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Main Application Logic -->
-  <script src="app.js"></script>
-</body>
+    <!-- VECTOR VS STATION DOT TOGGLE BAR -->
+    <div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #eef2f7; border-radius: 6px; margin-top: 8px; margin-bottom: 6px; border: 1px solid #cbd5e1;">
+      <input type="checkbox" id="toggleVectorSymbols" checked onchange="updateMapDisplay()" style="cursor: pointer; width: 16px; height: 16px;">
+      <label for="toggleVectorSymbols" style="font-size: 13px; font-weight: bold; color: #1e293b; cursor: pointer; user-select: none;">
+        📐 Display Vector Symbols <span style="font-weight: normal; color: #64748b;">(Uncheck to display simple Station Dots)</span>
+      </label>
+    </div>
+    <!-- MAP CANVAS -->
+    <div id="map" style="height:420px; margin-top:4px;"></div>
+  </div>
+</div> 
+
+<!-- External Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js?v=1.0.4"></script>
+  </body>
 </html>
