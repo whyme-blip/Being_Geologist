@@ -360,6 +360,10 @@ function closeSpatialMap() {
 function updateMapDisplay() {
   if (!mapInstance || !mapDataGroup) return;
 
+  // Check UI toggle state
+  const vectorCheckbox = document.getElementById('toggleVectorSymbols');
+  const showVectors = vectorCheckbox ? vectorCheckbox.checked : true;
+
   const visibleMapRecords = records.filter(r =>
     (r.projectId || 'PROJ-001') === activeProjectId &&
     r.showOnMap !== false &&
@@ -370,8 +374,6 @@ function updateMapDisplay() {
   mapDataGroup.clearLayers();
   if (visibleMapRecords.length === 0) return;
 
-  // Check if "Display Vector Symbols" checkbox is enabled inside Leaflet Layer Control
-  const showVectors = vectorSymbolsLayer ? mapInstance.hasLayer(vectorSymbolsLayer) : true;
   const routeCoordinates = [];
 
   visibleMapRecords.forEach((r) => {
@@ -382,18 +384,18 @@ function updateMapDisplay() {
 
     let marker;
     if (showVectors) {
-      // Render Strike/Dip or Trend/Plunge Vector Symbols
-      const checkLinear = isLinear(r.type);
+      // 📐 RENDER STRIKE/DIP / TREND/PLUNGE SYMBOLS
+      const checkLinear = isLinear ? isLinear(r.type) : false;
       if (checkLinear || (r.trend && r.plunge && !r.strike)) {
         marker = L.marker(latlng, { icon: getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType) });
       } else {
         marker = L.marker(latlng, { icon: getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding') });
       }
     } else {
-      // Render Station Dots when unchecked
+      // 🔴 RENDER SIMPLE STATION DOTS
       marker = L.circleMarker(latlng, {
         radius: 6,
-        fillColor: getStructureColor(r.type),
+        fillColor: getStructureColor ? getStructureColor(r.type) : '#3498db',
         color: '#ffffff',
         weight: 1.5,
         opacity: 1,
@@ -401,30 +403,13 @@ function updateMapDisplay() {
       });
     }
 
-    const popupHtml = `
-      <div style="font-family: system-ui, sans-serif; font-size: 13px; line-height: 1.4; max-width: 240px;">
-        <div style="font-weight: bold; font-size: 14px; color: #2c3e50; border-bottom: 1px solid #dcdfe6; padding-bottom: 4px; margin-bottom: 6px;">
-          📍 Station: ${escapeHTML(r.locNo || 'N/A')}
-        </div>
-        <div><b>Attitude:</b> ${escapeHTML(r.formatted || r.type || 'N/A')}</div>
-        ${r.unit ? `<div><b>Formation/Unit:</b> ${escapeHTML(r.unit)}</div>` : ''}
-        ${r.lith ? `<div><b>Lithology:</b> ${escapeHTML(r.lith)}</div>` : ''}
-        ${r.sample ? `<div style="margin-top: 4px;"><b>Sample ID:</b> <span style="background: #e1f5fe; color: #0288d1; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${escapeHTML(r.sample)}</span></div>` : ''}
-        ${r.remarks ? `<div style="margin-top: 6px; font-style: italic; background: #f8f9fa; padding: 6px; border-radius: 4px; border: 1px solid #e9ecef;">${escapeHTML(r.remarks)}</div>` : ''}
-      </div>
-    `;
-
+    const popupHtml = `<b>Station ${escapeHTML(r.locNo || '')}</b><br>${escapeHTML(r.formatted || r.type || '')}`;
     marker.bindPopup(popupHtml);
     mapDataGroup.addLayer(marker);
   });
 
   if (routeCoordinates.length > 1) {
-    const routeLine = L.polyline(routeCoordinates, {
-      color: '#e74c3c',
-      weight: 2,
-      dashArray: '5, 7',
-      opacity: 0.65
-    });
+    const routeLine = L.polyline(routeCoordinates, { color: '#e74c3c', weight: 2, dashArray: '5, 7', opacity: 0.65 });
     mapDataGroup.addLayer(routeLine);
   }
 }
