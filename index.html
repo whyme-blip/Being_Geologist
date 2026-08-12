@@ -2149,17 +2149,17 @@ if ('serviceWorker' in navigator) {
       </div>
     </details>
 
-   <!-- VECTOR VS STATION DOT TOGGLE BAR -->
-<div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #eef2f7; border-radius: 6px; margin-top: 8px; margin-bottom: 6px; border: 1px solid #cbd5e1;">
-  <input type="checkbox" id="toggleVectorSymbols" checked onchange="window.updateMapDisplay()" style="cursor: pointer; width: 16px; height: 16px;">
-  <label for="toggleVectorSymbols" style="font-size: 13px; font-weight: bold; color: #1e293b; cursor: pointer; user-select: none;">
-    📐 Display Vector Symbols <span style="font-weight: normal; color: #64748b;">(Uncheck to display simple Station Dots)</span>
-  </label>
-</div>
+    <!-- VECTOR VS STATION DOT TOGGLE BAR -->
+    <div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #eef2f7; border-radius: 6px; margin-top: 8px; margin-bottom: 6px; border: 1px solid #cbd5e1;">
+      <input type="checkbox" id="toggleVectorSymbols" checked onchange="updateMapDisplay()" style="cursor: pointer; width: 16px; height: 16px;">
+      <label for="toggleVectorSymbols" style="font-size: 13px; font-weight: bold; color: #1e293b; cursor: pointer; user-select: none;">
+        📐 Display Vector Symbols <span style="font-weight: normal; color: #64748b;">(Uncheck to display simple Station Dots)</span>
+      </label>
+    </div>
     <!-- MAP CANVAS -->
     <div id="map" style="height:420px; margin-top:4px;"></div>
   </div>
-</div>
+</div> 
 
 <!-- External Scripts -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
