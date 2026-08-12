@@ -277,20 +277,24 @@ function getStructureColor(type) {
 // ==========================================
 // 5. SPATIAL MAP & OVERLAY UTILITIES
 // ==========================================
+// ==========================================
+// SPATIAL MAP & LAYER CONTROL MANAGEMENT
+// ==========================================
 function openSpatialMap() {
   const modal = document.getElementById('mapModal');
   if (modal) modal.style.display = 'block';
 
   setTimeout(() => {
+    // 1. Coordinates check
     const validPoints = records.filter(r => r.lat && r.lon && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon)));
     const firstLat = validPoints.length > 0 ? parseFloat(validPoints[0].lat) : 30.0;
     const firstLon = validPoints.length > 0 ? parseFloat(validPoints[0].lon) : 78.0;
 
-    // 1. Ensure Layer Groups Exist
+    // 2. Instantiate Layer Groups if null
     if (!mapDataGroup) mapDataGroup = L.layerGroup();
     if (!vectorSymbolsLayer) vectorSymbolsLayer = L.layerGroup();
 
-    // 2. Initialize Map if First Time
+    // 3. Initialize Leaflet Map Instance
     if (!mapInstance) {
       mapInstance = L.map('map').setView([firstLat, firstLon], 13);
 
@@ -300,9 +304,9 @@ function openSpatialMap() {
       }).addTo(mapInstance);
 
       mapDataGroup.addTo(mapInstance);
-      vectorSymbolsLayer.addTo(mapInstance); // Active by default
+      vectorSymbolsLayer.addTo(mapInstance); // Active/Checked by default
 
-      // Listen for checkbox toggles in Leaflet Index
+      // Listen for toggle events in the Leaflet Layer Control
       mapInstance.on('overlayadd overlayremove', (e) => {
         if (e.layer === vectorSymbolsLayer) {
           updateMapDisplay();
@@ -312,11 +316,16 @@ function openSpatialMap() {
       mapInstance.invalidateSize();
     }
 
-    // 3. FORCE REBUILD LAYER CONTROL INDEX EVERY TIME MODAL OPENS
-    if (layerControl) {
-      mapInstance.removeControl(layerControl); // Remove old 2-item control
+    // 4. Clear existing Layer Control panel to prevent duplicate controls
+    if (layerControl && mapInstance) {
+      try {
+        mapInstance.removeControl(layerControl);
+      } catch (err) {
+        console.warn('[Leaflet] Clearing old layer control instance');
+      }
     }
 
+    // 5. Define Layer Options
     const baseMaps = {
       "OpenStreetMap (Standard)": osmTileLayer
     };
@@ -326,7 +335,6 @@ function openSpatialMap() {
       "📐 Display Vector Symbols": vectorSymbolsLayer
     };
 
-    // Re-add dynamic overlays if loaded
     if (kmlMapOverlayLayer) {
       overlayMaps["🌍 KML Map Overlay"] = kmlMapOverlayLayer;
     }
@@ -334,7 +342,7 @@ function openSpatialMap() {
       overlayMaps["🗺️ Custom Map Image"] = customOverlayLayer;
     }
 
-    // Create fresh Layer Control with all 3+ items
+    // 6. Assign directly to the global `layerControl` variable
     layerControl = L.control.layers(baseMaps, overlayMaps, { 
       position: 'topright', 
       collapsed: false 
@@ -344,7 +352,6 @@ function openSpatialMap() {
     updateMapDisplay();
   }, 100);
 }
-
 function closeSpatialMap() {
   const modal = document.getElementById('mapModal');
   if (modal) modal.style.display = 'none';
@@ -363,8 +370,8 @@ function updateMapDisplay() {
   mapDataGroup.clearLayers();
   if (visibleMapRecords.length === 0) return;
 
-  // Check if "Display Vector Symbols" checkbox in Leaflet's Index is checked
-  const showVectors = mapInstance.hasLayer(vectorSymbolsLayer);
+  // Check if "Display Vector Symbols" checkbox is enabled inside Leaflet Layer Control
+  const showVectors = vectorSymbolsLayer ? mapInstance.hasLayer(vectorSymbolsLayer) : true;
   const routeCoordinates = [];
 
   visibleMapRecords.forEach((r) => {
@@ -375,7 +382,7 @@ function updateMapDisplay() {
 
     let marker;
     if (showVectors) {
-      // Draw Strike/Dip or Trend/Plunge SVG structural symbols
+      // Render Strike/Dip or Trend/Plunge Vector Symbols
       const checkLinear = isLinear(r.type);
       if (checkLinear || (r.trend && r.plunge && !r.strike)) {
         marker = L.marker(latlng, { icon: getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType) });
@@ -383,7 +390,7 @@ function updateMapDisplay() {
         marker = L.marker(latlng, { icon: getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding') });
       }
     } else {
-      // Draw simple Station Dots when unchecked
+      // Render Station Dots when unchecked
       marker = L.circleMarker(latlng, {
         radius: 6,
         fillColor: getStructureColor(r.type),
