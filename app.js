@@ -360,10 +360,14 @@ function closeSpatialMap() {
 function updateMapDisplay() {
   if (!mapInstance || !mapDataGroup) return;
 
-  // Check UI toggle state
+  // 1. Clear existing station markers from map
+  mapDataGroup.clearLayers();
+
+  // 2. Read state of the UI checkbox
   const vectorCheckbox = document.getElementById('toggleVectorSymbols');
   const showVectors = vectorCheckbox ? vectorCheckbox.checked : true;
 
+  // 3. Filter active records with valid coordinates
   const visibleMapRecords = records.filter(r =>
     (r.projectId || 'PROJ-001') === activeProjectId &&
     r.showOnMap !== false &&
@@ -371,7 +375,6 @@ function updateMapDisplay() {
     !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lon))
   );
 
-  mapDataGroup.clearLayers();
   if (visibleMapRecords.length === 0) return;
 
   const routeCoordinates = [];
@@ -383,33 +386,56 @@ function updateMapDisplay() {
     routeCoordinates.push(latlng);
 
     let marker;
+
     if (showVectors) {
-      // 📐 RENDER STRIKE/DIP / TREND/PLUNGE SYMBOLS
-      const checkLinear = isLinear ? isLinear(r.type) : false;
+      // 📐 VECTOR SYMBOL MODE (Strike/Dip or Trend/Plunge)
+      const checkLinear = (typeof isLinear === 'function') ? isLinear(r.type) : false;
       if (checkLinear || (r.trend && r.plunge && !r.strike)) {
-        marker = L.marker(latlng, { icon: getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType) });
+        marker = L.marker(latlng, { 
+          icon: getLinearSvgIcon(r.trend || r.linTrend, r.plunge || r.linPlunge, r.type || r.linType) 
+        });
       } else {
-        marker = L.marker(latlng, { icon: getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding') });
+        marker = L.marker(latlng, { 
+          icon: getPlanarSvgIcon(r.strike, r.dip, r.type || 'Bedding') 
+        });
       }
     } else {
-      // 🔴 RENDER SIMPLE STATION DOTS
+      // 🔴 STATION DOT MODE (Simple Circle Marker)
+      const dotColor = (typeof getStructureColor === 'function') ? getStructureColor(r.type) : '#e74c3c';
       marker = L.circleMarker(latlng, {
-        radius: 6,
-        fillColor: getStructureColor ? getStructureColor(r.type) : '#3498db',
+        radius: 7,
+        fillColor: dotColor,
         color: '#ffffff',
-        weight: 1.5,
+        weight: 2,
         opacity: 1,
         fillOpacity: 0.9
       });
     }
 
-    const popupHtml = `<b>Station ${escapeHTML(r.locNo || '')}</b><br>${escapeHTML(r.formatted || r.type || '')}`;
+    // Popup information
+    const popupHtml = `
+      <div style="font-family: system-ui, sans-serif; font-size: 13px; line-height: 1.4; max-width: 220px;">
+        <div style="font-weight: bold; font-size: 14px; color: #1f3a5f; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 6px;">
+          📍 Station: ${escapeHTML(r.locNo || 'N/A')}
+        </div>
+        <div><b>Attitude:</b> ${escapeHTML(r.formatted || r.type || 'N/A')}</div>
+        ${r.unit ? `<div><b>Unit:</b> ${escapeHTML(r.unit)}</div>` : ''}
+        ${r.lith ? `<div><b>Lithology:</b> ${escapeHTML(r.lith)}</div>` : ''}
+      </div>
+    `;
+
     marker.bindPopup(popupHtml);
     mapDataGroup.addLayer(marker);
   });
 
+  // 4. Draw dashed traverse route line between points
   if (routeCoordinates.length > 1) {
-    const routeLine = L.polyline(routeCoordinates, { color: '#e74c3c', weight: 2, dashArray: '5, 7', opacity: 0.65 });
+    const routeLine = L.polyline(routeCoordinates, {
+      color: '#e74c3c',
+      weight: 2,
+      dashArray: '5, 7',
+      opacity: 0.65
+    });
     mapDataGroup.addLayer(routeLine);
   }
 }
